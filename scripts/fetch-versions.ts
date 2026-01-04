@@ -126,7 +126,7 @@ async function downloadAndChecksum(url: string): Promise<string> {
 /**
  * Parse versions.properties file
  */
-async function parseVersionsFile(filePath: string): Promise<VersionsMap> {
+export async function parseVersionsFile(filePath: string): Promise<VersionsMap> {
   const content = await readFile(filePath, 'utf-8');
   const versions: VersionsMap = {};
 
@@ -143,6 +143,12 @@ async function parseVersionsFile(filePath: string): Promise<VersionsMap> {
 
     const key = trimmed.slice(0, equalsIndex).trim();
     const value = trimmed.slice(equalsIndex + 1).trim();
+
+    // Skip empty keys
+    if (!key) {
+      continue;
+    }
+
     versions[key] = value;
   }
 
@@ -224,7 +230,7 @@ async function fetchGitHubLatest(
 /**
  * Compare semantic versions (returns positive if v1 > v2, negative if v1 < v2, 0 if equal)
  */
-function compareVersions(v1: string, v2: string): number {
+export function compareVersions(v1: string, v2: string): number {
   // Remove common prefixes
   const clean1 = v1.replace(/^(v|n|nasm-|openssl-)/, '');
   const clean2 = v2.replace(/^(v|n|nasm-|openssl-)/, '');

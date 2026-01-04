@@ -16,7 +16,8 @@
     "fetch-versions:write": "tsx scripts/fetch-versions.ts --write",
     "generate-config": "tsx scripts/generate-build-config.ts",
     "generate-docs": "tsx scripts/generate-docs.ts",
-    "validate-docs": "tsx scripts/validate-docs.ts"
+    "validate-docs": "tsx scripts/validate-docs.ts",
+    "test": "node --test scripts/*.test.ts"
   },
   "repository": {
     "type": "git",
