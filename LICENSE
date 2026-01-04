@@ -1,15 +1,3 @@
-FFmpeg Prebuilds
-Copyright (C) 2026 Pedro Proença
-
-This package contains pre-compiled FFmpeg binaries with static libraries.
-Due to the inclusion of GPL-licensed codecs (x264, x265), this distribution
-is licensed under the GNU General Public License version 2 or later.
-
-See THIRD-PARTY-NOTICES.md for complete licensing information about all
-bundled dependencies.
-
-================================================================================
-
                     GNU GENERAL PUBLIC LICENSE
                        Version 2, June 1991
 
