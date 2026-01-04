@@ -201,6 +201,74 @@ echo "Total artifact size:"
 du -sh "$ARTIFACT_DIR"
 
 #=============================================================================
+# Binary Size Validation
+#=============================================================================
+if [[ -n "$FFMPEG_BIN" ]]; then
+  echo ""
+  echo "=== Binary Size Validation ==="
+
+  FFMPEG_SIZE=$(stat -f%z "$FFMPEG_BIN" 2>/dev/null || stat -c%s "$FFMPEG_BIN" 2>/dev/null)
+  FFMPEG_SIZE_MB=$((FFMPEG_SIZE / 1024 / 1024))
+
+  echo "ffmpeg binary size: ${FFMPEG_SIZE_MB}MB"
+
+  # Expected ranges (full build):
+  # macOS/Linux x64: 75-90 MB
+  # Linux musl: 75-85 MB
+  # ARM64: 70-85 MB
+  # ARMv7: 65-80 MB
+
+  if [[ $FFMPEG_SIZE_MB -lt 50 ]]; then
+    echo "⚠  Binary size unusually small (< 50MB) - may be incomplete build"
+  elif [[ $FFMPEG_SIZE_MB -gt 100 ]]; then
+    echo "⚠  Binary size large (> 100MB) - debug symbols enabled?"
+  else
+    echo "✓ Binary size within expected range (50-100MB)"
+  fi
+fi
+
+#=============================================================================
+# Codec Availability Check
+#=============================================================================
+if [[ -n "$FFMPEG_BIN" ]]; then
+  echo ""
+  echo "=== Codec Availability ==="
+
+  # Core codecs expected in all builds
+  CORE_CODECS=("libx264" "libx265" "libvpx" "libaom" "libsvtav1" "libopus" "libmp3lame")
+  CODEC_FAILURES=0
+
+  for codec in "${CORE_CODECS[@]}"; do
+    if "$FFMPEG_BIN" -hide_banner -encoders 2>/dev/null | grep -q "$codec"; then
+      echo "✓ $codec encoder available"
+    else
+      echo "✗ $codec encoder NOT FOUND"
+      CODEC_FAILURES=$((CODEC_FAILURES + 1))
+    fi
+  done
+
+  if [[ $CODEC_FAILURES -gt 0 ]]; then
+    echo "⚠  Warning: $CODEC_FAILURES core codec(s) missing"
+  fi
+
+  # Check for subtitle rendering support
+  echo ""
+  echo "=== Feature Availability ==="
+  if "$FFMPEG_BIN" -hide_banner -filters 2>/dev/null | grep -q "ass"; then
+    echo "✓ Subtitle rendering (libass) available"
+  else
+    echo "ℹ  Subtitle rendering not available"
+  fi
+
+  # Check for network protocols
+  if "$FFMPEG_BIN" -hide_banner -protocols 2>/dev/null | grep -q "http"; then
+    echo "✓ Network protocols enabled"
+  else
+    echo "ℹ  Network protocols disabled (expected)"
+  fi
+fi
+
+#=============================================================================
 # Version Check
 #=============================================================================
 if [[ -n "$FFMPEG_BIN" ]]; then
