@@ -29,7 +29,7 @@ jobs:
 
       - name: Check for updates
         id: check
-        run: npm run fetch-versions:write
+        run: npm run versions:write
 
       - name: Create Pull Request
         if: steps.check.outputs.updates_available == 'true'

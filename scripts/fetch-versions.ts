@@ -10,11 +10,19 @@
  *   tsx scripts/fetch-versions.ts --write  # Update versions.properties
  */
 
-import {readFile, writeFile, mkdtemp, rm} from 'node:fs/promises';
+import {mkdtemp, rm} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {join, dirname} from 'node:path';
 import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
+import {
+  parseVersionsFile,
+  updateVersionsFile,
+  compareVersions,
+  isPrereleaseTag,
+  selectLatestStableTag,
+  VersionsMap,
+} from './lib/versions.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -41,9 +49,8 @@ interface UpdateResult {
   error?: string;
 }
 
-interface VersionsMap {
-  [key: string]: string;
-}
+// Re-export for tests
+export {parseVersionsFile, compareVersions, isPrereleaseTag, selectLatestStableTag};
 
 // ============================================================================
 // Constants
@@ -53,8 +60,6 @@ const VERSIONS_FILE = join(__dirname, '..', 'versions.properties');
 const USER_AGENT = 'ffmpeg-prebuilds-version-fetcher/1.0';
 const TAGS_PAGE_SIZE = 100;
 const MAX_TAG_PAGES = 2;
-const VERSION_PREFIX_PATTERN = /^(v|n|nasm-|openssl-)/;
-const NUMERIC_VERSION_PATTERN = /^[0-9]+(?:[.-][0-9]+)*$/;
 const SEMVER_TAG = /^v[0-9]+(?:\.[0-9]+)*$/;
 const SEMVER_NO_PREFIX_TAG = /^[0-9]+(?:\.[0-9]+)*$/;
 const FFMPEG_TAG = /^n[0-9]+(?:\.[0-9]+){1,2}$/;
@@ -132,110 +137,6 @@ async function downloadAndChecksum(url: string): Promise<string> {
   return hash.digest('hex');
 }
 
-function stripVersionPrefix(value: string): string {
-  return value.replace(VERSION_PREFIX_PATTERN, '');
-}
-
-/**
- * Returns true when a tag contains non-numeric suffixes (rc, beta, etc.).
- */
-export function isPrereleaseTag(tag: string): boolean {
-  const stripped = stripVersionPrefix(tag);
-  return !NUMERIC_VERSION_PATTERN.test(stripped);
-}
-
-/**
- * Select the latest stable tag from a list.
- */
-export function selectLatestStableTag(tags: string[], tagPattern: RegExp): string {
-  const matching = tags.filter(
-    (tag) => tagPattern.test(tag) && !isPrereleaseTag(tag),
-  );
-
-  if (matching.length === 0) {
-    throw new Error(`No stable tags found matching ${tagPattern}`);
-  }
-
-  const sorted = [...matching].sort((a, b) => compareVersions(b, a));
-  return sorted[0];
-}
-
-/**
- * Parse versions.properties file
- */
-export async function parseVersionsFile(filePath: string): Promise<VersionsMap> {
-  const content = await readFile(filePath, 'utf-8');
-  const versions: VersionsMap = {};
-
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) {
-      continue;
-    }
-
-    const equalsIndex = trimmed.indexOf('=');
-    if (equalsIndex === -1) {
-      continue;
-    }
-
-    const key = trimmed.slice(0, equalsIndex).trim();
-    const value = trimmed.slice(equalsIndex + 1).trim();
-
-    // Skip empty keys
-    if (!key) {
-      continue;
-    }
-
-    versions[key] = value;
-  }
-
-  return versions;
-}
-
-/**
- * Update versions.properties file while preserving structure
- */
-async function updateVersionsFile(
-  filePath: string,
-  updates: VersionsMap,
-): Promise<void> {
-  const content = await readFile(filePath, 'utf-8');
-  const lines = content.split('\n');
-
-  // Update timestamp
-  const now = new Date();
-  const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Update timestamp line
-    if (line.startsWith('# Updated:')) {
-      lines[i] = `# Updated: ${timestamp}`;
-      continue;
-    }
-
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) {
-      continue;
-    }
-
-    const equalsIndex = trimmed.indexOf('=');
-    if (equalsIndex === -1) {
-      continue;
-    }
-
-    const key = trimmed.slice(0, equalsIndex).trim();
-    if (key in updates) {
-      // Preserve indentation
-      const indent = line.match(/^\s*/)?.[0] || '';
-      lines[i] = `${indent}${key}=${updates[key]}`;
-    }
-  }
-
-  await writeFile(filePath, lines.join('\n'), 'utf-8');
-}
-
 // ============================================================================
 // Version Fetchers
 // ============================================================================
@@ -270,31 +171,6 @@ async function fetchGitHubLatest(
   }
 
   return selectLatestStableTag(tags, tagPattern);
-}
-
-/**
- * Compare semantic versions (returns positive if v1 > v2, negative if v1 < v2, 0 if equal)
- */
-export function compareVersions(v1: string, v2: string): number {
-  // Remove common prefixes
-  const clean1 = stripVersionPrefix(v1);
-  const clean2 = stripVersionPrefix(v2);
-
-  // Split into parts
-  const parts1 = clean1.split(/[.-]/).map((p) => parseInt(p, 10) || 0);
-  const parts2 = clean2.split(/[.-]/).map((p) => parseInt(p, 10) || 0);
-
-  // Compare each part
-  const maxLength = Math.max(parts1.length, parts2.length);
-  for (let i = 0; i < maxLength; i++) {
-    const p1 = parts1[i] || 0;
-    const p2 = parts2[i] || 0;
-    if (p1 !== p2) {
-      return p1 - p2;
-    }
-  }
-
-  return 0;
 }
 
 /**

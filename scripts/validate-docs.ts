@@ -13,39 +13,12 @@
 import {readFileSync} from 'node:fs';
 import {join, dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {PLATFORMS, DEPRECATED_PLATFORMS} from './lib/platforms.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 let hasErrors = false;
-
-/**
- * Parse PLATFORMS array from package-npm.ts
- */
-function parsePlatformsFromPackageNpm(): Array<{name: string; hwAccel?: string}> {
-  const packageNpmPath = join(__dirname, 'package-npm.ts');
-  const content = readFileSync(packageNpmPath, 'utf-8');
-
-  const platformsMatch = content.match(/const PLATFORMS: Platform\[\] = \[([\s\S]*?)\];/);
-  if (!platformsMatch) {
-    throw new Error('Could not find PLATFORMS array in package-npm.ts');
-  }
-
-  const platformsArrayStr = platformsMatch[1];
-  const platformRegex = /\{\s*name:\s*'([^']+)'[\s\S]*?(?:hwAccel:\s*'([^']+)')?[\s\S]*?\}/g;
-
-  const platforms: Array<{name: string; hwAccel?: string}> = [];
-  let match: RegExpExecArray | null;
-
-  while ((match = platformRegex.exec(platformsArrayStr)) !== null) {
-    platforms.push({
-      name: match[1],
-      hwAccel: match[2],
-    });
-  }
-
-  return platforms;
-}
 
 /**
  * Load codec information from full.json preset
@@ -114,10 +87,10 @@ function validatePlatformTables(): void {
   const readme = readFileSync(join(__dirname, '..', 'README.md'), 'utf-8');
   const hardware = readFileSync(join(__dirname, '..', 'HARDWARE.md'), 'utf-8');
 
-  const platforms = parsePlatformsFromPackageNpm();
-
   // Check that all non-deprecated platforms are mentioned
-  const activePlatforms = platforms.filter((p) => !['darwin-x64', 'darwin-arm64'].includes(p.name));
+  const activePlatforms = PLATFORMS.filter(
+    (p) => !DEPRECATED_PLATFORMS.includes(p.name as typeof DEPRECATED_PLATFORMS[number])
+  );
 
   for (const platform of activePlatforms) {
     const pkgName = `@pproenca/ffmpeg-${platform.name}`;
@@ -206,7 +179,7 @@ function main(): void {
 
     if (hasErrors) {
       console.error('\n❌ Documentation validation failed');
-      console.error('\nTo fix: npm run generate-docs');
+      console.error('\nTo fix: npm run gen');
       process.exit(1);
     }
 

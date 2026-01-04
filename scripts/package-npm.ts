@@ -10,35 +10,7 @@
 import {copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync} from 'node:fs';
 import {join, resolve} from 'node:path';
 import {execFileSync} from 'node:child_process';
-
-interface Platform {
-  name: string;
-  os: string;
-  cpu: string;
-  libc?: 'glibc' | 'musl';
-  hwAccel?: string; // Hardware acceleration variant
-}
-
-const PLATFORMS: Platform[] = [
-  // macOS platform - universal binary (x64 + arm64)
-  // Note: VideoToolbox is always enabled in darwin builds
-  { name: 'darwin', os: 'darwin', cpu: 'x64' },
-  // Deprecated platforms (for backwards compatibility)
-  { name: 'darwin-x64', os: 'darwin', cpu: 'x64' }, // Deprecated - use darwin
-  { name: 'darwin-arm64', os: 'darwin', cpu: 'arm64' }, // Deprecated - use darwin
-  // Linux platforms
-  { name: 'linux-x64-glibc', os: 'linux', cpu: 'x64', libc: 'glibc' },
-  { name: 'linux-x64-musl', os: 'linux', cpu: 'x64', libc: 'musl' },
-  { name: 'linux-arm64-glibc', os: 'linux', cpu: 'arm64', libc: 'glibc' },
-  { name: 'linux-arm64-musl', os: 'linux', cpu: 'arm64', libc: 'musl' },
-  { name: 'linux-armv7-glibc', os: 'linux', cpu: 'arm', libc: 'glibc' },
-  // Linux hardware acceleration variants
-  { name: 'linux-x64-glibc-vaapi', os: 'linux', cpu: 'x64', libc: 'glibc', hwAccel: 'VA-API' },
-  { name: 'linux-x64-glibc-nvenc', os: 'linux', cpu: 'x64', libc: 'glibc', hwAccel: 'NVENC' },
-  // Windows platforms
-  { name: 'windows-x64', os: 'win32', cpu: 'x64' },
-  { name: 'windows-x64-dxva2', os: 'win32', cpu: 'x64', hwAccel: 'DXVA2' },
-];
+import {PLATFORMS, Platform} from './lib/platforms.ts';
 
 const PROJECT_ROOT = resolve(__dirname, '..');
 const ARTIFACTS_DIR = join(PROJECT_ROOT, 'artifacts');

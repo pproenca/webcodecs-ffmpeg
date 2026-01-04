@@ -2,6 +2,19 @@
 
 Utility scripts for FFmpeg prebuilds repository.
 
+## Commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run test` | Run tests |
+| `npm run check` | Run all checks |
+| `npm run check:docs` | Validate documentation |
+| `npm run gen` | Generate all (docs + config) |
+| `npm run gen:docs` | Generate documentation |
+| `npm run gen:config` | Generate build config |
+| `npm run versions` | Check for dependency updates (dry-run) |
+| `npm run versions:write` | Apply dependency updates |
+
 ## Dependency Update Automation
 
 ### `fetch-versions.ts`
@@ -13,10 +26,10 @@ Checks for new versions of FFmpeg and codec dependencies and updates
 
 ```bash
 # Check for updates (dry run)
-npm run fetch-versions
+npm run versions
 
 # Updates versions.properties if new versions are available
-npm run fetch-versions:write
+npm run versions:write
 ```
 
 **What it checks:**

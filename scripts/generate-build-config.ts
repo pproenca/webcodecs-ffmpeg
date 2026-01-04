@@ -14,6 +14,7 @@
 import {readFile, writeFile, access} from 'node:fs/promises';
 import {join, dirname, basename} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {parseVersionsFile as parseVersionsFileRaw} from './lib/versions.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -99,28 +100,14 @@ interface VersionsMap {
 // ============================================================================
 
 /**
- * Parse versions.properties file
+ * Parse versions.properties and extract only _VERSION keys
  */
-async function parseVersionsFile(filePath: string): Promise<VersionsMap> {
+async function parseVersionsForConfig(filePath: string): Promise<VersionsMap> {
   try {
-    const content = await readFile(filePath, 'utf-8');
+    const raw = await parseVersionsFileRaw(filePath);
     const versions: VersionsMap = {};
 
-    for (const line of content.split('\n')) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith('#')) {
-        continue;
-      }
-
-      const equalsIndex = trimmed.indexOf('=');
-      if (equalsIndex === -1) {
-        continue;
-      }
-
-      const key = trimmed.slice(0, equalsIndex).trim();
-      const value = trimmed.slice(equalsIndex + 1).trim();
-
-      // Only store version keys (not URLs or SHA256)
+    for (const [key, value] of Object.entries(raw)) {
       if (key.endsWith('_VERSION')) {
         const simpleName = key.replace('_VERSION', '').toLowerCase();
         versions[simpleName] = value;
@@ -128,8 +115,8 @@ async function parseVersionsFile(filePath: string): Promise<VersionsMap> {
     }
 
     return versions;
-  } catch (error) {
-    console.warn('Warning: Could not parse versions.properties:', error);
+  } catch {
+    console.warn('Warning: Could not parse versions.properties');
     return {};
   }
 }
@@ -232,7 +219,7 @@ async function generateConfig(
 
   // Optionally inject versions
   if (includeVersions) {
-    const versions = await parseVersionsFile(versionsFile);
+    const versions = await parseVersionsForConfig(versionsFile);
     return injectVersions(config, versions);
   }
 
