@@ -58,10 +58,21 @@ Phase 3: Hardware Acceleration [COMPLETED ✅]
   📋 Linux VDPAU variant - LOW PRIORITY (superseded by NVENC, skipped)
   ⬜ Update npm packages for HW variants (pending implementation)
 
-Phase 4: Build System Enhancements [PENDING]
-  ⬜ Build customization system (build-config.json)
-  ⬜ Preset configs (minimal.json, streaming.json, full.json)
-  ⬜ Incremental builds with ccache
+Phase 4: Build System Enhancements [IN PROGRESS ⏳]
+  ✅ Build customization system (build-config.json)
+     - Comprehensive JSON schema with codec/feature/optimization configuration
+     - License control (GPL, version3, nonfree flags)
+     - BUILD-CONFIG.md documentation with examples
+  ✅ Preset configs (minimal.json, streaming.json, full.json)
+     - minimal: H.264/H.265 + Opus/MP3, ~35MB, optimized for size
+     - streaming: Modern web codecs + network, ~55MB, real-time focus
+     - full: All codecs enabled, ~80MB (default configuration)
+  ✅ Incremental builds with ccache
+     - Added ccache to all 6 Dockerfiles (glibc, musl, vaapi, nvenc, windows, dxva2)
+     - Updated build/macos.sh with auto-detection and configuration
+     - CCACHE.md documentation with performance metrics
+     - Expected speedup: 4-10x macOS native, 3-5x Docker builds
+  ⬜ Build script integration (parse configs, conditional codec builds)
   ⬜ ARM64 Linux glibc (linux-arm64-glibc)
   ⬜ ARM64 Linux musl (linux-arm64-musl)
   ⬜ ARMv7 Linux (linux-armv7-glibc)
@@ -84,16 +95,17 @@ Legend:
 Statistics:
   - Total Phases: 5
   - Completed Phases: 3 (Phases 1-3 complete!)
-  - Total Tasks: 35
-  - Completed: 20
-  - In Progress: 0
-  - Remaining: 15
-  - Overall Progress: 57%
+  - Total Tasks: 36 (added build script integration task)
+  - Completed: 23 (build config, presets, ccache)
+  - In Progress: 1 (Phase 4 ongoing)
+  - Remaining: 12
+  - Overall Progress: 64%
 
-Current Focus: Phase 3 Complete - Ready for Phase 4 or Phase 5
+Current Focus: Phase 4 In Progress - Build Customization Complete, ARM Variants Pending
 
 Next Steps:
-  1. Commit Phase 3 hardware acceleration changes
-  2. Test hardware variants (VA-API, NVENC, VideoToolbox, DXVA2)
-  3. Update npm packages for HW variants (Phase 3 remaining task)
-  4. Begin Phase 4 (Build System Enhancements) or Phase 5 (Quality & Automation)
+  1. Complete ARM platform variants (arm64-glibc, arm64-musl, armv7)
+  2. Integrate build-config.json into build scripts (parse config, conditional builds)
+  3. Enhance verification script with codec/feature checks
+  4. Update npm packages for HW variants (Phase 3 carryover)
+  5. Begin Phase 5 (Quality & Automation) after Phase 4 complete
