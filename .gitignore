@@ -25,3 +25,7 @@ npm-debug.log*
 
 # CI
 .github/workflows/*.log
+
+# Planning and design documents
+docs/plans/
+*.draft.md
