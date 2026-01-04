@@ -2,7 +2,7 @@
 /**
  * Fetch Latest Dependency Versions
  *
- * Fetches latest versions from official sources (GitHub, BitBucket, GitLab),
+ * Fetches latest versions from official sources (release feeds, BitBucket),
  * validates SHA256 checksums by downloading tarballs.
  *
  * Usage:
@@ -58,13 +58,16 @@ export {parseVersionsFile, compareVersions, isPrereleaseTag, selectLatestStableT
 
 const VERSIONS_FILE = join(__dirname, '..', 'versions.properties');
 const USER_AGENT = 'ffmpeg-prebuilds-version-fetcher/1.0';
-const TAGS_PAGE_SIZE = 100;
-const MAX_TAG_PAGES = 2;
 const SEMVER_TAG = /^v[0-9]+(?:\.[0-9]+)*$/;
 const SEMVER_NO_PREFIX_TAG = /^[0-9]+(?:\.[0-9]+)*$/;
 const FFMPEG_TAG = /^n[0-9]+(?:\.[0-9]+){1,2}$/;
 const NASM_TAG = /^nasm-[0-9]+(?:\.[0-9]+)*$/;
 const OPENSSL_TAG = /^openssl-3\.[0-9]+(?:\.[0-9]+)?$/;
+const TAGS_PAGE_SIZE = 100;
+const MAX_TAG_PAGES = 2;
+
+// GitHub token for API authentication (avoids rate limits)
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
 
 // ============================================================================
 // Utility Functions
@@ -142,18 +145,25 @@ async function downloadAndChecksum(url: string): Promise<string> {
 // ============================================================================
 
 /**
- * Fetch latest version from GitHub tags
+ * Fetch latest version from GitHub tags API with optional authentication
  */
 async function fetchGitHubLatest(
   repo: string,
   tagPattern: RegExp,
 ): Promise<string> {
   const tags: string[] = [];
+  const headers: Record<string, string> = {};
+
+  // Use GitHub token if available to avoid rate limits
+  if (GITHUB_TOKEN) {
+    headers['Authorization'] = `Bearer ${GITHUB_TOKEN}`;
+  }
+
   for (let page = 1; page <= MAX_TAG_PAGES; page++) {
     const url =
       `https://api.github.com/repos/${repo}` +
       `/tags?per_page=${TAGS_PAGE_SIZE}&page=${page}`;
-    const response = await fetchWithRetry(url);
+    const response = await fetchWithRetry(url, {headers});
 
     if (!response.ok) {
       throw new Error(`GitHub API error: ${response.status}`);
@@ -174,23 +184,36 @@ async function fetchGitHubLatest(
 }
 
 /**
- * Fetch latest version from BitBucket tags
+ * Fetch latest version from BitBucket tags (with pagination)
  */
 async function fetchBitBucketLatest(
   repo: string,
   tagPattern: RegExp,
 ): Promise<string> {
-  const url = `https://api.bitbucket.org/2.0/repositories/${repo}/refs/tags`;
-  const response = await fetchWithRetry(url);
+  const allTags: string[] = [];
+  let nextUrl: string | null =
+    `https://api.bitbucket.org/2.0/repositories/${repo}/refs/tags?pagelen=100`;
 
-  if (!response.ok) {
-    throw new Error(`BitBucket API error: ${response.status}`);
+  // Fetch all pages (BitBucket returns oldest first, so we need all pages)
+  while (nextUrl) {
+    const response = await fetchWithRetry(nextUrl);
+
+    if (!response.ok) {
+      throw new Error(`BitBucket API error: ${response.status}`);
+    }
+
+    const data = (await response.json()) as {
+      values: Array<{name: string}>;
+      next?: string;
+    };
+
+    allTags.push(...data.values.map((tag) => tag.name));
+    nextUrl = data.next || null;
   }
 
-  const data = (await response.json()) as {values: Array<{name: string}>};
-  const matching = data.values
-    .map((tag) => tag.name)
-    .filter((tag) => tagPattern.test(tag) && !isPrereleaseTag(tag));
+  const matching = allTags.filter(
+    (tag) => tagPattern.test(tag) && !isPrereleaseTag(tag),
+  );
 
   if (matching.length === 0) {
     throw new Error(`No matching tags found for ${repo}`);
@@ -203,15 +226,15 @@ async function fetchBitBucketLatest(
 }
 
 /**
- * Fetch latest version from GitLab tags
+ * Fetch latest version from GitLab tags API
  */
 async function fetchGitLabLatest(
   host: string,
-  projectId: string,
+  projectPath: string,
   tagPattern: RegExp,
 ): Promise<string> {
   const url =
-    `https://${host}/api/v4/projects/${encodeURIComponent(projectId)}` +
+    `https://${host}/api/v4/projects/${encodeURIComponent(projectPath)}` +
     `/repository/tags?per_page=${TAGS_PAGE_SIZE}`;
   const response = await fetchWithRetry(url);
 
@@ -234,7 +257,7 @@ const DEPENDENCIES: DependencyVersion[] = [
     name: 'FFmpeg',
     versionKey: 'FFMPEG_VERSION',
     fetchLatest: async () => {
-      // Fetch tags and filter out dev/rc versions
+      // Fetch releases and filter out dev/rc versions
       const tag = await fetchGitHubLatest('FFmpeg/FFmpeg', FFMPEG_TAG);
       return tag;
     },
@@ -274,7 +297,7 @@ const DEPENDENCIES: DependencyVersion[] = [
     name: 'SVT-AV1',
     versionKey: 'SVTAV1_VERSION',
     fetchLatest: async () => {
-      // SVT-AV1 is on GitLab, fallback to current version if API fails
+      // SVT-AV1 is on GitLab, fallback to current version if feed/API fails
       try {
         return await fetchGitLabLatest(
           'gitlab.com',
@@ -292,7 +315,7 @@ const DEPENDENCIES: DependencyVersion[] = [
     urlKey: 'DAV1D_URL',
     sha256Key: 'DAV1D_SHA256',
     fetchLatest: async () => {
-      // dav1d on VideoLAN GitLab
+      // dav1d on VideoLAN GitLab releases feed
       try {
         return await fetchGitLabLatest(
           'code.videolan.org',
@@ -304,7 +327,7 @@ const DEPENDENCIES: DependencyVersion[] = [
       }
     },
     downloadUrl: (v) =>
-      `https://code.videolan.org/videolan/dav1d/-/archive/${v}/dav1d-${v}.tar.gz`,
+      `https://downloads.videolan.org/pub/videolan/dav1d/${v}/dav1d-${v}.tar.xz`,
   },
   {
     name: 'rav1e',

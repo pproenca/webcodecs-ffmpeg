@@ -16,7 +16,8 @@ export interface VersionMetadata {
   ffmpegVersion: string;
 }
 
-const VERSION_PREFIX_PATTERN = /^(v|n|nasm-|openssl-)/;
+// Longer prefixes must come first to avoid partial matches (e.g., "n" matching before "nasm-")
+const VERSION_PREFIX_PATTERN = /^(nasm-|openssl-|v|n)/;
 const NUMERIC_VERSION_PATTERN = /^[0-9]+(?:[.-][0-9]+)*$/;
 
 function stripVersionPrefix(value: string): string {

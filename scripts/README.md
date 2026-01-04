@@ -36,27 +36,27 @@ npm run versions:write
 
 | Dependency | Upstream Source |
 |------------|----------------|
-| FFmpeg | https://github.com/FFmpeg/FFmpeg/tags |
+| FFmpeg | https://github.com/FFmpeg/FFmpeg/releases.atom |
 | x264 | https://code.videolan.org/videolan/x264 (stable branch) |
 | x265 | https://bitbucket.org/multicoreware/x265_git/tags |
-| libvpx | https://github.com/webmproject/libvpx/tags |
-| libaom | https://github.com/jbeich/aom/tags |
-| SVT-AV1 | https://gitlab.com/AOMediaCodec/SVT-AV1/tags |
-| dav1d | https://code.videolan.org/videolan/dav1d/-/tags |
-| rav1e | https://github.com/xiph/rav1e/tags |
+| libvpx | https://github.com/webmproject/libvpx/releases.atom |
+| libaom | https://github.com/jbeich/aom/releases.atom |
+| SVT-AV1 | https://gitlab.com/AOMediaCodec/SVT-AV1/-/releases.atom |
+| dav1d | https://code.videolan.org/videolan/dav1d/-/releases.atom |
+| rav1e | https://github.com/xiph/rav1e/releases.atom |
 | Theora | https://ftp.osuosl.org/pub/xiph/releases/theora/ |
 | Xvid | https://downloads.xvid.com/downloads/ |
-| Opus | https://github.com/xiph/opus/tags |
+| Opus | https://github.com/xiph/opus/releases.atom |
 | LAME | 3.100 (stable) |
 | Vorbis | https://ftp.osuosl.org/pub/xiph/releases/vorbis/ |
 | Ogg | https://ftp.osuosl.org/pub/xiph/releases/ogg/ |
-| fdk-aac | https://github.com/mstorsjo/fdk-aac/tags |
+| fdk-aac | https://github.com/mstorsjo/fdk-aac/releases.atom |
 | FLAC | https://ftp.osuosl.org/pub/xiph/releases/flac/ |
 | Speex | https://ftp.osuosl.org/pub/xiph/releases/speex/ |
-| libass | https://github.com/libass/libass/releases |
+| libass | https://github.com/libass/libass/releases.atom |
 | FreeType | https://download.savannah.gnu.org/releases/freetype/ |
-| NASM | https://github.com/netwide-assembler/nasm/tags |
-| OpenSSL | https://github.com/openssl/openssl/tags |
+| NASM | https://github.com/netwide-assembler/nasm/releases.atom |
+| OpenSSL | https://github.com/openssl/openssl/releases.atom |
 
 **Stability rules:**
 
