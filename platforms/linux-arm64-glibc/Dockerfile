@@ -45,26 +45,26 @@ ARG FREETYPE_SHA256
 # Prevent interactive prompts during apt-get
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install build dependencies (including ccache for faster incremental builds)
+# Install build dependencies (sorted alphabetically)
 # Note: NASM/YASM omitted - these are x86 assemblers, not used on ARM
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    git \
-    cmake \
-    pkg-config \
     autoconf \
     automake \
+    bash \
+    build-essential \
+    ca-certificates \
+    ccache \
+    cmake \
+    coreutils \
+    curl \
+    diffutils \
+    git \
     libtool \
     linux-libc-dev \
     perl \
-    diffutils \
-    coreutils \
-    bash \
+    pkg-config \
     wget \
-    curl \
-    ca-certificates \
     zlib1g-dev \
-    ccache \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up build environment

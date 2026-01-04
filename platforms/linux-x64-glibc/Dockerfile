@@ -47,27 +47,27 @@ ARG FFMPEG_VERSION=n8.0
 # Prevent interactive prompts during apt-get
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install build dependencies (including ccache for faster incremental builds)
+# Install build dependencies (sorted alphabetically)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    git \
-    cmake \
-    nasm \
-    yasm \
-    pkg-config \
     autoconf \
     automake \
+    bash \
+    build-essential \
+    ca-certificates \
+    ccache \
+    cmake \
+    coreutils \
+    curl \
+    diffutils \
+    git \
     libtool \
     linux-libc-dev \
+    nasm \
     perl \
-    diffutils \
-    coreutils \
-    bash \
+    pkg-config \
     wget \
-    curl \
-    ca-certificates \
+    yasm \
     zlib1g-dev \
-    ccache \
     && rm -rf /var/lib/apt/lists/*
 
 # Set up build environment

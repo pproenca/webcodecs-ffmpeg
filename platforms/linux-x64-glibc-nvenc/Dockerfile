@@ -44,26 +44,26 @@ ARG FFMPEG_VERSION=n8.0
 # Prevent interactive prompts during apt-get
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install build dependencies
+# Install build dependencies (sorted alphabetically)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    git \
-    cmake \
-    nasm \
-    yasm \
-    pkg-config \
     autoconf \
     automake \
-    libtool \
-    linux-libc-dev \
-    perl \
-    diffutils \
-    coreutils \
     bash \
-    wget \
-    curl \
+    build-essential \
     ca-certificates \
     ccache \
+    cmake \
+    coreutils \
+    curl \
+    diffutils \
+    git \
+    libtool \
+    linux-libc-dev \
+    nasm \
+    perl \
+    pkg-config \
+    wget \
+    yasm \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 

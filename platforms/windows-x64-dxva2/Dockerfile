@@ -11,7 +11,7 @@
 #   - Windows 7+ (DXVA2 built-in)
 #   - Intel GPU for QuickSync support
 
-FROM ubuntu:24.04
+FROM ubuntu:24.04 AS builder
 
 # hadolint: DL4006 - Ensure pipe failures are caught
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -19,35 +19,32 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install MinGW-w64 toolchain and build dependencies
+# Install MinGW-w64 toolchain and build dependencies (sorted alphabetically)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # MinGW cross-compiler
-    mingw-w64 \
-    mingw-w64-tools \
-    gcc-mingw-w64-x86-64 \
-    g++-mingw-w64-x86-64 \
-    binutils-mingw-w64-x86-64 \
-    # Build tools
-    nasm \
-    yasm \
-    pkg-config \
-    make \
-    cmake \
-    git \
-    wget \
-    curl \
-    tar \
-    gzip \
-    bzip2 \
-    xz-utils \
     autoconf \
     automake \
-    libtool \
-    patch \
-    perl \
-    # Utilities
+    binutils-mingw-w64-x86-64 \
+    bzip2 \
     ca-certificates \
     ccache \
+    cmake \
+    curl \
+    g++-mingw-w64-x86-64 \
+    gcc-mingw-w64-x86-64 \
+    git \
+    gzip \
+    libtool \
+    make \
+    mingw-w64 \
+    mingw-w64-tools \
+    nasm \
+    patch \
+    perl \
+    pkg-config \
+    tar \
+    wget \
+    xz-utils \
+    yasm \
     && rm -rf /var/lib/apt/lists/*
 
 # Build arguments (versions passed from CI)
@@ -417,6 +414,22 @@ RUN file ${TARGET}/bin/ffmpeg.exe && \
     file ${TARGET}/bin/ffprobe.exe && \
     ls -lh ${TARGET}/bin/*.exe
 
-# Final output directory
-WORKDIR ${TARGET}
+# ============================================================================
+# Export stage - minimal image with just the binaries
+# ============================================================================
+FROM scratch AS export
+
+COPY --from=builder /opt/ffmpeg/bin/ffmpeg.exe /ffmpeg.exe
+COPY --from=builder /opt/ffmpeg/bin/ffprobe.exe /ffprobe.exe
+
+# ============================================================================
+# Runtime stage - for docker cp extraction
+# ============================================================================
+FROM ubuntu:24.04 AS runtime
+
+COPY --from=builder /opt/ffmpeg/bin /build/bin
+COPY --from=builder /opt/ffmpeg/lib /build/lib
+COPY --from=builder /opt/ffmpeg/include /build/include
+
+WORKDIR /build
 CMD ["bash"]

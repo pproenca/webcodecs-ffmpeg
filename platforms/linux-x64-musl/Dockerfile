@@ -39,24 +39,24 @@ ARG SPEEX_SHA256
 ARG LIBASS_SHA256
 ARG FREETYPE_SHA256
 
-# Install build dependencies
+# Install build dependencies (sorted alphabetically)
 RUN apk add --no-cache \
-    build-base \
-    git \
-    cmake \
-    nasm \
-    yasm \
-    pkgconfig \
     autoconf \
     automake \
-    libtool \
-    linux-headers \
-    perl \
-    diffutils \
-    coreutils \
     bash \
-    wget \
+    build-base \
+    cmake \
+    coreutils \
     curl \
+    diffutils \
+    git \
+    linux-headers \
+    libtool \
+    nasm \
+    perl \
+    pkgconfig \
+    wget \
+    yasm \
     zlib-dev \
     zlib-static
 

@@ -39,26 +39,26 @@ ARG SPEEX_SHA256
 ARG LIBASS_SHA256
 ARG FREETYPE_SHA256
 
-# Install build dependencies
+# Install build dependencies (sorted alphabetically)
 # Note: NASM/YASM omitted - these are x86 assemblers, not used on ARM
 RUN apk add --no-cache \
-    build-base \
-    git \
-    cmake \
-    pkgconfig \
     autoconf \
     automake \
-    libtool \
-    linux-headers \
-    perl \
-    diffutils \
-    coreutils \
     bash \
-    wget \
+    build-base \
+    ccache \
+    cmake \
+    coreutils \
     curl \
+    diffutils \
+    git \
+    linux-headers \
+    libtool \
+    perl \
+    pkgconfig \
+    wget \
     zlib-dev \
-    zlib-static \
-    ccache
+    zlib-static
 
 # Set up build environment
 ENV PREFIX=/build
