@@ -25,15 +25,11 @@ jobs:
           node-version: '22'
 
       - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq curl git
+        run: npm install
 
       - name: Check for updates
         id: check
-        run: |
-          chmod +x scripts/check-dependency-updates.sh
-          ./scripts/check-dependency-updates.sh
+        run: npm run fetch-versions:write
 
       - name: Create Pull Request
         if: steps.check.outputs.updates_available == 'true'

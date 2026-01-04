@@ -12,6 +12,9 @@
     "build:windows-x64": "build/orchestrator.sh windows-x64",
     "verify": "tsx scripts/verify-build.ts",
     "package": "tsx scripts/package-npm.ts",
+    "fetch-versions": "tsx scripts/fetch-versions.ts",
+    "fetch-versions:write": "tsx scripts/fetch-versions.ts --write",
+    "generate-config": "tsx scripts/generate-build-config.ts",
     "generate-docs": "tsx scripts/generate-docs.ts",
     "validate-docs": "tsx scripts/validate-docs.ts"
   },
