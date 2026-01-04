@@ -33,6 +33,7 @@ RUN apt-get update && apt-get install -y \
     automake \
     libtool \
     patch \
+    perl \
     # Utilities
     ca-certificates \
     ccache \
