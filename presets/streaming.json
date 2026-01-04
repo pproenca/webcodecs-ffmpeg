@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "FFmpeg Build Configuration - Streaming Preset",
+  "description": "Optimized for live streaming and web video. Includes modern web codecs (H.264, H.265, VP9, AV1) with hardware acceleration support and network protocols.",
+  "version": "1.0.0",
+
+  "codecs": {
+    "video": {
+      "h264": {
+        "enabled": true,
+        "library": "libx264",
+        "license": "GPL-2.0-or-later",
+        "description": "H.264/AVC - Most compatible streaming codec",
+        "configure_flag": "--enable-libx264"
+      },
+      "h265": {
+        "enabled": true,
+        "library": "libx265",
+        "license": "GPL-2.0-or-later",
+        "description": "H.265/HEVC - Better compression for streaming",
+        "configure_flag": "--enable-libx265"
+      },
+      "vp8": {
+        "enabled": false,
+        "library": "libvpx",
+        "license": "BSD-3-Clause",
+        "description": "VP8 - Legacy WebM (VP9 preferred)",
+        "configure_flag": "--enable-libvpx"
+      },
+      "vp9": {
+        "enabled": true,
+        "library": "libvpx",
+        "license": "BSD-3-Clause",
+        "description": "VP9 - WebM streaming codec (YouTube, Twitch)",
+        "configure_flag": "--enable-libvpx"
+      },
+      "av1": {
+        "enabled": true,
+        "library": "libaom",
+        "license": "BSD-2-Clause",
+        "description": "AV1 - Next-gen streaming codec (YouTube, Netflix)",
+        "configure_flag": "--enable-libaom"
+      },
+      "svt-av1": {
+        "enabled": true,
+        "library": "libsvtav1",
+        "license": "BSD-2-Clause",
+        "description": "SVT-AV1 - Faster AV1 encoding for live streams",
+        "configure_flag": "--enable-libsvtav1",
+        "build_dependency": "SVT-AV1"
+      },
+      "rav1e": {
+        "enabled": false,
+        "library": "librav1e",
+        "license": "BSD-2-Clause",
+        "description": "rav1e - Rust AV1 encoder",
+        "configure_flag": "--enable-librav1e",
+        "build_dependency": "Rust/Cargo",
+        "notes": "Disabled - slower than SVT-AV1 for streaming"
+      },
+      "theora": {
+        "enabled": false,
+        "library": "libtheora",
+        "license": "BSD-3-Clause",
+        "description": "Theora - Legacy codec, not for streaming",
+        "configure_flag": "--enable-libtheora",
+        "build_dependency": "libtheora"
+      },
+      "xvid": {
+        "enabled": false,
+        "library": "libxvid",
+        "license": "GPL-2.0-or-later",
+        "description": "Xvid - Legacy codec, not for streaming",
+        "configure_flag": "--enable-libxvid",
+        "build_dependency": "xvidcore"
+      }
+    },
+    "audio": {
+      "opus": {
+        "enabled": true,
+        "library": "libopus",
+        "license": "BSD-3-Clause",
+        "description": "Opus - Best streaming audio codec (Discord, WebRTC)",
+        "configure_flag": "--enable-libopus"
+      },
+      "mp3": {
+        "enabled": false,
+        "library": "libmp3lame",
+        "license": "LGPL-2.1-or-later",
+        "description": "MP3 - Legacy, AAC preferred for streaming",
+        "configure_flag": "--enable-libmp3lame"
+      },
+      "aac": {
+        "enabled": true,
+        "library": "native",
+        "license": "LGPL-2.1-or-later",
+        "description": "AAC - Universal streaming audio (HLS, DASH)",
+        "configure_flag": "",
+        "notes": "Built into FFmpeg"
+      },
+      "fdk-aac": {
+        "enabled": true,
+        "library": "libfdk-aac",
+        "license": "Non-free",
+        "description": "fdk-aac - Highest quality AAC for streaming",
+        "configure_flag": "--enable-libfdk-aac --enable-nonfree",
+        "build_dependency": "fdk-aac",
+        "notes": "Better than native AAC for live streams"
+      },
+      "flac": {
+        "enabled": false,
+        "library": "libflac",
+        "license": "BSD-3-Clause",
+        "description": "FLAC - Too large for streaming",
+        "configure_flag": "--enable-libflac",
+        "build_dependency": "flac"
+      },
+      "speex": {
+        "enabled": false,
+        "library": "libspeex",
+        "license": "BSD-3-Clause",
+        "description": "Speex - Obsolete, Opus preferred",
+        "configure_flag": "--enable-libspeex",
+        "build_dependency": "speex"
+      },
+      "vorbis": {
+        "enabled": true,
+        "library": "libvorbis",
+        "license": "BSD-3-Clause",
+        "description": "Vorbis - WebM audio (pairs with VP9)",
+        "configure_flag": "--enable-libvorbis"
+      }
+    }
+  },
+
+  "features": {
+    "subtitle_rendering": {
+      "enabled": true,
+      "description": "Subtitle rendering for streams",
+      "dependencies": ["libass", "libfreetype"],
+      "configure_flags": ["--enable-libass", "--enable-libfreetype"],
+      "impact": "Live caption support"
+    },
+    "network": {
+      "enabled": true,
+      "description": "Network protocols (RTMP, HLS, HTTP)",
+      "configure_flags": ["--enable-protocol=http", "--enable-protocol=https", "--enable-protocol=rtmp"],
+      "impact": "Essential for streaming",
+      "notes": "Required for RTMP push, HLS ingest"
+    },
+    "hwaccel": {
+      "enabled": true,
+      "description": "Hardware acceleration for real-time encoding",
+      "notes": "Use HW variants for production streaming",
+      "configure_flags": []
+    }
+  },
+
+  "optimization": {
+    "size": {
+      "enabled": false,
+      "description": "Optimize for size",
+      "configure_flags": ["--enable-small"],
+      "impact": "Smaller binary, slower encoding"
+    },
+    "speed": {
+      "enabled": true,
+      "description": "Optimize for speed (critical for live streams)",
+      "configure_flags": ["--enable-runtime-cpudetect"],
+      "impact": "Fastest encoding, essential for real-time"
+    },
+    "lto": {
+      "enabled": false,
+      "description": "Link-Time Optimization",
+      "configure_flags": ["--enable-lto"],
+      "impact": "Marginal benefit for streaming workloads"
+    }
+  },
+
+  "build": {
+    "static_linking": {
+      "enabled": true,
+      "description": "Static binaries",
+      "configure_flags": ["--enable-static", "--disable-shared"],
+      "notes": "Required for npm"
+    },
+    "debug_symbols": {
+      "enabled": false,
+      "description": "Debug symbols",
+      "configure_flags": ["--enable-debug=3"],
+      "impact": "Unnecessary for production"
+    },
+    "documentation": {
+      "enabled": false,
+      "description": "Build docs",
+      "configure_flags": [],
+      "notes": "Not included"
+    }
+  },
+
+  "license": {
+    "gpl": {
+      "enabled": true,
+      "description": "Enable GPL components",
+      "configure_flags": ["--enable-gpl"],
+      "impact": "GPL-licensed build",
+      "notes": "Required for x264/x265"
+    },
+    "version3": {
+      "enabled": true,
+      "description": "Enable v3 licenses",
+      "configure_flags": ["--enable-version3"],
+      "notes": "Required"
+    },
+    "nonfree": {
+      "enabled": true,
+      "description": "Enable non-free components",
+      "configure_flags": ["--enable-nonfree"],
+      "impact": "fdk-aac provides best AAC quality",
+      "notes": "Essential for professional streaming"
+    }
+  },
+
+  "metadata": {
+    "preset": "streaming",
+    "description": "Streaming-optimized build - Modern web codecs + network protocols",
+    "use_case": "Live streaming, RTMP ingest, HLS/DASH packaging, real-time transcoding",
+    "binary_size_estimate": "~55MB (varies by platform)",
+    "build_time_estimate": "20-28 minutes"
+  }
+}

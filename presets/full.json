@@ -1,0 +1,233 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "FFmpeg Build Configuration",
+  "description": "Customize which codecs and features are compiled into FFmpeg binaries. This is the default 'full' configuration with all available codecs enabled.",
+  "version": "1.0.0",
+
+  "codecs": {
+    "video": {
+      "h264": {
+        "enabled": true,
+        "library": "libx264",
+        "license": "GPL-2.0-or-later",
+        "description": "H.264/AVC - Most widely supported video codec",
+        "configure_flag": "--enable-libx264"
+      },
+      "h265": {
+        "enabled": true,
+        "library": "libx265",
+        "license": "GPL-2.0-or-later",
+        "description": "H.265/HEVC - Better compression than H.264",
+        "configure_flag": "--enable-libx265"
+      },
+      "vp8": {
+        "enabled": true,
+        "library": "libvpx",
+        "license": "BSD-3-Clause",
+        "description": "VP8 - WebM video codec",
+        "configure_flag": "--enable-libvpx"
+      },
+      "vp9": {
+        "enabled": true,
+        "library": "libvpx",
+        "license": "BSD-3-Clause",
+        "description": "VP9 - Improved WebM codec (shares libvpx with VP8)",
+        "configure_flag": "--enable-libvpx"
+      },
+      "av1": {
+        "enabled": true,
+        "library": "libaom",
+        "license": "BSD-2-Clause",
+        "description": "AV1 - Royalty-free next-gen codec (reference encoder)",
+        "configure_flag": "--enable-libaom"
+      },
+      "svt-av1": {
+        "enabled": true,
+        "library": "libsvtav1",
+        "license": "BSD-2-Clause",
+        "description": "SVT-AV1 - Intel's optimized AV1 encoder (faster than libaom)",
+        "configure_flag": "--enable-libsvtav1",
+        "build_dependency": "SVT-AV1"
+      },
+      "rav1e": {
+        "enabled": false,
+        "library": "librav1e",
+        "license": "BSD-2-Clause",
+        "description": "rav1e - Rust AV1 encoder (requires Cargo toolchain)",
+        "configure_flag": "--enable-librav1e",
+        "build_dependency": "Rust/Cargo",
+        "notes": "Disabled by default - requires Rust toolchain which increases build time significantly"
+      },
+      "theora": {
+        "enabled": true,
+        "library": "libtheora",
+        "license": "BSD-3-Clause",
+        "description": "Theora - Legacy Ogg video codec",
+        "configure_flag": "--enable-libtheora",
+        "build_dependency": "libtheora"
+      },
+      "xvid": {
+        "enabled": true,
+        "library": "libxvid",
+        "license": "GPL-2.0-or-later",
+        "description": "Xvid - MPEG-4 ASP codec",
+        "configure_flag": "--enable-libxvid",
+        "build_dependency": "xvidcore"
+      }
+    },
+    "audio": {
+      "opus": {
+        "enabled": true,
+        "library": "libopus",
+        "license": "BSD-3-Clause",
+        "description": "Opus - Best quality/bitrate for voice and music",
+        "configure_flag": "--enable-libopus"
+      },
+      "mp3": {
+        "enabled": true,
+        "library": "libmp3lame",
+        "license": "LGPL-2.1-or-later",
+        "description": "MP3 - Universal audio codec (LAME encoder)",
+        "configure_flag": "--enable-libmp3lame"
+      },
+      "aac": {
+        "enabled": true,
+        "library": "native",
+        "license": "LGPL-2.1-or-later",
+        "description": "AAC - FFmpeg native encoder",
+        "configure_flag": "",
+        "notes": "Built into FFmpeg, no external library needed"
+      },
+      "fdk-aac": {
+        "enabled": true,
+        "library": "libfdk-aac",
+        "license": "Non-free",
+        "description": "fdk-aac - High-quality AAC encoder (better than native)",
+        "configure_flag": "--enable-libfdk-aac --enable-nonfree",
+        "build_dependency": "fdk-aac",
+        "notes": "Non-free license - may have distribution restrictions"
+      },
+      "flac": {
+        "enabled": true,
+        "library": "libflac",
+        "license": "BSD-3-Clause",
+        "description": "FLAC - Lossless audio compression",
+        "configure_flag": "--enable-libflac",
+        "build_dependency": "flac"
+      },
+      "speex": {
+        "enabled": true,
+        "library": "libspeex",
+        "license": "BSD-3-Clause",
+        "description": "Speex - Speech codec (optimized for voice)",
+        "configure_flag": "--enable-libspeex",
+        "build_dependency": "speex"
+      },
+      "vorbis": {
+        "enabled": true,
+        "library": "libvorbis",
+        "license": "BSD-3-Clause",
+        "description": "Vorbis - Ogg audio codec",
+        "configure_flag": "--enable-libvorbis"
+      }
+    }
+  },
+
+  "features": {
+    "subtitle_rendering": {
+      "enabled": true,
+      "description": "Subtitle rendering with libass and font support",
+      "dependencies": ["libass", "libfreetype"],
+      "configure_flags": ["--enable-libass", "--enable-libfreetype"],
+      "impact": "Adds ~2MB to binary size"
+    },
+    "network": {
+      "enabled": false,
+      "description": "Network protocols (HTTP, RTMP, etc.)",
+      "configure_flags": ["--enable-protocol=http", "--enable-protocol=https", "--enable-protocol=rtmp"],
+      "impact": "Enables streaming input/output",
+      "notes": "Disabled by default for security - enable only if needed"
+    },
+    "hwaccel": {
+      "enabled": false,
+      "description": "Hardware acceleration (platform-specific, handled by separate variants)",
+      "notes": "Use dedicated HW-accelerated variants instead (vaapi, nvenc, videotoolbox, dxva2)",
+      "configure_flags": []
+    }
+  },
+
+  "optimization": {
+    "size": {
+      "enabled": false,
+      "description": "Optimize for binary size (--enable-small)",
+      "configure_flags": ["--enable-small"],
+      "impact": "Reduces binary size by ~15-20%, slight performance loss"
+    },
+    "speed": {
+      "enabled": true,
+      "description": "Optimize for execution speed (default)",
+      "configure_flags": ["--enable-runtime-cpudetect"],
+      "impact": "Best performance, slightly larger binary"
+    },
+    "lto": {
+      "enabled": false,
+      "description": "Link-Time Optimization (slower build, better optimization)",
+      "configure_flags": ["--enable-lto"],
+      "impact": "Adds 10-15 minutes to build time, 5-10% performance improvement",
+      "notes": "Disabled by default due to build time impact"
+    }
+  },
+
+  "build": {
+    "static_linking": {
+      "enabled": true,
+      "description": "Build static binaries (no external dependencies)",
+      "configure_flags": ["--enable-static", "--disable-shared"],
+      "notes": "Required for npm distribution - do not disable"
+    },
+    "debug_symbols": {
+      "enabled": false,
+      "description": "Include debug symbols",
+      "configure_flags": ["--enable-debug=3"],
+      "impact": "Significantly increases binary size (5-10x larger)",
+      "notes": "Only enable for debugging FFmpeg itself"
+    },
+    "documentation": {
+      "enabled": false,
+      "description": "Build FFmpeg documentation",
+      "configure_flags": [],
+      "notes": "Always disabled - docs not included in npm packages"
+    }
+  },
+
+  "license": {
+    "gpl": {
+      "enabled": true,
+      "description": "Enable GPL-licensed components (x264, x265, xvid)",
+      "configure_flags": ["--enable-gpl"],
+      "impact": "Makes entire build GPL-licensed",
+      "notes": "Disable to create LGPL-only build (removes x264, x265, xvid)"
+    },
+    "version3": {
+      "enabled": true,
+      "description": "Enable version 3 licenses (GPL-3.0, LGPL-3.0)",
+      "configure_flags": ["--enable-version3"],
+      "notes": "Required for some codecs"
+    },
+    "nonfree": {
+      "enabled": true,
+      "description": "Enable non-free components (fdk-aac)",
+      "configure_flags": ["--enable-nonfree"],
+      "impact": "May have distribution restrictions",
+      "notes": "Only affects fdk-aac currently"
+    }
+  },
+
+  "metadata": {
+    "preset": "full",
+    "description": "Default full-featured build with all available codecs",
+    "use_case": "General-purpose FFmpeg with maximum codec support",
+    "binary_size_estimate": "~80MB (varies by platform)",
+    "build_time_estimate": "25-35 minutes"
+  }
+}

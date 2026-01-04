@@ -1,0 +1,227 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "title": "FFmpeg Build Configuration - Minimal Preset",
+  "description": "Minimal build with only essential H.264/H.265 video and Opus/MP3 audio codecs. Smallest binary size, fastest build time.",
+  "version": "1.0.0",
+
+  "codecs": {
+    "video": {
+      "h264": {
+        "enabled": true,
+        "library": "libx264",
+        "license": "GPL-2.0-or-later",
+        "description": "H.264/AVC - Most widely supported video codec",
+        "configure_flag": "--enable-libx264"
+      },
+      "h265": {
+        "enabled": true,
+        "library": "libx265",
+        "license": "GPL-2.0-or-later",
+        "description": "H.265/HEVC - Better compression than H.264",
+        "configure_flag": "--enable-libx265"
+      },
+      "vp8": {
+        "enabled": false,
+        "library": "libvpx",
+        "license": "BSD-3-Clause",
+        "description": "VP8 - WebM video codec",
+        "configure_flag": "--enable-libvpx"
+      },
+      "vp9": {
+        "enabled": false,
+        "library": "libvpx",
+        "license": "BSD-3-Clause",
+        "description": "VP9 - Improved WebM codec",
+        "configure_flag": "--enable-libvpx"
+      },
+      "av1": {
+        "enabled": false,
+        "library": "libaom",
+        "license": "BSD-2-Clause",
+        "description": "AV1 - Next-gen codec",
+        "configure_flag": "--enable-libaom"
+      },
+      "svt-av1": {
+        "enabled": false,
+        "library": "libsvtav1",
+        "license": "BSD-2-Clause",
+        "description": "SVT-AV1 - Intel's AV1 encoder",
+        "configure_flag": "--enable-libsvtav1",
+        "build_dependency": "SVT-AV1"
+      },
+      "rav1e": {
+        "enabled": false,
+        "library": "librav1e",
+        "license": "BSD-2-Clause",
+        "description": "rav1e - Rust AV1 encoder",
+        "configure_flag": "--enable-librav1e",
+        "build_dependency": "Rust/Cargo"
+      },
+      "theora": {
+        "enabled": false,
+        "library": "libtheora",
+        "license": "BSD-3-Clause",
+        "description": "Theora - Legacy Ogg codec",
+        "configure_flag": "--enable-libtheora",
+        "build_dependency": "libtheora"
+      },
+      "xvid": {
+        "enabled": false,
+        "library": "libxvid",
+        "license": "GPL-2.0-or-later",
+        "description": "Xvid - MPEG-4 ASP codec",
+        "configure_flag": "--enable-libxvid",
+        "build_dependency": "xvidcore"
+      }
+    },
+    "audio": {
+      "opus": {
+        "enabled": true,
+        "library": "libopus",
+        "license": "BSD-3-Clause",
+        "description": "Opus - Best quality for voice and music",
+        "configure_flag": "--enable-libopus"
+      },
+      "mp3": {
+        "enabled": true,
+        "library": "libmp3lame",
+        "license": "LGPL-2.1-or-later",
+        "description": "MP3 - Universal audio codec",
+        "configure_flag": "--enable-libmp3lame"
+      },
+      "aac": {
+        "enabled": true,
+        "library": "native",
+        "license": "LGPL-2.1-or-later",
+        "description": "AAC - FFmpeg native encoder",
+        "configure_flag": "",
+        "notes": "Built into FFmpeg"
+      },
+      "fdk-aac": {
+        "enabled": false,
+        "library": "libfdk-aac",
+        "license": "Non-free",
+        "description": "fdk-aac - High-quality AAC",
+        "configure_flag": "--enable-libfdk-aac --enable-nonfree",
+        "build_dependency": "fdk-aac"
+      },
+      "flac": {
+        "enabled": false,
+        "library": "libflac",
+        "license": "BSD-3-Clause",
+        "description": "FLAC - Lossless audio",
+        "configure_flag": "--enable-libflac",
+        "build_dependency": "flac"
+      },
+      "speex": {
+        "enabled": false,
+        "library": "libspeex",
+        "license": "BSD-3-Clause",
+        "description": "Speex - Speech codec",
+        "configure_flag": "--enable-libspeex",
+        "build_dependency": "speex"
+      },
+      "vorbis": {
+        "enabled": false,
+        "library": "libvorbis",
+        "license": "BSD-3-Clause",
+        "description": "Vorbis - Ogg audio",
+        "configure_flag": "--enable-libvorbis"
+      }
+    }
+  },
+
+  "features": {
+    "subtitle_rendering": {
+      "enabled": false,
+      "description": "Subtitle rendering (libass/freetype)",
+      "dependencies": ["libass", "libfreetype"],
+      "configure_flags": ["--enable-libass", "--enable-libfreetype"],
+      "impact": "Adds ~2MB"
+    },
+    "network": {
+      "enabled": false,
+      "description": "Network protocols",
+      "configure_flags": ["--enable-protocol=http", "--enable-protocol=https", "--enable-protocol=rtmp"],
+      "impact": "Enables streaming"
+    },
+    "hwaccel": {
+      "enabled": false,
+      "description": "Hardware acceleration",
+      "notes": "Use dedicated HW variants",
+      "configure_flags": []
+    }
+  },
+
+  "optimization": {
+    "size": {
+      "enabled": true,
+      "description": "Optimize for size",
+      "configure_flags": ["--enable-small"],
+      "impact": "Smallest possible binary"
+    },
+    "speed": {
+      "enabled": false,
+      "description": "Optimize for speed",
+      "configure_flags": ["--enable-runtime-cpudetect"],
+      "impact": "Best performance"
+    },
+    "lto": {
+      "enabled": false,
+      "description": "Link-Time Optimization",
+      "configure_flags": ["--enable-lto"],
+      "impact": "Slower build"
+    }
+  },
+
+  "build": {
+    "static_linking": {
+      "enabled": true,
+      "description": "Static binaries",
+      "configure_flags": ["--enable-static", "--disable-shared"],
+      "notes": "Required for npm"
+    },
+    "debug_symbols": {
+      "enabled": false,
+      "description": "Debug symbols",
+      "configure_flags": ["--enable-debug=3"],
+      "impact": "5-10x larger binary"
+    },
+    "documentation": {
+      "enabled": false,
+      "description": "Build docs",
+      "configure_flags": [],
+      "notes": "Not included in npm"
+    }
+  },
+
+  "license": {
+    "gpl": {
+      "enabled": true,
+      "description": "Enable GPL components",
+      "configure_flags": ["--enable-gpl"],
+      "impact": "GPL-licensed build",
+      "notes": "Required for x264/x265"
+    },
+    "version3": {
+      "enabled": true,
+      "description": "Enable v3 licenses",
+      "configure_flags": ["--enable-version3"],
+      "notes": "Required for some codecs"
+    },
+    "nonfree": {
+      "enabled": false,
+      "description": "Enable non-free components",
+      "configure_flags": ["--enable-nonfree"],
+      "impact": "Distribution restrictions"
+    }
+  },
+
+  "metadata": {
+    "preset": "minimal",
+    "description": "Minimal build - H.264/H.265 video + Opus/MP3 audio only",
+    "use_case": "Simple video transcoding, smallest binary size",
+    "binary_size_estimate": "~35MB (varies by platform)",
+    "build_time_estimate": "12-18 minutes"
+  }
+}

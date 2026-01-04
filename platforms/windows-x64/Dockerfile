@@ -35,6 +35,7 @@ RUN apt-get update && apt-get install -y \
     patch \
     # Utilities
     ca-certificates \
+    ccache \
     && rm -rf /var/lib/apt/lists/*
 
 # Build arguments (versions passed from CI)
@@ -71,8 +72,9 @@ ARG NASM_SHA256
 ENV CROSS_PREFIX=x86_64-w64-mingw32-
 ENV TARGET=/opt/ffmpeg
 ENV SOURCES=/usr/src/ffmpeg_sources
-ENV PATH="${TARGET}/bin:${PATH}"
+ENV PATH="/usr/lib/ccache:${TARGET}/bin:${PATH}"
 ENV PKG_CONFIG_PATH="${TARGET}/lib/pkgconfig"
+ENV CCACHE_DIR=/cache
 
 # Create directories
 RUN mkdir -p ${TARGET} ${SOURCES}

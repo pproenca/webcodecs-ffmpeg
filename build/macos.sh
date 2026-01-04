@@ -47,6 +47,20 @@ export PATH="$TARGET/bin:$PATH"
 mkdir -p "$TARGET"/{include,lib,bin}
 mkdir -p "$PROJECT_ROOT/ffmpeg_sources"
 
+# Setup ccache for faster incremental builds (optional)
+if command -v ccache &> /dev/null; then
+  export CCACHE_DIR="${CCACHE_DIR:-$HOME/.ccache}"
+  export CC="ccache clang"
+  export CXX="ccache clang++"
+  echo "✓ Using ccache for incremental builds (cache dir: $CCACHE_DIR)"
+  echo "  First build: ~20-25 min, subsequent builds: ~2-5 min"
+  ccache -s 2>/dev/null || true
+else
+  echo "ℹ ccache not found - builds will always be from scratch (~20-25 min)"
+  echo "  Install ccache to speed up rebuilds: brew install ccache"
+fi
+echo ""
+
 # Install Homebrew dependencies
 echo "Installing Homebrew dependencies..."
 brew install autoconf automake libtool cmake pkg-config || {

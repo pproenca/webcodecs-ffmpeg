@@ -50,7 +50,8 @@ RUN apk add --no-cache \
 # Set up build environment
 ENV PREFIX=/build
 ENV PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig
-ENV PATH=$PREFIX/bin:$PATH
+ENV PATH=/usr/lib/ccache:$PREFIX/bin:$PATH
+ENV CCACHE_DIR=/cache
 ENV MAKEFLAGS="-j$(nproc)"
 
 WORKDIR /src

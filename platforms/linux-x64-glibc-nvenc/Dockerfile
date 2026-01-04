@@ -60,6 +60,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     curl \
     ca-certificates \
+    ccache \
     zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -77,7 +78,8 @@ RUN cd /src && \
 # CRITICAL: -fPIC is required for all code that will be linked into shared objects
 ENV PREFIX=/build
 ENV PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig
-ENV PATH=$PREFIX/bin:$PATH
+ENV PATH=/usr/lib/ccache:$PREFIX/bin:$PATH
+ENV CCACHE_DIR=/cache
 ENV MAKEFLAGS="-j$(nproc)"
 ENV CFLAGS="-fPIC"
 ENV CXXFLAGS="-fPIC"
