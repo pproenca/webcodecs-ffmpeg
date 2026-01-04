@@ -125,14 +125,14 @@ jobs:
 
       # Download darwin-x64 artifact
       - name: Download darwin-x64
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: ffmpeg-darwin-x64
           path: artifacts-download
 
       # Download darwin-arm64 artifact
       - name: Download darwin-arm64
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: ffmpeg-darwin-arm64
           path: artifacts-download
@@ -207,7 +207,7 @@ jobs:
 
       # Download all platform artifacts
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: ffmpeg-*
           path: artifacts-download
@@ -247,7 +247,7 @@ jobs:
 
     steps:
       - name: Download npm packages
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: npm-packages
           path: npm-dist
@@ -287,7 +287,7 @@ jobs:
 
       # Download all platform artifacts
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: ffmpeg-*
           path: artifacts-download
