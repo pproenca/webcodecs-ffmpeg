@@ -1,6 +1,6 @@
 {
   "name": "ffmpeg-prebuilds",
-  "version": "8.0.0",
+  "version": "0.0.1",
   "description": "FFmpeg static binaries and development libraries for Node.js",
   "type": "module",
   "scripts": {
