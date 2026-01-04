@@ -49,6 +49,14 @@
         "configure_flag": "--enable-libsvtav1",
         "build_dependency": "SVT-AV1"
       },
+      "dav1d": {
+        "enabled": true,
+        "library": "libdav1d",
+        "license": "BSD-2-Clause",
+        "description": "dav1d - Fast AV1 decoder (10x faster than libaom)",
+        "configure_flag": "--enable-libdav1d",
+        "build_dependency": "dav1d"
+      },
       "rav1e": {
         "enabled": false,
         "library": "librav1e",
@@ -142,11 +150,12 @@
       "impact": "Adds ~2MB to binary size"
     },
     "network": {
-      "enabled": false,
-      "description": "Network protocols (HTTP, RTMP, etc.)",
-      "configure_flags": ["--enable-protocol=http", "--enable-protocol=https", "--enable-protocol=rtmp"],
-      "impact": "Enables streaming input/output",
-      "notes": "Disabled by default for security - enable only if needed"
+      "enabled": true,
+      "description": "Network protocols (HTTP, HTTPS, TLS, TCP) via OpenSSL",
+      "dependencies": ["openssl"],
+      "configure_flags": ["--enable-openssl", "--enable-protocol=file,http,https,tcp,tls"],
+      "impact": "Enables streaming input/output and HTTPS support",
+      "notes": "Now enabled by default - most users expect network protocol support"
     },
     "hwaccel": {
       "enabled": false,

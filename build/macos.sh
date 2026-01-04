@@ -231,6 +231,50 @@ make install
 cd ../..
 
 #=============================================================================
+# Build dav1d (Fast AV1 decoder, BSD)
+#=============================================================================
+echo ""
+echo "=== Building dav1d ${DAV1D_VERSION} ==="
+# Clean up any previous build
+rm -rf dav1d-${DAV1D_VERSION} dav1d_build
+
+# Download and extract dav1d
+curl -L "${DAV1D_URL}" -o dav1d-${DAV1D_VERSION}.tar.gz
+tar -xzf dav1d-${DAV1D_VERSION}.tar.gz
+cd dav1d-${DAV1D_VERSION}
+
+# dav1d uses meson/ninja build system
+# Check if meson is available
+if command -v meson &> /dev/null; then
+  meson setup build \
+    --prefix="$TARGET" \
+    --libdir=lib \
+    --default-library=static \
+    --buildtype=release \
+    -Denable_tools=false \
+    -Denable_tests=false \
+    -Denable_examples=false
+
+  ninja -C build
+  ninja -C build install
+  cd ..
+else
+  echo "WARNING: meson not found - trying fallback with cmake"
+  # Fallback: Some versions of dav1d support cmake
+  mkdir -p build
+  cd build
+  cmake \
+    -DCMAKE_INSTALL_PREFIX="$TARGET" \
+    -DBUILD_SHARED_LIBS=OFF \
+    -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}" \
+    ..
+  make -j"$(sysctl -n hw.ncpu)"
+  make install
+  cd ../..
+fi
+
+#=============================================================================
 # Build rav1e (Rust AV1 encoder, BSD)
 #=============================================================================
 echo ""
@@ -507,6 +551,42 @@ cd "libass-${LIBASS_VERSION}"
   LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
 make -j"$(sysctl -n hw.ncpu)"
 make install
+cd ..
+
+#=============================================================================
+# Build OpenSSL (Network/TLS support)
+#=============================================================================
+echo ""
+echo "=== Building OpenSSL ${OPENSSL_VERSION} ==="
+# Clean up any previous build
+rm -rf openssl-${OPENSSL_VERSION}
+
+# Download and extract OpenSSL
+curl -L "${OPENSSL_URL}" -o openssl-${OPENSSL_VERSION}.tar.gz
+tar -xzf openssl-${OPENSSL_VERSION}.tar.gz
+cd openssl-${OPENSSL_VERSION}
+
+# Configure OpenSSL for macOS
+if [ "$ARCH" = "x86_64" ]; then
+  OPENSSL_TARGET="darwin64-x86_64-cc"
+elif [ "$ARCH" = "arm64" ]; then
+  OPENSSL_TARGET="darwin64-arm64-cc"
+else
+  echo "ERROR: Unsupported architecture: $ARCH"
+  exit 1
+fi
+
+./Configure \
+  $OPENSSL_TARGET \
+  --prefix="$TARGET" \
+  --openssldir="$TARGET/ssl" \
+  no-shared \
+  no-tests \
+  enable-static \
+  -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}
+
+make -j"$(sysctl -n hw.ncpu)"
+make install_sw install_ssldirs
 cd ..
 
 #=============================================================================

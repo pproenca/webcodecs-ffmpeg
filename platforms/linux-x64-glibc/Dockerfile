@@ -157,6 +157,25 @@ RUN git clone --depth 1 --branch ${LIBAOM_VERSION} https://aomedia.googlesource.
     cd .. && rm -rf aom aom_build
 
 # ============================================================================
+# Build dav1d (BSD - Fast AV1 decoder)
+# ============================================================================
+RUN wget -q "${DAV1D_URL}" && \
+    echo "${DAV1D_SHA256}  dav1d-${DAV1D_VERSION}.tar.gz" | sha256sum -c - && \
+    tar xzf dav1d-${DAV1D_VERSION}.tar.gz && \
+    cd dav1d-${DAV1D_VERSION} && \
+    meson setup build \
+        --prefix=$PREFIX \
+        --libdir=lib \
+        --default-library=static \
+        --buildtype=release \
+        -Denable_tools=false \
+        -Denable_tests=false \
+        -Denable_examples=false && \
+    ninja -C build && \
+    ninja -C build install && \
+    cd .. && rm -rf dav1d-${DAV1D_VERSION}*
+
+# ============================================================================
 # Build libopus (BSD - Opus audio codec)
 # ============================================================================
 RUN wget -q https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz && \
@@ -369,6 +388,25 @@ RUN wget -q https://github.com/libass/libass/releases/download/${LIBASS_VERSION}
     cd .. && rm -rf libass-${LIBASS_VERSION}*
 
 # ============================================================================
+# Build OpenSSL (Network/TLS support)
+# ============================================================================
+RUN wget -q "${OPENSSL_URL}" && \
+    echo "${OPENSSL_SHA256}  openssl-${OPENSSL_VERSION}.tar.gz" | sha256sum -c - && \
+    tar xzf openssl-${OPENSSL_VERSION}.tar.gz && \
+    cd openssl-${OPENSSL_VERSION} && \
+    ./Configure \
+        linux-x86_64 \
+        --prefix=$PREFIX \
+        --openssldir=$PREFIX/ssl \
+        no-shared \
+        no-tests \
+        enable-static \
+        -fPIC && \
+    make -j$(nproc) && \
+    make install_sw install_ssldirs && \
+    cd .. && rm -rf openssl-${OPENSSL_VERSION}*
+
+# ============================================================================
 # Build FFmpeg with all codecs (GPL due to x264/x265, Non-free due to fdk-aac)
 # Note: We don't use -static here because we want libs that can link into .so
 # ============================================================================
@@ -389,12 +427,14 @@ RUN git clone --depth 1 --branch ${FFMPEG_VERSION} https://git.ffmpeg.org/ffmpeg
         --disable-ffplay \
         --disable-doc \
         --disable-debug \
-        --disable-network \
+        --enable-openssl \
+        --enable-protocol=file,http,https,tcp,tls \
         --enable-libx264 \
         --enable-libx265 \
         --enable-libvpx \
         --enable-libaom \
         --enable-libsvtav1 \
+        --enable-libdav1d \
         --enable-libtheora \
         --enable-libxvid \
         --enable-libopus \

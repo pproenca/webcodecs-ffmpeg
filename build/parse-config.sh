@@ -92,7 +92,7 @@ echo "Video codecs:" >&2
 ENABLED_VIDEO=0
 
 # Process each video codec
-for codec in h264 h265 vp8 vp9 av1 svt-av1 rav1e theora xvid; do
+for codec in h264 h265 vp8 vp9 av1 svt-av1 dav1d rav1e theora xvid; do
   if jq -e ".codecs.video.\"$codec\".enabled == true" "$CONFIG_FILE" &>/dev/null; then
     FLAG=$(jq -r ".codecs.video.\"$codec\".configure_flag" "$CONFIG_FILE")
     if [[ -n "$FLAG" && "$FLAG" != "null" ]]; then
@@ -166,10 +166,12 @@ fi
 
 # Network protocols
 if jq -e '.features.network.enabled == true' "$CONFIG_FILE" &>/dev/null; then
-  # Network is enabled via --enable-protocol flags, but for simplicity we just don't disable network
-  # The default FFmpeg build disables network in our Dockerfiles with --disable-network
-  # If this flag is true, we won't add --disable-network
-  echo "  ✓ Network protocols enabled" >&2
+  # Extract configure flags from config
+  FLAGS=$(jq -r '.features.network.configure_flags[]' "$CONFIG_FILE")
+  for f in $FLAGS; do
+    CONFIGURE_FLAGS+=("$f")
+  done
+  echo "  ✓ Network protocols enabled (OpenSSL, HTTPS, TLS)" >&2
   ENABLED_FEATURES=$((ENABLED_FEATURES + 1))
 else
   CONFIGURE_FLAGS+=("--disable-network")
