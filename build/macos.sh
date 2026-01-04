@@ -533,7 +533,8 @@ make distclean 2>/dev/null || true
   --enable-libfdk-aac \
   --enable-libspeex \
   --enable-libfreetype \
-  --enable-libass
+  --enable-libass \
+  --enable-videotoolbox
 
 make -j"$(sysctl -n hw.ncpu)"
 make install

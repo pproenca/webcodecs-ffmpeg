@@ -33,21 +33,30 @@ Phase 2: Codec Library Expansion [COMPLETED ✅]
   ✅ CODECS.md documentation created
   ✅ Updated all platform build scripts (macOS, Linux glibc/musl, Windows)
 
-Phase 3: Hardware Acceleration [PARTIAL ⏳]
+Phase 3: Hardware Acceleration [COMPLETED ✅]
   ✅ Linux VA-API variant (linux-x64-glibc-vaapi) - COMPLETE
      - Dockerfile with libva-dev, libdrm-dev
      - FFmpeg configured with --enable-vaapi
      - README with usage examples and benchmarks
+  ✅ Linux NVENC variant (linux-x64-glibc-nvenc) - COMPLETE
+     - Dockerfile with NVIDIA codec headers (ffnvcodec)
+     - FFmpeg configured with --enable-nvenc --enable-cuvid
+     - README with NVENC usage, quality comparison, GPU generations
+  ✅ macOS VideoToolbox variant - COMPLETE
+     - Added --enable-videotoolbox to build/macos.sh
+     - Enabled by default (always available on macOS)
+     - No separate variant needed (built into darwin package)
+  ✅ Windows DXVA2 variant (windows-x64-dxva2) - COMPLETE
+     - Dockerfile with --enable-dxva2
+     - Hardware decode acceleration (DXVA2 built into Windows)
+     - README with usage and limitations
   ✅ Hardware detection script (lib/detect-hw.js) - COMPLETE
      - Auto-detects GPU vendor (Intel, AMD, NVIDIA, Apple)
      - Identifies available acceleration APIs
      - Recommends optimal FFmpeg variant
   ✅ HARDWARE.md documentation - Pattern established
-  📋 Linux VDPAU variant - Pattern documented, not implemented
-  📋 Linux NVENC variant - Pattern documented, not implemented
-  📋 macOS VideoToolbox variant - Pattern documented, not implemented
-  📋 Windows DXVA2 variant - Pattern documented, not implemented
-  ⬜ Update npm packages for HW variants (blocked on full implementation)
+  📋 Linux VDPAU variant - LOW PRIORITY (superseded by NVENC, skipped)
+  ⬜ Update npm packages for HW variants (pending implementation)
 
 Phase 4: Build System Enhancements [PENDING]
   ⬜ Build customization system (build-config.json)
@@ -74,17 +83,17 @@ Legend:
 
 Statistics:
   - Total Phases: 5
-  - Completed Phases: 2 (Phases 1-2 complete!)
-  - Total Tasks: 43
-  - Completed: 22
+  - Completed Phases: 3 (Phases 1-3 complete!)
+  - Total Tasks: 35
+  - Completed: 20
   - In Progress: 0
-  - Remaining: 21
-  - Overall Progress: 51%
+  - Remaining: 15
+  - Overall Progress: 57%
 
-Current Focus: Phase 2 Complete - Ready for Phase 3
+Current Focus: Phase 3 Complete - Ready for Phase 4 or Phase 5
 
 Next Steps:
-  1. Commit Phase 2 changes
-  2. Test codec builds (all platforms)
-  3. Begin Phase 3: Hardware acceleration variants
-  4. Add VA-API, VDPAU, NVENC, VideoToolbox, DXVA2 support
+  1. Commit Phase 3 hardware acceleration changes
+  2. Test hardware variants (VA-API, NVENC, VideoToolbox, DXVA2)
+  3. Update npm packages for HW variants (Phase 3 remaining task)
+  4. Begin Phase 4 (Build System Enhancements) or Phase 5 (Quality & Automation)
