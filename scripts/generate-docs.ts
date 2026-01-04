@@ -7,8 +7,7 @@
  */
 
 import {readFileSync, writeFileSync} from 'node:fs';
-import {join, dirname} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {join} from 'node:path';
 import {generateStandardTable, generateHwTable} from './generate-platform-table.js';
 import {
   generateVideoCodecTable,
@@ -16,9 +15,9 @@ import {
   generateDetailedCodecList,
 } from './generate-codec-table.js';
 import {generateTimestamp} from './update-doc-timestamps.js';
+import {getScriptDir, isMainModule} from './lib/paths.ts';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = getScriptDir(import.meta.url);
 
 // Marker format for auto-generated sections
 const MARKER_START = (id: string) => `<!-- AUTO-GENERATED:${id}:START -->`;
@@ -111,6 +110,6 @@ function main(): void {
 }
 
 // Run if invoked directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   main();
 }

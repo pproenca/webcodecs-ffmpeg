@@ -19,13 +19,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-
-      - name: Install dependencies
-        run: npm install
+      - name: Setup Node.js and dependencies
+        uses: ./.github/actions/setup-node
 
       - name: Check for updates
         id: check

@@ -1,11 +1,10 @@
 import {describe, test} from 'node:test';
 import assert from 'node:assert';
 import {readFile} from 'node:fs/promises';
-import {join, dirname} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {join} from 'node:path';
+import {getScriptDir} from './lib/paths.ts';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = getScriptDir(import.meta.url);
 
 describe('generate-build-config', () => {
   test('full preset exists and is valid JSON', async () => {

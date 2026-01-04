@@ -6,12 +6,11 @@
  * to auto-generate timestamps for documentation files.
  */
 
-import {join, dirname} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {join} from 'node:path';
 import {getVersionMetadataSync} from './lib/versions.ts';
+import {getScriptDir, isMainModule} from './lib/paths.ts';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = getScriptDir(import.meta.url);
 
 const versionsPath = join(__dirname, '..', 'versions.properties');
 const versionInfo = getVersionMetadataSync(versionsPath);
@@ -29,7 +28,7 @@ export function generateTimestamp(): string {
 export const lastUpdated = versionInfo.lastUpdated;
 export const ffmpegVersion = versionInfo.ffmpegVersion;
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   console.log('Version Information:');
   console.log('===================\n');
   console.log(`Last Updated: ${lastUpdated}`);

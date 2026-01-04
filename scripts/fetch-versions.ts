@@ -12,8 +12,7 @@
 
 import {writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {join, dirname} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {join} from 'node:path';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {
@@ -25,9 +24,9 @@ import {
   VersionsMap,
 } from './lib/versions.ts';
 import {DEPENDENCIES, DependencyMetadata} from './lib/dependencies.ts';
+import {getScriptDir, isMainModule} from './lib/paths.ts';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = getScriptDir(import.meta.url);
 
 // ============================================================================
 // Types
@@ -402,6 +401,6 @@ async function main(): Promise<void> {
   }
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   main();
 }

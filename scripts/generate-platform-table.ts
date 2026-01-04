@@ -11,6 +11,7 @@ import {
   getStandardPlatforms,
   getHwAccelPlatforms,
 } from './lib/platforms.ts';
+import {isMainModule} from './lib/paths.ts';
 
 const standardPlatforms = getStandardPlatforms();
 const hwPlatforms = getHwAccelPlatforms();
@@ -53,7 +54,7 @@ export function generateHwTable(): string {
   ].join('\n');
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   console.log('Standard Platforms Table:');
   console.log('========================\n');
   console.log(generateStandardTable());

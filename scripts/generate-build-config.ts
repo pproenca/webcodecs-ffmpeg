@@ -12,12 +12,11 @@
  */
 
 import {readFile, writeFile, access} from 'node:fs/promises';
-import {join, dirname, basename} from 'node:path';
-import {fileURLToPath} from 'node:url';
-import {parseVersionsFile as parseVersionsFileRaw} from './lib/versions.ts';
+import {join, basename} from 'node:path';
+import {parseVersionsFile as parseVersionsFileRaw, VersionsMap} from './lib/versions.ts';
+import {getScriptDir, isMainModule} from './lib/paths.ts';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = getScriptDir(import.meta.url);
 
 // ============================================================================
 // Types
@@ -91,9 +90,6 @@ interface BuildConfig {
   metadata: MetadataConfig;
 }
 
-interface VersionsMap {
-  [key: string]: string;
-}
 
 // ============================================================================
 // Utility Functions
@@ -343,6 +339,6 @@ Examples:
 }
 
 // Run if invoked directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   main();
 }

@@ -7,11 +7,10 @@
  */
 
 import {readFileSync} from 'node:fs';
-import {join, dirname} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {join} from 'node:path';
+import {getScriptDir, isMainModule} from './lib/paths.ts';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = getScriptDir(import.meta.url);
 
 interface Codec {
   enabled: boolean;
@@ -40,97 +39,68 @@ function loadFullPreset(): FullPreset {
 const fullPreset = loadFullPreset();
 
 /**
+ * Generate a markdown table for codecs
+ */
+function generateCodecTable(codecs: Record<string, Codec>): string {
+  const entries = Object.entries(codecs).filter(([_, codec]) => codec.enabled);
+  const rows = entries.map(([id, codec]) =>
+    `| ${id.toUpperCase()} | ${codec.library} | ${codec.license} | ${codec.description} |`
+  );
+  return [
+    '| Codec | Library | License | Description |',
+    '|-------|---------|---------|-------------|',
+    ...rows
+  ].join('\n');
+}
+
+/**
  * Generate video codec table for README.md
  */
-export function generateVideoCodecTable(): string {
-  const videoCodecs = Object.entries(fullPreset.codecs.video).filter(([_, codec]) => codec.enabled);
-
-  const rows = videoCodecs.map(([id, codec]) => {
-    const codecName = id.toUpperCase();
-    return `| ${codecName} | ${codec.library} | ${codec.license} | ${codec.description} |`;
-  });
-
-  return ['| Codec | Library | License | Description |', '|-------|---------|---------|-------------|', ...rows].join(
-    '\n'
-  );
-}
+export const generateVideoCodecTable = (): string => generateCodecTable(fullPreset.codecs.video);
 
 /**
  * Generate audio codec table for README.md
  */
-export function generateAudioCodecTable(): string {
-  const audioCodecs = Object.entries(fullPreset.codecs.audio).filter(([_, codec]) => codec.enabled);
+export const generateAudioCodecTable = (): string => generateCodecTable(fullPreset.codecs.audio);
 
-  const rows = audioCodecs.map(([id, codec]) => {
-    const codecName = id.toUpperCase();
-    return `| ${codecName} | ${codec.library} | ${codec.license} | ${codec.description} |`;
-  });
+/**
+ * Format detailed information for a single codec
+ */
+function formatCodecDetails(id: string, codec: Codec): string {
+  let output = `### ${id.toUpperCase()} - ${codec.description}\n\n`;
+  output += `- **Library:** ${codec.library}\n`;
+  output += `- **License:** ${codec.license}\n`;
+  output += `- **Status:** ${codec.enabled ? '✅ Enabled' : '❌ Disabled'}\n`;
 
-  return ['| Codec | Library | License | Description |', '|-------|---------|---------|-------------|', ...rows].join(
-    '\n'
-  );
+  if (codec.configure_flag) {
+    output += `- **Configure Flag:** \`${codec.configure_flag}\`\n`;
+  }
+  if (codec.build_dependency) {
+    output += `- **Build Dependency:** ${codec.build_dependency}\n`;
+  }
+  if (codec.notes) {
+    output += `- **Notes:** ${codec.notes}\n`;
+  }
+
+  return output + '\n';
 }
 
 /**
  * Generate detailed codec list for CODECS.md
  */
 export function generateDetailedCodecList(): string {
-  const videoCodecs = Object.entries(fullPreset.codecs.video);
-  const audioCodecs = Object.entries(fullPreset.codecs.audio);
+  const videoDetails = Object.entries(fullPreset.codecs.video)
+    .map(([id, codec]) => formatCodecDetails(id, codec))
+    .join('');
+  const audioDetails = Object.entries(fullPreset.codecs.audio)
+    .map(([id, codec]) => formatCodecDetails(id, codec))
+    .join('');
 
-  let output = '## Video Codecs\n\n';
-
-  for (const [id, codec] of videoCodecs) {
-    const codecName = id.toUpperCase();
-    output += `### ${codecName} - ${codec.description}\n\n`;
-    output += `- **Library:** ${codec.library}\n`;
-    output += `- **License:** ${codec.license}\n`;
-    output += `- **Status:** ${codec.enabled ? '✅ Enabled' : '❌ Disabled'}\n`;
-
-    if (codec.configure_flag) {
-      output += `- **Configure Flag:** \`${codec.configure_flag}\`\n`;
-    }
-
-    if (codec.build_dependency) {
-      output += `- **Build Dependency:** ${codec.build_dependency}\n`;
-    }
-
-    if (codec.notes) {
-      output += `- **Notes:** ${codec.notes}\n`;
-    }
-
-    output += '\n';
-  }
-
-  output += '## Audio Codecs\n\n';
-
-  for (const [id, codec] of audioCodecs) {
-    const codecName = id.toUpperCase();
-    output += `### ${codecName} - ${codec.description}\n\n`;
-    output += `- **Library:** ${codec.library}\n`;
-    output += `- **License:** ${codec.license}\n`;
-    output += `- **Status:** ${codec.enabled ? '✅ Enabled' : '❌ Disabled'}\n`;
-
-    if (codec.configure_flag) {
-      output += `- **Configure Flag:** \`${codec.configure_flag}\`\n`;
-    }
-
-    if (codec.build_dependency) {
-      output += `- **Build Dependency:** ${codec.build_dependency}\n`;
-    }
-
-    if (codec.notes) {
-      output += `- **Notes:** ${codec.notes}\n`;
-    }
-
-    output += '\n';
-  }
-
-  return output;
+  return `## Video Codecs\n\n${videoDetails}## Audio Codecs\n\n${audioDetails}`;
 }
 
 // If run directly, output all tables
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url)) {
   console.log('Video Codec Table:');
   console.log('=================\n');
   console.log(generateVideoCodecTable());
