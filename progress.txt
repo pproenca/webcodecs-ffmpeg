@@ -90,7 +90,12 @@ Phase 4: Build System Enhancements [IN PROGRESS ⏳]
      - Performance guidance: 480p max, ultrafast preset recommended
      - Updated build/linux.sh, build/orchestrator.sh, CI matrix
      - NEON optimizations where available (limited vs ARM64)
-  ⬜ Build script integration (parse configs, conditional codec builds)
+  ✅ Build script integration (parse configs, conditional codec builds)
+     - Created build/parse-config.sh to parse build-config.json
+     - Generates FFmpeg configure flags from JSON configuration
+     - Supports all codecs, features, optimizations, license flags
+     - Works with presets (minimal, streaming, full)
+     - Updated BUILD-CONFIG.md with usage examples
   ⬜ Enhanced verification script
 
 Phase 5: Quality & Automation [PENDING]
@@ -111,16 +116,16 @@ Statistics:
   - Total Phases: 5
   - Completed Phases: 3 (Phases 1-3 complete!)
   - Total Tasks: 36 (added build script integration task)
-  - Completed: 26 (build config, presets, ccache, all ARM variants)
+  - Completed: 27 (build config, presets, ccache, all ARM variants, build integration)
   - In Progress: 1 (Phase 4 ongoing)
-  - Remaining: 9
-  - Overall Progress: 72%
+  - Remaining: 8
+  - Overall Progress: 75%
 
-Current Focus: Phase 4 In Progress - All ARM variants complete (x64, ARM64 glibc/musl, ARMv7), build integration and verification pending
+Current Focus: Phase 4 In Progress - Build integration complete, verification script pending
 
 Next Steps:
-  1. Integrate build-config.json into build scripts (parse config, conditional builds)
-  2. Enhance verification script with codec/feature checks
-  3. Complete Phase 4 remaining tasks
-  4. Update npm packages for HW variants (Phase 3 carryover)
-  5. Begin Phase 5 (Quality & Automation) after Phase 4 complete
+  1. Enhance verification script with codec/feature checks (final Phase 4 task)
+  2. Complete Phase 4
+  3. Update npm packages for HW variants (Phase 3 carryover)
+  4. Begin Phase 5 (Quality & Automation)
+  5. Implement functional testing suite

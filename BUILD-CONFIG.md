@@ -234,6 +234,41 @@ jq -r '.codecs.video | to_entries[] | select(.value.enabled == true) | .key' bui
 jq -r '.metadata.binary_size_estimate' build-config.json
 ```
 
+### Generating FFmpeg Configure Flags
+
+The `build/parse-config.sh` script parses a build configuration and generates the appropriate FFmpeg configure flags:
+
+```bash
+# Parse default config
+./build/parse-config.sh
+# Output: --enable-gpl --enable-version3 --enable-nonfree ...
+
+# Parse minimal preset
+./build/parse-config.sh presets/minimal.json
+# Output: --enable-gpl --enable-version3 --enable-libx264 --enable-libx265 ...
+
+# Parse custom config
+./build/parse-config.sh my-custom-build.json
+```
+
+**Usage in custom build scripts:**
+
+```bash
+# Get configure flags
+FFMPEG_FLAGS=$(./build/parse-config.sh presets/streaming.json)
+
+# Pass to FFmpeg configure
+cd ffmpeg && ./configure \
+  --prefix=/build \
+  $FFMPEG_FLAGS \
+  --extra-cflags="-I/build/include" \
+  --extra-ldflags="-L/build/lib"
+```
+
+**The script outputs:**
+- Detailed summary to stderr (colorized, human-readable)
+- Configure flags to stdout (for script consumption)
+
 ### Build Time Optimization
 
 **Disable slow codecs to speed up builds:**
