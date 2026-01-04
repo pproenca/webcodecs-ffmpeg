@@ -1,16 +1,36 @@
 #!/usr/bin/env bash
 #
 # Linux FFmpeg Build Script (Docker-based)
-# Supports: linux-x64-glibc, linux-x64-musl, linux-arm64-glibc, linux-arm64-musl, linux-armv7-glibc
 #
-# This script builds FFmpeg and all codec dependencies inside Docker containers
-# for maximum reproducibility and isolation.
+# Builds FFmpeg and all codec dependencies inside Docker containers for
+# maximum reproducibility and isolation. Uses docker buildx for multi-arch
+# support (x64, arm64, armv7).
+#
+# Supported platforms:
+#   linux-x64-glibc    - Linux x64 with glibc
+#   linux-x64-musl     - Linux x64 with musl (fully static)
+#   linux-arm64-glibc  - Linux ARM64 with glibc
+#   linux-arm64-musl   - Linux ARM64 with musl
+#   linux-armv7-glibc  - Linux ARMv7 with glibc
+#
+# Usage: Called from orchestrator.sh, not directly
 
 set -euo pipefail
 
-PLATFORM="${1:-}"
+
+#######################################
+# Constants
+#######################################
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+readonly PROJECT_ROOT
+PLATFORM="${1:-}"
+
+#######################################
+# Validate platform argument
+#######################################
 
 if [[ -z "$PLATFORM" ]]; then
   echo "ERROR: Platform argument required"
@@ -21,7 +41,10 @@ echo "=========================================="
 echo "Linux Docker Build: $PLATFORM"
 echo "=========================================="
 
-# Validate platform and determine Docker architecture
+
+#######################################
+# Determine Docker architecture
+#######################################
 case "$PLATFORM" in
   linux-x64-glibc|linux-x64-musl)
     DOCKER_PLATFORM="linux/amd64"
@@ -34,13 +57,16 @@ case "$PLATFORM" in
     ;;
   *)
     echo "ERROR: Invalid Linux platform '$PLATFORM'"
-    echo "Supported: linux-x64-glibc, linux-x64-musl, linux-arm64-glibc, linux-arm64-musl, linux-armv7-glibc"
+    echo "Supported: linux-x64-glibc, linux-x64-musl," \
+         "linux-arm64-glibc, linux-arm64-musl, linux-armv7-glibc"
     exit 1
     ;;
 esac
 
 DOCKERFILE="$PROJECT_ROOT/platforms/$PLATFORM/Dockerfile"
+readonly DOCKERFILE
 IMAGE_TAG="ffmpeg-builder:$PLATFORM"
+readonly IMAGE_TAG
 
 if [[ ! -f "$DOCKERFILE" ]]; then
   echo "ERROR: Dockerfile not found: $DOCKERFILE"
@@ -51,8 +77,13 @@ echo "Dockerfile: $DOCKERFILE"
 echo "Image tag:  $IMAGE_TAG"
 echo ""
 
-# Build Docker image with all codec versions as build args
-echo "Building Docker image for $DOCKER_PLATFORM (this may take 20-40 minutes)..."
+
+#######################################
+# Build Docker image
+#######################################
+
+# Pass all codec versions as build args to the Dockerfile.
+echo "Building Docker image for $DOCKER_PLATFORM (may take 20-40 min)..."
 docker buildx build \
   --platform "$DOCKER_PLATFORM" \
   --build-arg FFMPEG_VERSION="$FFMPEG_VERSION" \
@@ -90,19 +121,21 @@ docker buildx build \
   --load \
   "$PROJECT_ROOT"
 
+#######################################
+# Extract artifacts from container
+#######################################
+
 echo ""
 echo "Docker build complete. Extracting artifacts..."
 
-# Create temporary container to extract artifacts
+# Create a temporary container to copy files from the built image.
 CONTAINER_ID="ffmpeg-extract-$PLATFORM-$$"
 docker create --name "$CONTAINER_ID" "$IMAGE_TAG"
 
-# Prepare artifact directory
 ARTIFACT_DIR="$PROJECT_ROOT/artifacts/$PLATFORM"
 rm -rf "$ARTIFACT_DIR"
 mkdir -p "$ARTIFACT_DIR"/{bin,lib,include}
 
-# Extract binaries
 echo "Extracting bin/..."
 docker cp "$CONTAINER_ID:/build/bin/." "$ARTIFACT_DIR/bin/" || {
   echo "WARNING: Failed to extract bin/, may not exist in this build type"
@@ -124,8 +157,12 @@ docker cp "$CONTAINER_ID:/build/include/." "$ARTIFACT_DIR/include/" || {
   exit 1
 }
 
-# Cleanup
 docker rm "$CONTAINER_ID"
+
+
+#######################################
+# Display results and verify
+#######################################
 
 echo ""
 echo "=========================================="
@@ -136,10 +173,9 @@ echo ""
 ls -lh "$ARTIFACT_DIR"/bin/* 2>/dev/null || echo "No binaries"
 echo ""
 echo "Libraries:"
-find "$ARTIFACT_DIR/lib" -name "*.a" -type f -exec ls -lh {} + 2>/dev/null | head -5 || echo "No static libraries"
+find "$ARTIFACT_DIR/lib" -name "*.a" -type f -exec ls -lh {} + 2>/dev/null \
+  | head -5 || echo "No static libraries"
 echo ""
-
-# Run verification
 echo "Running verification..."
 "$SCRIPT_DIR/verify.sh" "$PLATFORM"
 

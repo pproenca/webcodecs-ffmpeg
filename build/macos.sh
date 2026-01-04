@@ -1,23 +1,39 @@
 #!/usr/bin/env bash
 #
 # macOS FFmpeg Build Script
-# Supports: darwin-x64, darwin-arm64
 #
-# This script builds FFmpeg and all codec dependencies natively on macOS.
-# Ported from node-webcodecs/scripts/ci/build-ffmpeg-workflow.ts
+# Builds FFmpeg and all codec dependencies natively on macOS. Supports both
+# Intel (x86_64) and Apple Silicon (arm64) architectures with cross-compilation
+# support.
+#
+# Supported platforms:
+#   darwin-x64   - macOS Intel (x86_64)
+#   darwin-arm64 - macOS Apple Silicon (arm64)
+#
+# Usage: Called from orchestrator.sh, not directly
 
 set -euo pipefail
 
-PLATFORM="${1:-}"
+
+#######################################
+# Constants
+#######################################
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+readonly PROJECT_ROOT
+PLATFORM="${1:-}"
+
+#######################################
+# Validate platform and set architecture
+#######################################
 
 if [[ -z "$PLATFORM" ]]; then
   echo "ERROR: Platform argument required"
   exit 1
 fi
 
-# Extract architecture from platform
 case "$PLATFORM" in
   darwin-x64)
     ARCH="x86_64"
@@ -31,6 +47,7 @@ case "$PLATFORM" in
     exit 1
     ;;
 esac
+readonly ARCH
 
 echo "=========================================="
 echo "macOS Native Build: $PLATFORM"
@@ -39,12 +56,28 @@ echo "Architecture: $ARCH"
 echo "Deployment Target: $MACOS_DEPLOYMENT_TARGET"
 echo ""
 
-# Common build settings
+# Number of parallel jobs for make (defaults to CPU count).
 NUM_CPUS=$(sysctl -n hw.ncpu)
+readonly NUM_CPUS
 
-# Helper: download, verify checksum, and extract tarball
-# Usage: download_verify_extract "Name" "url" "sha256" "archive.tar.gz" [compression_flag]
-# compression_flag: "z" for .gz (default), "" for .xz
+
+#######################################
+# Helper Functions
+#######################################
+
+#######################################
+# Download, verify checksum, and extract tarball.
+# Arguments:
+#   $1 - Name of the package (for logging)
+#   $2 - URL to download
+#   $3 - Expected SHA256 checksum
+#   $4 - Archive filename
+#   $5 - Compression flag: "z" for .gz (default), "" for .xz
+# Outputs:
+#   Extracts archive to current directory
+# Returns:
+#   Exits 1 on failure
+#######################################
 download_verify_extract() {
   local name="$1" url="$2" sha256="$3" archive="$4" compression="${5:-z}"
   echo ""
@@ -61,7 +94,11 @@ download_verify_extract() {
   tar "x${compression}f" "$archive"
 }
 
+
+#######################################
 # Set up build environment
+#######################################
+
 export TARGET="$PROJECT_ROOT/artifacts/$PLATFORM"
 export PKG_CONFIG_PATH="$TARGET/lib/pkgconfig"
 export PATH="$TARGET/bin:$PATH"
@@ -78,15 +115,18 @@ if command -v ccache &> /dev/null; then
   echo "  First build: ~20-25 min, subsequent builds: ~2-5 min"
   ccache -s 2>/dev/null || true
 else
-  echo "ℹ ccache not found - builds will always be from scratch (~20-25 min)"
+  echo "i ccache not found - builds will always be from scratch (~20-25 min)"
   echo "  Install ccache to speed up rebuilds: brew install ccache"
 fi
 echo ""
 
+
+#######################################
 # Install Homebrew dependencies
+#######################################
 echo "Installing Homebrew dependencies..."
 brew install autoconf automake libtool cmake pkg-config || {
-  echo "WARNING: Homebrew install failed, assuming dependencies already installed"
+  echo "WARNING: Homebrew install failed, assuming dependencies installed"
 }
 
 cd "$PROJECT_ROOT/ffmpeg_sources"
@@ -95,6 +135,7 @@ cd "$PROJECT_ROOT/ffmpeg_sources"
 rm -rf x264 x265_git libvpx aom aom_build opus-* lame-* nasm-* \
   SVT-AV1 rav1e libtheora-* xvidcore speex-* flac-* \
   fdk-aac freetype-* libass-*
+
 
 #=============================================================================
 # Build NASM (assembler required for x264/x265)

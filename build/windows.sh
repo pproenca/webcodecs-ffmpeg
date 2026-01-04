@@ -1,17 +1,34 @@
 #!/usr/bin/env bash
 #
 # Windows FFmpeg Build Script (Docker-based Cross-Compilation)
-# Supports: windows-x64
 #
-# This script builds FFmpeg for Windows using MinGW-w64 cross-compiler
-# inside a Docker container for reproducibility.
+# Builds FFmpeg for Windows using MinGW-w64 cross-compiler inside a Docker
+# container for reproducibility. This approach avoids needing a Windows
+# build environment.
+#
 # Based on: https://trac.ffmpeg.org/wiki/CompilationGuide/CrossCompilingForWindows
+#
+# Supported platforms:
+#   windows-x64 - Windows x64 (MinGW cross-compile)
+#
+# Usage: Called from orchestrator.sh, not directly
 
 set -euo pipefail
 
-PLATFORM="${1:-}"
+
+#######################################
+# Constants
+#######################################
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+readonly PROJECT_ROOT
+PLATFORM="${1:-}"
+
+#######################################
+# Validate platform argument
+#######################################
 
 if [[ -z "$PLATFORM" ]]; then
   echo "ERROR: Platform argument required"
@@ -21,8 +38,6 @@ fi
 echo "=========================================="
 echo "Windows Docker Build: $PLATFORM"
 echo "=========================================="
-
-# Validate platform
 case "$PLATFORM" in
   windows-x64)
     # Valid platform
@@ -35,7 +50,9 @@ case "$PLATFORM" in
 esac
 
 DOCKERFILE="$PROJECT_ROOT/platforms/$PLATFORM/Dockerfile"
+readonly DOCKERFILE
 IMAGE_TAG="ffmpeg-builder:$PLATFORM"
+readonly IMAGE_TAG
 
 if [[ ! -f "$DOCKERFILE" ]]; then
   echo "ERROR: Dockerfile not found: $DOCKERFILE"
@@ -46,7 +63,12 @@ echo "Dockerfile: $DOCKERFILE"
 echo "Image tag:  $IMAGE_TAG"
 echo ""
 
-# Build Docker image with all codec versions as build args
+
+#######################################
+# Build Docker image
+#######################################
+
+# Cross-compile Windows binaries using MinGW-w64 in a Linux container.
 echo "Building Docker image (this may take 25-35 minutes)..."
 docker buildx build \
   --platform linux/amd64 \
@@ -86,19 +108,21 @@ docker buildx build \
   --load \
   "$PROJECT_ROOT"
 
+#######################################
+# Extract artifacts from container
+#######################################
+
 echo ""
 echo "Docker build complete. Extracting artifacts..."
 
-# Create temporary container to extract artifacts
+# Create a temporary container to copy files from the built image.
 CONTAINER_ID="ffmpeg-extract-$PLATFORM-$$"
 docker create --name "$CONTAINER_ID" "$IMAGE_TAG"
 
-# Prepare artifact directory
 ARTIFACT_DIR="$PROJECT_ROOT/artifacts/$PLATFORM"
 rm -rf "$ARTIFACT_DIR"
 mkdir -p "$ARTIFACT_DIR"/{bin,lib,include}
 
-# Extract binaries
 echo "Extracting bin/..."
 docker cp "$CONTAINER_ID:/opt/ffmpeg/bin/." "$ARTIFACT_DIR/bin/" || {
   echo "ERROR: Failed to extract bin/"
@@ -122,8 +146,12 @@ docker cp "$CONTAINER_ID:/opt/ffmpeg/include/." "$ARTIFACT_DIR/include/" || {
   exit 1
 }
 
-# Cleanup
 docker rm "$CONTAINER_ID"
+
+
+#######################################
+# Display results and verify
+#######################################
 
 echo ""
 echo "=========================================="
@@ -135,10 +163,9 @@ echo "Binaries:"
 ls -lh "$ARTIFACT_DIR"/bin/*.exe 2>/dev/null || echo "No executables found"
 echo ""
 echo "Libraries:"
-find "$ARTIFACT_DIR/lib" -name "*.a" -type f -exec ls -lh {} + 2>/dev/null | head -5 || echo "No static libraries"
+find "$ARTIFACT_DIR/lib" -name "*.a" -type f -exec ls -lh {} + 2>/dev/null \
+  | head -5 || echo "No static libraries"
 echo ""
-
-# Run verification
 echo "Running verification..."
 "$SCRIPT_DIR/verify.sh" "$PLATFORM"
 
