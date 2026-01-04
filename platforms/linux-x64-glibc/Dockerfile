@@ -36,6 +36,9 @@ ARG LIBASS_VERSION=0.17.3
 ARG LIBASS_SHA256
 ARG FREETYPE_VERSION=2.13.3
 ARG FREETYPE_SHA256
+ARG DAV1D_VERSION=1.5.3
+ARG DAV1D_URL
+ARG DAV1D_SHA256
 ARG FFMPEG_VERSION=n8.0
 
 # Prevent interactive prompts during apt-get
@@ -160,8 +163,8 @@ RUN git clone --depth 1 --branch ${LIBAOM_VERSION} https://aomedia.googlesource.
 # Build dav1d (BSD - Fast AV1 decoder)
 # ============================================================================
 RUN wget -q "${DAV1D_URL}" && \
-    echo "${DAV1D_SHA256}  dav1d-${DAV1D_VERSION}.tar.gz" | sha256sum -c - && \
-    tar xzf dav1d-${DAV1D_VERSION}.tar.gz && \
+    echo "${DAV1D_SHA256}  dav1d-${DAV1D_VERSION}.tar.xz" | sha256sum -c - && \
+    tar xJf dav1d-${DAV1D_VERSION}.tar.xz && \
     cd dav1d-${DAV1D_VERSION} && \
     meson setup build \
         --prefix=$PREFIX \

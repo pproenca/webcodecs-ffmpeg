@@ -65,7 +65,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     },
     versionKey: 'FFMPEG_VERSION',
     gitUrlKey: 'FFMPEG_GIT_URL',
-    fetchSource: {type: 'github', repo: 'FFmpeg/FFmpeg', tagPattern: FFMPEG_TAG},
+    fetchSource: {type: 'anitya', projectName: 'ffmpeg'},
   },
 
   // ---------------------------------------------------------------------------
@@ -93,7 +93,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     },
     versionKey: 'X265_VERSION',
     gitUrlKey: 'X265_GIT_URL',
-    fetchSource: {type: 'bitbucket', repo: 'multicoreware/x265_git', tagPattern: SEMVER_NO_PREFIX_TAG},
+    fetchSource: {type: 'anitya', projectName: 'x265'},
   },
   {
     name: 'libvpx',
@@ -105,7 +105,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     },
     versionKey: 'LIBVPX_VERSION',
     gitUrlKey: 'LIBVPX_GIT_URL',
-    fetchSource: {type: 'github', repo: 'webmproject/libvpx', tagPattern: SEMVER_TAG},
+    fetchSource: {type: 'anitya', projectName: 'libvpx'},
   },
   {
     name: 'libaom',
@@ -117,8 +117,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     },
     versionKey: 'LIBAOM_VERSION',
     gitUrlKey: 'LIBAOM_GIT_URL',
-    // libaom is on Google Source which doesn't have a convenient API
-    fetchSource: {type: 'static', version: 'v3.12.1'},
+    fetchSource: {type: 'anitya', projectName: 'aom'},
   },
   {
     name: 'SVT-AV1',
@@ -130,7 +129,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     },
     versionKey: 'SVTAV1_VERSION',
     gitUrlKey: 'SVTAV1_GIT_URL',
-    fetchSource: {type: 'gitlab', host: 'gitlab.com', project: 'AOMediaCodec/SVT-AV1', tagPattern: SEMVER_TAG},
+    fetchSource: {type: 'anitya', projectName: 'SVT-AV1'},
   },
   {
     name: 'dav1d',
@@ -143,7 +142,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'DAV1D_VERSION',
     urlKey: 'DAV1D_URL',
     sha256Key: 'DAV1D_SHA256',
-    fetchSource: {type: 'gitlab', host: 'code.videolan.org', project: 'videolan/dav1d', tagPattern: SEMVER_NO_PREFIX_TAG},
+    fetchSource: {type: 'anitya', projectName: 'dav1d'},
     downloadUrl: (v) => `https://downloads.videolan.org/pub/videolan/dav1d/${v}/dav1d-${v}.tar.xz`,
   },
   {
@@ -156,7 +155,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     },
     versionKey: 'RAV1E_VERSION',
     gitUrlKey: 'RAV1E_GIT_URL',
-    fetchSource: {type: 'github', repo: 'xiph/rav1e', tagPattern: SEMVER_TAG},
+    fetchSource: {type: 'anitya', projectName: 'rav1e'},
   },
   {
     name: 'Theora',
@@ -169,7 +168,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'THEORA_VERSION',
     urlKey: 'THEORA_URL',
     sha256Key: 'THEORA_SHA256',
-    fetchSource: {type: 'static', version: '1.1.1'},
+    fetchSource: {type: 'anitya', projectName: 'libtheora'},
     downloadUrl: (v) => `https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${v}.tar.gz`,
   },
   {
@@ -183,7 +182,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'XVID_VERSION',
     urlKey: 'XVID_URL',
     sha256Key: 'XVID_SHA256',
-    fetchSource: {type: 'static', version: '1.3.7'},
+    fetchSource: {type: 'anitya', projectName: 'xvidcore'},
     downloadUrl: (v) => `https://downloads.xvid.com/downloads/xvidcore-${v}.tar.gz`,
   },
 
@@ -201,7 +200,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'OPUS_VERSION',
     urlKey: 'OPUS_URL',
     sha256Key: 'OPUS_SHA256',
-    fetchSource: {type: 'github', repo: 'xiph/opus', tagPattern: SEMVER_TAG},
+    fetchSource: {type: 'anitya', projectName: 'opus'},
     downloadUrl: (v) => `https://downloads.xiph.org/releases/opus/opus-${v}.tar.gz`,
   },
   {
@@ -215,7 +214,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'LAME_VERSION',
     urlKey: 'LAME_URL',
     sha256Key: 'LAME_SHA256',
-    fetchSource: {type: 'static', version: '3.100'},
+    fetchSource: {type: 'anitya', projectName: 'lame'},
     downloadUrl: (v) => `https://downloads.sourceforge.net/project/lame/lame/${v}/lame-${v}.tar.gz`,
   },
   {
@@ -229,7 +228,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'VORBIS_VERSION',
     urlKey: 'VORBIS_URL',
     sha256Key: 'VORBIS_SHA256',
-    fetchSource: {type: 'static', version: '1.3.7'},
+    fetchSource: {type: 'anitya', projectName: 'libvorbis'},
     downloadUrl: (v) => `https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-${v}.tar.gz`,
   },
   {
@@ -243,7 +242,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'OGG_VERSION',
     urlKey: 'OGG_URL',
     sha256Key: 'OGG_SHA256',
-    fetchSource: {type: 'static', version: '1.3.5'},
+    fetchSource: {type: 'anitya', projectName: 'libogg'},
     downloadUrl: (v) => `https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-${v}.tar.gz`,
   },
   {
@@ -256,7 +255,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     },
     versionKey: 'FDKAAC_VERSION',
     gitUrlKey: 'FDKAAC_GIT_URL',
-    fetchSource: {type: 'github', repo: 'mstorsjo/fdk-aac', tagPattern: SEMVER_TAG},
+    fetchSource: {type: 'anitya', projectName: 'fdk-aac'},
   },
   {
     name: 'FLAC',
@@ -269,7 +268,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'FLAC_VERSION',
     urlKey: 'FLAC_URL',
     sha256Key: 'FLAC_SHA256',
-    fetchSource: {type: 'static', version: '1.4.3'},
+    fetchSource: {type: 'anitya', projectName: 'flac'},
     downloadUrl: (v) => `https://ftp.osuosl.org/pub/xiph/releases/flac/flac-${v}.tar.xz`,
   },
   {
@@ -283,7 +282,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'SPEEX_VERSION',
     urlKey: 'SPEEX_URL',
     sha256Key: 'SPEEX_SHA256',
-    fetchSource: {type: 'static', version: '1.2.1'},
+    fetchSource: {type: 'anitya', projectName: 'speex'},
     downloadUrl: (v) => `https://ftp.osuosl.org/pub/xiph/releases/speex/speex-${v}.tar.gz`,
   },
 
@@ -301,7 +300,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'LIBASS_VERSION',
     urlKey: 'LIBASS_URL',
     sha256Key: 'LIBASS_SHA256',
-    fetchSource: {type: 'github', repo: 'libass/libass', tagPattern: SEMVER_NO_PREFIX_TAG},
+    fetchSource: {type: 'anitya', projectName: 'libass'},
     downloadUrl: (v) => `https://github.com/libass/libass/releases/download/${v}/libass-${v}.tar.gz`,
   },
   {
@@ -315,7 +314,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'FREETYPE_VERSION',
     urlKey: 'FREETYPE_URL',
     sha256Key: 'FREETYPE_SHA256',
-    fetchSource: {type: 'static', version: '2.13.3'},
+    fetchSource: {type: 'anitya', projectName: 'freetype'},
     downloadUrl: (v) => `https://download.savannah.gnu.org/releases/freetype/freetype-${v}.tar.xz`,
   },
 
@@ -333,7 +332,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'NASM_VERSION',
     urlKey: 'NASM_URL',
     sha256Key: 'NASM_SHA256',
-    fetchSource: {type: 'github', repo: 'netwide-assembler/nasm', tagPattern: NASM_TAG},
+    fetchSource: {type: 'anitya', projectName: 'nasm'},
     downloadUrl: (v) => `https://github.com/netwide-assembler/nasm/archive/refs/tags/nasm-${v}.tar.gz`,
   },
 
@@ -351,7 +350,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'OPENSSL_VERSION',
     urlKey: 'OPENSSL_URL',
     sha256Key: 'OPENSSL_SHA256',
-    fetchSource: {type: 'github', repo: 'openssl/openssl', tagPattern: OPENSSL_TAG},
+    fetchSource: {type: 'anitya', projectName: 'openssl'},
     downloadUrl: (v) => `https://www.openssl.org/source/openssl-${v}.tar.gz`,
   },
 ];

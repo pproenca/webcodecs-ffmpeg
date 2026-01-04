@@ -80,6 +80,9 @@ docker buildx build \
   --build-arg OGG_VERSION="$OGG_VERSION" \
   --build-arg NASM_VERSION="$NASM_VERSION" \
   --build-arg NASM_SHA256="$NASM_SHA256" \
+  --build-arg DAV1D_VERSION="$DAV1D_VERSION" \
+  --build-arg DAV1D_URL="$DAV1D_URL" \
+  --build-arg DAV1D_SHA256="$DAV1D_SHA256" \
   --cache-from type=gha,scope="$PLATFORM" \
   --cache-to type=gha,mode=max,scope="$PLATFORM" \
   -f "$DOCKERFILE" \

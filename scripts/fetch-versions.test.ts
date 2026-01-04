@@ -573,14 +573,14 @@ describe('DEPENDENCIES', () => {
       const ffmpeg = DEPENDENCIES.find((d) => d.name === 'FFmpeg');
       assert(ffmpeg, 'FFmpeg should exist');
       assert.strictEqual(ffmpeg.versionKey, 'FFMPEG_VERSION');
-      assert.strictEqual(ffmpeg.fetchSource.type, 'github');
-      if (ffmpeg.fetchSource.type === 'github') {
-        assert.strictEqual(ffmpeg.fetchSource.repo, 'FFmpeg/FFmpeg');
+      assert.strictEqual(ffmpeg.fetchSource.type, 'anitya');
+      if (ffmpeg.fetchSource.type === 'anitya') {
+        assert.strictEqual(ffmpeg.fetchSource.projectName, 'ffmpeg');
       }
     });
 
     test('all fetch source types are valid', () => {
-      const validTypes = ['github', 'gitlab', 'bitbucket', 'static'];
+      const validTypes = ['github', 'gitlab', 'bitbucket', 'static', 'anitya'];
       for (const dep of DEPENDENCIES) {
         assert(
           validTypes.includes(dep.fetchSource.type),
@@ -826,6 +826,45 @@ describe('fetchAnityaLatest', () => {
     const version = await fetchAnityaLatest('aom');
     // aom/libaom versions are like "3.12.1"
     assert.match(version, /^[0-9]+\.[0-9]+(\.[0-9]+)?$/, 'should return semver format');
+  });
+});
+
+// ============================================================================
+// DEPENDENCIES Anitya Migration Tests
+// ============================================================================
+
+describe('DEPENDENCIES Anitya migration', () => {
+  test('all non-static dependencies use anitya fetch source', () => {
+    for (const dep of DEPENDENCIES) {
+      if (dep.fetchSource.type !== 'static') {
+        assert.strictEqual(
+          dep.fetchSource.type,
+          'anitya',
+          `${dep.name} should use anitya fetch source, got ${dep.fetchSource.type}`,
+        );
+      }
+    }
+  });
+
+  test('anitya dependencies have valid projectName', () => {
+    for (const dep of DEPENDENCIES) {
+      if (dep.fetchSource.type === 'anitya') {
+        assert(
+          dep.fetchSource.projectName,
+          `${dep.name} should have projectName`,
+        );
+        assert(
+          dep.fetchSource.projectName.length > 0,
+          `${dep.name} projectName should not be empty`,
+        );
+      }
+    }
+  });
+
+  test('x264 remains static (uses stable branch)', () => {
+    const x264 = getDependency('x264');
+    assert(x264, 'x264 should exist');
+    assert.strictEqual(x264.fetchSource.type, 'static', 'x264 should use static source');
   });
 });
 
