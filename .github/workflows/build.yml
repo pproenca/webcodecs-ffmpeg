@@ -269,3 +269,73 @@ jobs:
           echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "✅ All platforms built successfully!" >> "$GITHUB_STEP_SUMMARY"
+
+  # ==========================================================================
+  # Security Scanning with Trivy
+  # ==========================================================================
+  security-scan:
+    name: Security vulnerability scan
+    runs-on: ubuntu-24.04
+    needs: [build]
+    permissions:
+      contents: read
+      security-events: write  # For uploading SARIF results
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Download all platform artifacts
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ffmpeg-*
+          path: artifacts-download
+
+      # Extract all tarballs to artifacts/
+      - name: Extract artifacts
+        run: |
+          mkdir -p artifacts
+          for tarball in artifacts-download/ffmpeg-*/*.tar.gz; do
+            echo "Extracting $tarball..."
+            tar -xzf "$tarball" -C artifacts/
+          done
+          echo "Extracted artifacts:"
+          ls -lh artifacts/
+
+      # Install Trivy
+      - name: Install Trivy
+        run: |
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+      # Run security scan
+      - name: Run security scan
+        run: |
+          chmod +x security/scan-artifacts.sh
+          ./security/scan-artifacts.sh || true  # Don't fail build on vulnerabilities
+
+      # Upload scan results
+      - name: Upload security scan results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-results
+          path: security/results/
+          retention-days: 30
+
+      # Generate summary
+      - name: Security scan summary
+        if: always()
+        run: |
+          echo "## Security Scan Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [[ -f security/results/scan-summary.txt ]]; then
+            echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+            cat security/results/scan-summary.txt >> "$GITHUB_STEP_SUMMARY"
+            echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "⚠️ Security scan did not complete" >> "$GITHUB_STEP_SUMMARY"
+          fi

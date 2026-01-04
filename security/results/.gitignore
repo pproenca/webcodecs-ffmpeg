@@ -1,0 +1,5 @@
+# Ignore all scan results (generated files)
+*
+
+# But keep this .gitignore
+!.gitignore
