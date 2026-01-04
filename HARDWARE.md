@@ -3,7 +3,10 @@
 This document describes the hardware-accelerated FFmpeg build variants and npm packages.
 
 **Status:** Phase 3 - COMPLETE (All variants implemented, npm packages configured)
-**Last Updated:** 2026-01-04
+
+<!-- AUTO-GENERATED:timestamp:START -->
+Last Updated: 2026-01-04 | FFmpeg Version: 8.0
+<!-- AUTO-GENERATED:timestamp:END -->
 
 ---
 
@@ -416,12 +419,13 @@ Based on user demand and hardware prevalence:
 
 All hardware acceleration variants are implemented and configured:
 
-| Variant | Platform | Package | Status |
-|---------|----------|---------|--------|
-| VA-API | Linux x64 | `@pproenca/ffmpeg-linux-x64-glibc-vaapi` | ✅ Complete |
-| NVENC | Linux x64 | `@pproenca/ffmpeg-linux-x64-glibc-nvenc` | ✅ Complete |
-| VideoToolbox | macOS | `@pproenca/ffmpeg-darwin` (built-in) | ✅ Complete |
-| DXVA2 | Windows x64 | `@pproenca/ffmpeg-windows-x64-dxva2` | ✅ Complete |
+<!-- AUTO-GENERATED:hw-platform-table:START -->
+| Platform | Package | Hardware Acceleration |
+|----------|---------|----------------------|
+| linux-x64 (glibc) | `@pproenca/ffmpeg-linux-x64-glibc-vaapi` | VA-API |
+| linux-x64 (glibc) | `@pproenca/ffmpeg-linux-x64-glibc-nvenc` | NVENC |
+| win32-x64 | `@pproenca/ffmpeg-windows-x64-dxva2` | DXVA2 |
+<!-- AUTO-GENERATED:hw-platform-table:END -->
 
 **npm Configuration:** All HW variant packages are configured in `package-npm.ts` and will be published automatically on release.
 

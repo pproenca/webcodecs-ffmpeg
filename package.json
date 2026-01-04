@@ -11,7 +11,9 @@
     "build:linux-x64-musl": "build/orchestrator.sh linux-x64-musl",
     "build:windows-x64": "build/orchestrator.sh windows-x64",
     "verify": "tsx scripts/verify-build.ts",
-    "package": "tsx scripts/package-npm.ts"
+    "package": "tsx scripts/package-npm.ts",
+    "generate-docs": "tsx scripts/generate-docs.ts",
+    "validate-docs": "tsx scripts/validate-docs.ts"
   },
   "repository": {
     "type": "git",

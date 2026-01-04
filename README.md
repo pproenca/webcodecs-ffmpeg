@@ -107,15 +107,17 @@ const ffmpegPath = getBinaryPath('ffmpeg', { hardwareAccel: 'vaapi' });
 
 ### Standard Builds (Software Encoding)
 
+<!-- AUTO-GENERATED:platform-table:START -->
 | Platform | Runtime Package | Dev Package |
 |----------|----------------|-------------|
-| macOS (universal) | `@pproenca/ffmpeg-darwin`<sup>1</sup> | `@pproenca/ffmpeg-dev-darwin` |
-| Linux x64 (glibc) | `@pproenca/ffmpeg-linux-x64-glibc` | `@pproenca/ffmpeg-dev-linux-x64-glibc` |
-| Linux x64 (musl) | `@pproenca/ffmpeg-linux-x64-musl` | `@pproenca/ffmpeg-dev-linux-x64-musl` |
-| Linux ARM64 (glibc) | `@pproenca/ffmpeg-linux-arm64-glibc` | `@pproenca/ffmpeg-dev-linux-arm64-glibc` |
-| Linux ARM64 (musl) | `@pproenca/ffmpeg-linux-arm64-musl` | `@pproenca/ffmpeg-dev-linux-arm64-musl` |
-| Linux ARMv7 (glibc) | `@pproenca/ffmpeg-linux-armv7-glibc` | `@pproenca/ffmpeg-dev-linux-armv7-glibc` |
-| Windows x64 | `@pproenca/ffmpeg-windows-x64` | `@pproenca/ffmpeg-dev-windows-x64` |
+| darwin-x64 | `@pproenca/ffmpeg-darwin` | `@pproenca/ffmpeg-dev-darwin` |
+| linux-x64 (glibc) | `@pproenca/ffmpeg-linux-x64-glibc` | N/A |
+| linux-x64 (musl) | `@pproenca/ffmpeg-linux-x64-musl` | N/A |
+| linux-arm64 (glibc) | `@pproenca/ffmpeg-linux-arm64-glibc` | N/A |
+| linux-arm64 (musl) | `@pproenca/ffmpeg-linux-arm64-musl` | N/A |
+| linux-arm (glibc) | `@pproenca/ffmpeg-linux-armv7-glibc` | N/A |
+| win32-x64 | `@pproenca/ffmpeg-windows-x64` | N/A |
+<!-- AUTO-GENERATED:platform-table:END -->
 
 <sup>1</sup> Universal binary (x64 + ARM64) with built-in VideoToolbox hardware acceleration
 
@@ -139,21 +141,31 @@ See [HARDWARE.md](HARDWARE.md) for hardware acceleration setup and usage.
 ## Included Codecs
 
 ### Video
-- **H.264/AVC** (libx264, GPL) - Industry standard
-- **H.265/HEVC** (libx265, GPL) - High efficiency
-- **VP8/VP9** (libvpx, BSD) - WebM support
-- **AV1** (libaom, BSD) - Next-gen codec
-- **SVT-AV1** (Intel, BSD) - Optimized AV1 encoder
-- **Theora** (libtheora, BSD) - Ogg video codec
-- **Xvid** (MPEG-4 ASP, GPL) - Legacy MPEG-4
+<!-- AUTO-GENERATED:video-codec-table:START -->
+| Codec | Library | License | Description |
+|-------|---------|---------|-------------|
+| H264 | libx264 | GPL-2.0-or-later | H.264/AVC - Most widely supported video codec |
+| H265 | libx265 | GPL-2.0-or-later | H.265/HEVC - Better compression than H.264 |
+| VP8 | libvpx | BSD-3-Clause | VP8 - WebM video codec |
+| VP9 | libvpx | BSD-3-Clause | VP9 - Improved WebM codec (shares libvpx with VP8) |
+| AV1 | libaom | BSD-2-Clause | AV1 - Royalty-free next-gen codec (reference encoder) |
+| SVT-AV1 | libsvtav1 | BSD-2-Clause | SVT-AV1 - Intel's optimized AV1 encoder (faster than libaom) |
+| THEORA | libtheora | BSD-3-Clause | Theora - Legacy Ogg video codec |
+| XVID | libxvid | GPL-2.0-or-later | Xvid - MPEG-4 ASP codec |
+<!-- AUTO-GENERATED:video-codec-table:END -->
 
 ### Audio
-- **Opus** (libopus, BSD) - Modern, versatile
-- **MP3** (libmp3lame, LGPL) - Universal support
-- **AAC** (native + fdk-aac, Non-free) - High quality
-- **Vorbis** (libvorbis + libogg, BSD) - Ogg audio
-- **FLAC** (BSD) - Lossless compression
-- **Speex** (BSD) - Speech codec
+<!-- AUTO-GENERATED:audio-codec-table:START -->
+| Codec | Library | License | Description |
+|-------|---------|---------|-------------|
+| OPUS | libopus | BSD-3-Clause | Opus - Best quality/bitrate for voice and music |
+| MP3 | libmp3lame | LGPL-2.1-or-later | MP3 - Universal audio codec (LAME encoder) |
+| AAC | native | LGPL-2.1-or-later | AAC - FFmpeg native encoder |
+| FDK-AAC | libfdk-aac | Non-free | fdk-aac - High-quality AAC encoder (better than native) |
+| FLAC | libflac | BSD-3-Clause | FLAC - Lossless audio compression |
+| SPEEX | libspeex | BSD-3-Clause | Speex - Speech codec (optimized for voice) |
+| VORBIS | libvorbis | BSD-3-Clause | Vorbis - Ogg audio codec |
+<!-- AUTO-GENERATED:audio-codec-table:END -->
 
 ### Subtitle & Other
 - **libass** (ISC) - Advanced subtitle rendering

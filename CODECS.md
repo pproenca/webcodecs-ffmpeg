@@ -2,8 +2,10 @@
 
 This document details all video and audio codecs included in the FFmpeg prebuilds, their licenses, and implications for your project.
 
-**Last Updated:** 2026-01-04
-**FFmpeg Version:** 8.0
+<!-- AUTO-GENERATED:timestamp:START -->
+Last Updated: 2026-01-04 | FFmpeg Version: 8.0
+<!-- AUTO-GENERATED:timestamp:END -->
+
 **Build License:** **GPL-2.0-or-later + Non-free components**
 
 ---
@@ -37,289 +39,134 @@ GPL-2.0-or-later + Non-free components
 
 ---
 
+<!-- AUTO-GENERATED:codec-list:START -->
 ## Video Codecs
 
-### H.264 / AVC (x264)
+### H264 - H.264/AVC - Most widely supported video codec
 
-**Purpose:** Industry-standard video codec for web, streaming, and broadcasting
-**License:** GPL 2.0 or later
-**Version:** stable (latest from VideoLAN)
-**Homepage:** https://www.videolan.org/developers/x264.html
+- **Library:** libx264
+- **License:** GPL-2.0-or-later
+- **Status:** ✅ Enabled
+- **Configure Flag:** `--enable-libx264`
 
-**Why Included:**
-- Most widely supported video codec across all devices and browsers
-- Required for broad compatibility (YouTube, browsers, mobile devices)
-- Patent pool licensing available through MPEG LA
+### H265 - H.265/HEVC - Better compression than H.264
 
-**License Impact:** Forces entire build to GPL
+- **Library:** libx265
+- **License:** GPL-2.0-or-later
+- **Status:** ✅ Enabled
+- **Configure Flag:** `--enable-libx265`
 
----
+### VP8 - VP8 - WebM video codec
 
-### H.265 / HEVC (x265)
+- **Library:** libvpx
+- **License:** BSD-3-Clause
+- **Status:** ✅ Enabled
+- **Configure Flag:** `--enable-libvpx`
 
-**Purpose:** Next-generation video codec with 50% better compression than H.264
-**License:** GPL 2.0 or later
-**Version:** 3.6
-**Homepage:** https://www.videolan.org/developers/x265.html
+### VP9 - VP9 - Improved WebM codec (shares libvpx with VP8)
 
-**Why Included:**
-- Superior compression for 4K/8K content
-- Growing support in modern devices and streaming platforms
-- Successor to H.264 for high-quality video
+- **Library:** libvpx
+- **License:** BSD-3-Clause
+- **Status:** ✅ Enabled
+- **Configure Flag:** `--enable-libvpx`
 
-**License Impact:** Forces entire build to GPL
+### AV1 - AV1 - Royalty-free next-gen codec (reference encoder)
 
----
+- **Library:** libaom
+- **License:** BSD-2-Clause
+- **Status:** ✅ Enabled
+- **Configure Flag:** `--enable-libaom`
 
-### VP8 (libvpx)
+### SVT-AV1 - SVT-AV1 - Intel's optimized AV1 encoder (faster than libaom)
 
-**Purpose:** Open-source alternative to H.264
-**License:** BSD 3-Clause
-**Version:** 1.15.2
-**Homepage:** https://www.webmproject.org/
+- **Library:** libsvtav1
+- **License:** BSD-2-Clause
+- **Status:** ✅ Enabled
+- **Configure Flag:** `--enable-libsvtav1`
+- **Build Dependency:** SVT-AV1
 
-**Why Included:**
-- Royalty-free alternative to H.264
-- WebRTC standard codec
-- Patent-free for web applications
+### RAV1E - rav1e - Rust AV1 encoder (requires Cargo toolchain)
 
-**License Impact:** ✅ Permissive (BSD) - No GPL/commercial restrictions
+- **Library:** librav1e
+- **License:** BSD-2-Clause
+- **Status:** ❌ Disabled
+- **Configure Flag:** `--enable-librav1e`
+- **Build Dependency:** Rust/Cargo
+- **Notes:** Disabled by default - requires Rust toolchain which increases build time significantly
 
----
+### THEORA - Theora - Legacy Ogg video codec
 
-### VP9 (libvpx)
+- **Library:** libtheora
+- **License:** BSD-3-Clause
+- **Status:** ✅ Enabled
+- **Configure Flag:** `--enable-libtheora`
+- **Build Dependency:** libtheora
 
-**Purpose:** Open-source alternative to H.265
-**License:** BSD 3-Clause
-**Version:** 1.15.2
-**Homepage:** https://www.webmproject.org/
+### XVID - Xvid - MPEG-4 ASP codec
 
-**Why Included:**
-- Royalty-free alternative to H.265
-- YouTube's primary 4K codec
-- Excellent compression with no licensing fees
-
-**License Impact:** ✅ Permissive (BSD) - No GPL/commercial restrictions
-
----
-
-### AV1 (libaom)
-
-**Purpose:** Next-generation royalty-free codec by Alliance for Open Media
-**License:** BSD 2-Clause
-**Version:** 3.12.1
-**Homepage:** https://aomedia.org/
-
-**Why Included:**
-- 30% better compression than VP9/H.265
-- Completely royalty-free
-- Future-proof for streaming applications
-- Netflix, YouTube adoption
-
-**License Impact:** ✅ Permissive (BSD) - No GPL/commercial restrictions
-
----
-
-### AV1 (SVT-AV1)
-
-**Purpose:** Intel's optimized AV1 encoder - 5-10x faster than libaom
-**License:** BSD 2-Clause + Patent Grant
-**Version:** 2.3.0
-**Homepage:** https://gitlab.com/AOMediaCodec/SVT-AV1
-
-**Why Included:**
-- Dramatically faster AV1 encoding for production use
-- Intel-optimized with SIMD/AVX2/AVX512 support
-- Suitable for real-time encoding scenarios
-
-**License Impact:** ✅ Permissive (BSD) - No GPL/commercial restrictions
-
----
-
-### AV1 (rav1e)
-
-**Purpose:** Rust-based AV1 encoder focused on quality
-**License:** BSD 2-Clause
-**Version:** 0.7.1
-**Homepage:** https://github.com/xiph/rav1e
-**Note:** Requires Rust toolchain - may be skipped if Cargo unavailable
-
-**Why Included:**
-- Highest quality AV1 encoding
-- Memory-safe implementation (Rust)
-- Alternative to libaom for quality-focused workflows
-
-**License Impact:** ✅ Permissive (BSD) - No GPL/commercial restrictions
-
----
-
-### Theora (libtheora)
-
-**Purpose:** Legacy Ogg video codec
-**License:** BSD 3-Clause
-**Version:** 1.1.1
-**Homepage:** https://www.theora.org/
-
-**Why Included:**
-- Historical compatibility with .ogv files
-- Fully open-source with no patent concerns
-- Used in older web content and Wikipedia
-
-**License Impact:** ✅ Permissive (BSD) - No GPL/commercial restrictions
-
----
-
-### Xvid (xvidcore)
-
-**Purpose:** MPEG-4 Part 2 (ASP) video codec
-**License:** GPL 1.0 or later
-**Version:** 1.3.7
-**Homepage:** https://www.xvid.com/
-
-**Why Included:**
-- Legacy compatibility with MPEG-4 ASP files (.avi, .mp4)
-- Widely used in older media archives
-- DivX alternative
-
-**License Impact:** Forces entire build to GPL
-
----
+- **Library:** libxvid
+- **License:** GPL-2.0-or-later
+- **Status:** ✅ Enabled
+- **Configure Flag:** `--enable-libxvid`
+- **Build Dependency:** xvidcore
 
 ## Audio Codecs
 
-### AAC (fdk-aac)
+### OPUS - Opus - Best quality/bitrate for voice and music
 
-**Purpose:** High-quality AAC encoder - industry-standard for audio
-**License:** **Fraunhofer FDK AAC License (Non-free)**
-**Version:** 2.0.3
-**Homepage:** https://github.com/mstorsjo/fdk-aac
+- **Library:** libopus
+- **License:** BSD-3-Clause
+- **Status:** ✅ Enabled
+- **Configure Flag:** `--enable-libopus`
 
-**Why Included:**
-- Best AAC encoder available (superior to libavcodec's native AAC)
-- Required for professional audio quality
-- Standard for Apple devices, streaming, broadcasting
+### MP3 - MP3 - Universal audio codec (LAME encoder)
 
-**License Impact:** ⚠️ **Non-free** - Requires patent licensing for commercial distribution
-**Commercial Use:** Contact Via Licensing or MPEG LA for patent licenses
+- **Library:** libmp3lame
+- **License:** LGPL-2.1-or-later
+- **Status:** ✅ Enabled
+- **Configure Flag:** `--enable-libmp3lame`
 
-**Patent Warning:**
-> This software requires a patent license for commercial distribution. Consult a lawyer if distributing commercially.
+### AAC - AAC - FFmpeg native encoder
 
----
+- **Library:** native
+- **License:** LGPL-2.1-or-later
+- **Status:** ✅ Enabled
+- **Notes:** Built into FFmpeg, no external library needed
 
-### Opus (libopus)
+### FDK-AAC - fdk-aac - High-quality AAC encoder (better than native)
 
-**Purpose:** Modern low-latency audio codec
-**License:** BSD 3-Clause
-**Version:** 1.5.2
-**Homepage:** https://opus-codec.org/
+- **Library:** libfdk-aac
+- **License:** Non-free
+- **Status:** ✅ Enabled
+- **Configure Flag:** `--enable-libfdk-aac --enable-nonfree`
+- **Build Dependency:** fdk-aac
+- **Notes:** Non-free license - may have distribution restrictions
 
-**Why Included:**
-- Best codec for VoIP, streaming, and real-time audio
-- Royalty-free with excellent quality
-- WebRTC standard audio codec
+### FLAC - FLAC - Lossless audio compression
 
-**License Impact:** ✅ Permissive (BSD) - No GPL/commercial restrictions
+- **Library:** libflac
+- **License:** BSD-3-Clause
+- **Status:** ✅ Enabled
+- **Configure Flag:** `--enable-libflac`
+- **Build Dependency:** flac
 
----
+### SPEEX - Speex - Speech codec (optimized for voice)
 
-### MP3 (LAME)
+- **Library:** libspeex
+- **License:** BSD-3-Clause
+- **Status:** ✅ Enabled
+- **Configure Flag:** `--enable-libspeex`
+- **Build Dependency:** speex
 
-**Purpose:** Legacy MP3 encoder
-**License:** LGPL 2.0 or later
-**Version:** 3.100
-**Homepage:** https://lame.sourceforge.io/
+### VORBIS - Vorbis - Ogg audio codec
 
-**Why Included:**
-- Universal MP3 support for compatibility
-- Patent-free as of April 2017
-- Required for MP3 playback/encoding
+- **Library:** libvorbis
+- **License:** BSD-3-Clause
+- **Status:** ✅ Enabled
+- **Configure Flag:** `--enable-libvorbis`
 
-**License Impact:** ✅ LGPL (compatible with commercial use)
 
----
-
-### Vorbis (libvorbis)
-
-**Purpose:** Open-source alternative to MP3/AAC
-**License:** BSD 3-Clause
-**Version:** 1.3.7
-**Homepage:** https://xiph.org/vorbis/
-
-**Why Included:**
-- Royalty-free, patent-free audio codec
-- Used in Ogg containers (.ogg, .oga)
-- Good quality-to-bitrate ratio
-
-**License Impact:** ✅ Permissive (BSD) - No GPL/commercial restrictions
-
----
-
-### FLAC (libFLAC)
-
-**Purpose:** Lossless audio compression
-**License:** BSD 3-Clause
-**Version:** 1.4.3
-**Homepage:** https://xiph.org/flac/
-
-**Why Included:**
-- Industry-standard lossless audio codec
-- Archival quality with no quality loss
-- Widely supported in audiophile and archival contexts
-
-**License Impact:** ✅ Permissive (BSD) - No GPL/commercial restrictions
-
----
-
-### Speex (libspeex)
-
-**Purpose:** Speech-optimized audio codec
-**License:** BSD 3-Clause
-**Version:** 1.2.1
-**Homepage:** https://www.speex.org/
-
-**Why Included:**
-- Optimized for human voice (VoIP, podcasts)
-- Low bitrate with good speech quality
-- Legacy compatibility (superseded by Opus for new projects)
-
-**License Impact:** ✅ Permissive (BSD) - No GPL/commercial restrictions
-
----
-
-## Subtitle & Rendering Libraries
-
-### libass (Subtitle Rendering)
-
-**Purpose:** Advanced SubStation Alpha (ASS/SSA) subtitle renderer
-**License:** ISC (permissive)
-**Version:** 0.17.3
-**Homepage:** https://github.com/libass/libass
-
-**Why Included:**
-- Professional subtitle rendering for video players
-- Supports styled subtitles with animations and effects
-- Required for complex subtitle formats
-
-**License Impact:** ✅ Permissive (ISC) - No GPL/commercial restrictions
-
----
-
-### libfreetype (Font Rendering)
-
-**Purpose:** Font rasterization library
-**License:** FreeType License (BSD-style) or GPL 2.0
-**Version:** 2.13.3
-**Homepage:** https://freetype.org/
-
-**Why Included:**
-- Dependency for libass subtitle rendering
-- TrueType/OpenType font support
-- Text overlay rendering
-
-**License Impact:** ✅ Dual-licensed (can use BSD-style FreeType License)
-
----
+<!-- AUTO-GENERATED:codec-list:END -->
 
 ## Build Configuration Options
 

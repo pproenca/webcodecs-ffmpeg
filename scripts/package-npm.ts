@@ -7,7 +7,7 @@
  * 2. Dev packages: @pproenca/ffmpeg-dev-<platform> (libs + headers)
  * 3. Main package: @pproenca/ffmpeg (meta-package with optionalDependencies)
  */
-import {copyFileSync, existsSync, mkdirSync, readdirSync, statSync, writeFileSync} from 'node:fs';
+import {copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync} from 'node:fs';
 import {join, resolve} from 'node:path';
 import {execFileSync} from 'node:child_process';
 
@@ -43,7 +43,12 @@ const PLATFORMS: Platform[] = [
 const PROJECT_ROOT = resolve(__dirname, '..');
 const ARTIFACTS_DIR = join(PROJECT_ROOT, 'artifacts');
 const NPM_DIST_DIR = join(PROJECT_ROOT, 'npm-dist');
-const VERSION = '8.0.0'; // Should match package.json
+
+// Read version from package.json (single source of truth)
+const packageJson = JSON.parse(
+  readFileSync(join(PROJECT_ROOT, 'package.json'), 'utf-8')
+);
+const VERSION = packageJson.version;
 
 function ensureDir(pathname: string): void {
   mkdirSync(pathname, {recursive: true});
