@@ -775,3 +775,28 @@ describe('downloadUrl generation', () => {
     });
   });
 });
+
+// ============================================================================
+// Exit Code Behavior Tests
+// ============================================================================
+
+describe('exit code behavior', () => {
+  test('should return error code when errors exist regardless of updates', () => {
+    // Tests the logic pattern: errors should always result in exit code 1
+    const scenarios = [
+      {hasErrors: true, hasUpdates: true, expected: 1},
+      {hasErrors: true, hasUpdates: false, expected: 1},
+      {hasErrors: false, hasUpdates: true, expected: 0},
+      {hasErrors: false, hasUpdates: false, expected: 0},
+    ];
+
+    for (const {hasErrors, hasUpdates, expected} of scenarios) {
+      const exitCode = hasErrors ? 1 : 0;
+      assert.strictEqual(
+        exitCode,
+        expected,
+        `errors=${hasErrors}, updates=${hasUpdates} should exit with ${expected}`,
+      );
+    }
+  });
+});

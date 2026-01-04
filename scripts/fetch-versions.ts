@@ -387,13 +387,7 @@ async function main(): Promise<void> {
 
     generateGitHubOutput(results);
 
-    if (writeMode && updates.length > 0) {
-      process.exit(0);
-    } else if (errors.length > 0 && updates.length === 0) {
-      process.exit(1);
-    } else {
-      process.exit(0);
-    }
+    process.exit(errors.length > 0 ? 1 : 0);
   } catch (error) {
     console.error('\n❌ Fatal error:');
     console.error(error);
