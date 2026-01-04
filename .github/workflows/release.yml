@@ -28,6 +28,7 @@ on:
 permissions:
   contents: write
   id-token: write
+  security-events: write  # Required by build.yml security-scan job
 
 jobs:
   # ==========================================================================
@@ -37,6 +38,7 @@ jobs:
     uses: ./.github/workflows/build.yml
     permissions:
       contents: read
+      security-events: write  # Required by security-scan job in build.yml
 
   # ==========================================================================
   # Publish to npm
