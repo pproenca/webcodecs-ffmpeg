@@ -56,7 +56,9 @@ brew install autoconf automake libtool cmake pkg-config || {
 cd "$PROJECT_ROOT/ffmpeg_sources"
 
 # Clean previous builds
-rm -rf x264 x265_git libvpx aom aom_build opus-* lame-* nasm-*
+rm -rf x264 x265_git libvpx aom aom_build opus-* lame-* nasm-* \
+  SVT-AV1 rav1e libtheora-* xvidcore speex-* flac-* \
+  fdk-aac freetype-* libass-*
 
 #=============================================================================
 # Build NASM (assembler required for x264/x265)
@@ -184,6 +186,104 @@ make install
 cd ..
 
 #=============================================================================
+# Build SVT-AV1 (Intel's AV1 encoder, BSD)
+#=============================================================================
+echo ""
+echo "=== Building SVT-AV1 ${SVTAV1_VERSION} ==="
+git clone --depth 1 --branch "${SVTAV1_VERSION}" "${SVTAV1_GIT_URL}"
+mkdir SVT-AV1/build && cd SVT-AV1/build
+cmake \
+  -DCMAKE_INSTALL_PREFIX="$TARGET" \
+  -DBUILD_SHARED_LIBS=OFF \
+  -DBUILD_APPS=OFF \
+  -DBUILD_DEC=OFF \
+  -DBUILD_TESTING=OFF \
+  -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
+  -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}" \
+  ..
+make -j"$(sysctl -n hw.ncpu)"
+make install
+cd ../..
+
+#=============================================================================
+# Build rav1e (Rust AV1 encoder, BSD)
+#=============================================================================
+echo ""
+echo "=== Building rav1e ${RAV1E_VERSION} ==="
+# rav1e requires Rust toolchain - check if cargo is available
+if command -v cargo &> /dev/null; then
+  git clone --depth 1 --branch "${RAV1E_VERSION}" "${RAV1E_GIT_URL}"
+  cd rav1e
+  cargo install --path . --root "$TARGET" \
+    --target-dir=target \
+    --features=asm,threading \
+    --no-default-features
+  # Build C API library
+  cargo cbuild --release --prefix "$TARGET" \
+    --target-dir=target \
+    --library-type=staticlib
+  cd ..
+else
+  echo "WARNING: Rust/Cargo not found - skipping rav1e"
+  echo "Install Rust from https://rustup.rs/ to enable rav1e support"
+fi
+
+#=============================================================================
+# Build Theora (Ogg video codec, BSD)
+#=============================================================================
+echo ""
+echo "=== Building Theora ${THEORA_VERSION} ==="
+curl -fSL --retry 3 "${THEORA_URL}" -o theora.tar.gz || {
+  echo "ERROR: Failed to download Theora"
+  exit 1
+}
+
+echo "${THEORA_SHA256}  theora.tar.gz" | shasum -a 256 -c - || {
+  echo "ERROR: Theora checksum verification failed!"
+  exit 1
+}
+echo "✓ Theora checksum verified"
+
+tar xzf theora.tar.gz
+cd "libtheora-${THEORA_VERSION}"
+./configure \
+  --prefix="$TARGET" \
+  --disable-shared \
+  --enable-static \
+  --disable-examples \
+  CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
+  LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
+make -j"$(sysctl -n hw.ncpu)"
+make install
+cd ..
+
+#=============================================================================
+# Build Xvid (MPEG-4 ASP codec, GPL)
+#=============================================================================
+echo ""
+echo "=== Building Xvid ${XVID_VERSION} ==="
+curl -fSL --retry 3 "${XVID_URL}" -o xvid.tar.gz || {
+  echo "ERROR: Failed to download Xvid"
+  exit 1
+}
+
+echo "${XVID_SHA256}  xvid.tar.gz" | shasum -a 256 -c - || {
+  echo "ERROR: Xvid checksum verification failed!"
+  exit 1
+}
+echo "✓ Xvid checksum verified"
+
+tar xzf xvid.tar.gz
+cd "xvidcore/build/generic"
+./configure \
+  --prefix="$TARGET" \
+  CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
+  LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
+make -j"$(sysctl -n hw.ncpu)"
+make install
+cd ../../..
+
+#=============================================================================
 # Build Opus (audio codec, BSD)
 #=============================================================================
 echo ""
@@ -247,6 +347,144 @@ make install
 cd ..
 
 #=============================================================================
+# Build fdk-aac (High-quality AAC encoder, Non-free)
+#=============================================================================
+echo ""
+echo "=== Building fdk-aac ${FDKAAC_VERSION} ==="
+git clone --depth 1 --branch "${FDKAAC_VERSION}" "${FDKAAC_GIT_URL}"
+cd fdk-aac
+./autogen.sh
+./configure \
+  --prefix="$TARGET" \
+  --disable-shared \
+  --enable-static \
+  CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
+  CXXFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
+  LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
+make -j"$(sysctl -n hw.ncpu)"
+make install
+cd ..
+
+#=============================================================================
+# Build FLAC (Free Lossless Audio Codec, BSD)
+#=============================================================================
+echo ""
+echo "=== Building FLAC ${FLAC_VERSION} ==="
+curl -fSL --retry 3 "${FLAC_URL}" -o flac.tar.xz || {
+  echo "ERROR: Failed to download FLAC"
+  exit 1
+}
+
+echo "${FLAC_SHA256}  flac.tar.xz" | shasum -a 256 -c - || {
+  echo "ERROR: FLAC checksum verification failed!"
+  exit 1
+}
+echo "✓ FLAC checksum verified"
+
+tar xf flac.tar.xz
+cd "flac-${FLAC_VERSION}"
+./configure \
+  --prefix="$TARGET" \
+  --disable-shared \
+  --enable-static \
+  --disable-examples \
+  --disable-cpplibs \
+  CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
+  CXXFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
+  LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
+make -j"$(sysctl -n hw.ncpu)"
+make install
+cd ..
+
+#=============================================================================
+# Build Speex (Speech codec, BSD)
+#=============================================================================
+echo ""
+echo "=== Building Speex ${SPEEX_VERSION} ==="
+curl -fSL --retry 3 "${SPEEX_URL}" -o speex.tar.gz || {
+  echo "ERROR: Failed to download Speex"
+  exit 1
+}
+
+echo "${SPEEX_SHA256}  speex.tar.gz" | shasum -a 256 -c - || {
+  echo "ERROR: Speex checksum verification failed!"
+  exit 1
+}
+echo "✓ Speex checksum verified"
+
+tar xzf speex.tar.gz
+cd "speex-${SPEEX_VERSION}"
+./configure \
+  --prefix="$TARGET" \
+  --disable-shared \
+  --enable-static \
+  CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
+  LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
+make -j"$(sysctl -n hw.ncpu)"
+make install
+cd ..
+
+#=============================================================================
+# Build libfreetype (Font rendering, FreeType License)
+#=============================================================================
+echo ""
+echo "=== Building libfreetype ${FREETYPE_VERSION} ==="
+curl -fSL --retry 3 "${FREETYPE_URL}" -o freetype.tar.xz || {
+  echo "ERROR: Failed to download libfreetype"
+  exit 1
+}
+
+echo "${FREETYPE_SHA256}  freetype.tar.xz" | shasum -a 256 -c - || {
+  echo "ERROR: libfreetype checksum verification failed!"
+  exit 1
+}
+echo "✓ libfreetype checksum verified"
+
+tar xf freetype.tar.xz
+cd "freetype-${FREETYPE_VERSION}"
+./configure \
+  --prefix="$TARGET" \
+  --disable-shared \
+  --enable-static \
+  --without-harfbuzz \
+  --without-bzip2 \
+  --without-png \
+  CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
+  LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
+make -j"$(sysctl -n hw.ncpu)"
+make install
+cd ..
+
+#=============================================================================
+# Build libass (Subtitle rendering, ISC)
+#=============================================================================
+echo ""
+echo "=== Building libass ${LIBASS_VERSION} ==="
+curl -fSL --retry 3 "${LIBASS_URL}" -o libass.tar.gz || {
+  echo "ERROR: Failed to download libass"
+  exit 1
+}
+
+echo "${LIBASS_SHA256}  libass.tar.gz" | shasum -a 256 -c - || {
+  echo "ERROR: libass checksum verification failed!"
+  exit 1
+}
+echo "✓ libass checksum verified"
+
+tar xzf libass.tar.gz
+cd "libass-${LIBASS_VERSION}"
+./configure \
+  --prefix="$TARGET" \
+  --disable-shared \
+  --enable-static \
+  --disable-require-system-font-provider \
+  CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
+  LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
+make -j"$(sysctl -n hw.ncpu)"
+make install
+cd ..
+
+#=============================================================================
 # Build FFmpeg
 #=============================================================================
 echo ""
@@ -277,6 +515,7 @@ make distclean 2>/dev/null || true
   --disable-shared \
   --enable-gpl \
   --enable-version3 \
+  --enable-nonfree \
   --enable-pthreads \
   --enable-runtime-cpudetect \
   --disable-ffplay \
@@ -286,8 +525,15 @@ make distclean 2>/dev/null || true
   --enable-libx265 \
   --enable-libvpx \
   --enable-libaom \
+  --enable-libsvtav1 \
+  --enable-libtheora \
+  --enable-libxvid \
   --enable-libopus \
-  --enable-libmp3lame
+  --enable-libmp3lame \
+  --enable-libfdk-aac \
+  --enable-libspeex \
+  --enable-libfreetype \
+  --enable-libass
 
 make -j"$(sysctl -n hw.ncpu)"
 make install

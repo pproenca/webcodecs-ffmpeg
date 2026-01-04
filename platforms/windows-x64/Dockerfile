@@ -43,10 +43,25 @@ ARG X264_VERSION
 ARG X265_VERSION
 ARG LIBVPX_VERSION
 ARG LIBAOM_VERSION
+ARG SVTAV1_VERSION
+ARG RAV1E_VERSION
+ARG THEORA_VERSION
+ARG THEORA_SHA256
+ARG XVID_VERSION
+ARG XVID_SHA256
 ARG OPUS_VERSION
 ARG OPUS_SHA256
 ARG LAME_VERSION
 ARG LAME_SHA256
+ARG FDKAAC_VERSION
+ARG FLAC_VERSION
+ARG FLAC_SHA256
+ARG SPEEX_VERSION
+ARG SPEEX_SHA256
+ARG LIBASS_VERSION
+ARG LIBASS_SHA256
+ARG FREETYPE_VERSION
+ARG FREETYPE_SHA256
 ARG LIBVORBIS_VERSION
 ARG LIBOGG_VERSION
 ARG NASM_VERSION
@@ -204,6 +219,135 @@ RUN cd ${SOURCES} && \
     make install && \
     cd ${SOURCES} && rm -rf lame-${LAME_VERSION}*
 
+# Build SVT-AV1 (Intel's AV1 encoder)
+RUN cd ${SOURCES} && \
+    git clone --depth 1 --branch ${SVTAV1_VERSION} https://gitlab.com/AOMediaCodec/SVT-AV1.git && \
+    mkdir SVT-AV1/build && \
+    cd SVT-AV1/build && \
+    cmake -G "Unix Makefiles" \
+        -DCMAKE_SYSTEM_NAME=Windows \
+        -DCMAKE_C_COMPILER=${CROSS_PREFIX}gcc \
+        -DCMAKE_CXX_COMPILER=${CROSS_PREFIX}g++ \
+        -DCMAKE_RC_COMPILER=${CROSS_PREFIX}windres \
+        -DCMAKE_INSTALL_PREFIX=${TARGET} \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DBUILD_APPS=OFF \
+        -DBUILD_DEC=OFF \
+        -DBUILD_TESTING=OFF \
+        .. && \
+    make -j$(nproc) && \
+    make install && \
+    cd ${SOURCES} && rm -rf SVT-AV1
+
+# Build Theora (Ogg video codec)
+RUN cd ${SOURCES} && \
+    wget -q https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${THEORA_VERSION}.tar.gz && \
+    echo "${THEORA_SHA256}  libtheora-${THEORA_VERSION}.tar.gz" | sha256sum -c - && \
+    tar xzf libtheora-${THEORA_VERSION}.tar.gz && \
+    cd libtheora-${THEORA_VERSION} && \
+    ./configure \
+        --host=x86_64-w64-mingw32 \
+        --prefix=${TARGET} \
+        --enable-static \
+        --disable-shared \
+        --disable-examples && \
+    make -j$(nproc) && \
+    make install && \
+    cd ${SOURCES} && rm -rf libtheora-${THEORA_VERSION}*
+
+# Build Xvid (MPEG-4 ASP codec)
+RUN cd ${SOURCES} && \
+    wget -q https://downloads.xvid.com/downloads/xvidcore-${XVID_VERSION}.tar.gz && \
+    echo "${XVID_SHA256}  xvidcore-${XVID_VERSION}.tar.gz" | sha256sum -c - && \
+    tar xzf xvidcore-${XVID_VERSION}.tar.gz && \
+    cd xvidcore/build/generic && \
+    ./configure \
+        --host=x86_64-w64-mingw32 \
+        --prefix=${TARGET} && \
+    make -j$(nproc) && \
+    make install && \
+    cd ${SOURCES} && rm -rf xvidcore*
+
+# Build fdk-aac (High-quality AAC encoder - Non-free)
+RUN cd ${SOURCES} && \
+    git clone --depth 1 --branch ${FDKAAC_VERSION} https://github.com/mstorsjo/fdk-aac.git && \
+    cd fdk-aac && \
+    ./autogen.sh && \
+    ./configure \
+        --host=x86_64-w64-mingw32 \
+        --prefix=${TARGET} \
+        --enable-static \
+        --disable-shared && \
+    make -j$(nproc) && \
+    make install && \
+    cd ${SOURCES} && rm -rf fdk-aac
+
+# Build FLAC (Free Lossless Audio Codec)
+RUN cd ${SOURCES} && \
+    wget -q https://ftp.osuosl.org/pub/xiph/releases/flac/flac-${FLAC_VERSION}.tar.xz && \
+    echo "${FLAC_SHA256}  flac-${FLAC_VERSION}.tar.xz" | sha256sum -c - && \
+    tar xf flac-${FLAC_VERSION}.tar.xz && \
+    cd flac-${FLAC_VERSION} && \
+    ./configure \
+        --host=x86_64-w64-mingw32 \
+        --prefix=${TARGET} \
+        --enable-static \
+        --disable-shared \
+        --disable-examples \
+        --disable-cpplibs && \
+    make -j$(nproc) && \
+    make install && \
+    cd ${SOURCES} && rm -rf flac-${FLAC_VERSION}*
+
+# Build Speex (Speech codec)
+RUN cd ${SOURCES} && \
+    wget -q https://ftp.osuosl.org/pub/xiph/releases/speex/speex-${SPEEX_VERSION}.tar.gz && \
+    echo "${SPEEX_SHA256}  speex-${SPEEX_VERSION}.tar.gz" | sha256sum -c - && \
+    tar xzf speex-${SPEEX_VERSION}.tar.gz && \
+    cd speex-${SPEEX_VERSION} && \
+    ./configure \
+        --host=x86_64-w64-mingw32 \
+        --prefix=${TARGET} \
+        --enable-static \
+        --disable-shared && \
+    make -j$(nproc) && \
+    make install && \
+    cd ${SOURCES} && rm -rf speex-${SPEEX_VERSION}*
+
+# Build libfreetype (Font rendering)
+RUN cd ${SOURCES} && \
+    wget -q https://download.savannah.gnu.org/releases/freetype/freetype-${FREETYPE_VERSION}.tar.xz && \
+    echo "${FREETYPE_SHA256}  freetype-${FREETYPE_VERSION}.tar.xz" | sha256sum -c - && \
+    tar xf freetype-${FREETYPE_VERSION}.tar.xz && \
+    cd freetype-${FREETYPE_VERSION} && \
+    ./configure \
+        --host=x86_64-w64-mingw32 \
+        --prefix=${TARGET} \
+        --enable-static \
+        --disable-shared \
+        --without-harfbuzz \
+        --without-bzip2 \
+        --without-png && \
+    make -j$(nproc) && \
+    make install && \
+    cd ${SOURCES} && rm -rf freetype-${FREETYPE_VERSION}*
+
+# Build libass (Subtitle rendering)
+RUN cd ${SOURCES} && \
+    wget -q https://github.com/libass/libass/releases/download/${LIBASS_VERSION}/libass-${LIBASS_VERSION}.tar.gz && \
+    echo "${LIBASS_SHA256}  libass-${LIBASS_VERSION}.tar.gz" | sha256sum -c - && \
+    tar xzf libass-${LIBASS_VERSION}.tar.gz && \
+    cd libass-${LIBASS_VERSION} && \
+    ./configure \
+        --host=x86_64-w64-mingw32 \
+        --prefix=${TARGET} \
+        --enable-static \
+        --disable-shared \
+        --disable-require-system-font-provider && \
+    make -j$(nproc) && \
+    make install && \
+    cd ${SOURCES} && rm -rf libass-${LIBASS_VERSION}*
+
 # Build FFmpeg
 RUN cd ${SOURCES} && \
     git clone --depth 1 --branch ${FFMPEG_VERSION} https://git.ffmpeg.org/ffmpeg.git && \
@@ -222,6 +366,7 @@ RUN cd ${SOURCES} && \
         --disable-shared \
         --enable-gpl \
         --enable-version3 \
+        --enable-nonfree \
         --enable-runtime-cpudetect \
         --disable-ffplay \
         --disable-doc \
@@ -231,9 +376,16 @@ RUN cd ${SOURCES} && \
         --enable-libx265 \
         --enable-libvpx \
         --enable-libaom \
+        --enable-libsvtav1 \
+        --enable-libtheora \
+        --enable-libxvid \
         --enable-libopus \
         --enable-libvorbis \
-        --enable-libmp3lame && \
+        --enable-libmp3lame \
+        --enable-libfdk-aac \
+        --enable-libspeex \
+        --enable-libfreetype \
+        --enable-libass && \
     make -j$(nproc) && \
     make install && \
     # Strip binaries to reduce size

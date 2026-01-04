@@ -13,8 +13,17 @@ ARG X264_VERSION=stable
 ARG X265_VERSION=3.6
 ARG LIBVPX_VERSION=v1.15.2
 ARG LIBAOM_VERSION=v3.12.1
+ARG SVTAV1_VERSION=v2.3.0
+ARG RAV1E_VERSION=v0.7.1
+ARG THEORA_VERSION=1.1.1
+ARG XVID_VERSION=1.3.7
 ARG OPUS_VERSION=1.5.2
 ARG LAME_VERSION=3.100
+ARG FDKAAC_VERSION=v2.0.3
+ARG FLAC_VERSION=1.4.3
+ARG SPEEX_VERSION=1.2.1
+ARG LIBASS_VERSION=0.17.3
+ARG FREETYPE_VERSION=2.13.3
 ARG FFMPEG_VERSION=n8.0
 
 # Install build dependencies
@@ -186,7 +195,126 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-1.3.7.tar.
     cd .. && rm -rf libvorbis-1.3.7*
 
 # ============================================================================
-# Build FFmpeg with all codecs (GPL due to x264/x265)
+# Build SVT-AV1 (BSD - Intel's AV1 encoder)
+# ============================================================================
+RUN git clone --depth 1 --branch ${SVTAV1_VERSION} https://gitlab.com/AOMediaCodec/SVT-AV1.git && \
+    mkdir SVT-AV1/build && \
+    cd SVT-AV1/build && \
+    cmake -G "Unix Makefiles" \
+        -DCMAKE_INSTALL_PREFIX=$PREFIX \
+        -DBUILD_SHARED_LIBS=OFF \
+        -DBUILD_APPS=OFF \
+        -DBUILD_DEC=OFF \
+        -DBUILD_TESTING=OFF \
+        .. && \
+    make -j$(nproc) && \
+    make install && \
+    cd /src && rm -rf SVT-AV1
+
+# ============================================================================
+# Build Theora (BSD - Ogg video codec)
+# ============================================================================
+RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${THEORA_VERSION}.tar.gz && \
+    tar xzf libtheora-${THEORA_VERSION}.tar.gz && \
+    cd libtheora-${THEORA_VERSION} && \
+    ./configure \
+        --prefix=$PREFIX \
+        --disable-shared \
+        --enable-static \
+        --disable-examples && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && rm -rf libtheora-${THEORA_VERSION}*
+
+# ============================================================================
+# Build Xvid (GPL - MPEG-4 ASP codec)
+# ============================================================================
+RUN wget -q https://downloads.xvid.com/downloads/xvidcore-${XVID_VERSION}.tar.gz && \
+    tar xzf xvidcore-${XVID_VERSION}.tar.gz && \
+    cd xvidcore/build/generic && \
+    ./configure --prefix=$PREFIX && \
+    make -j$(nproc) && \
+    make install && \
+    cd /src && rm -rf xvidcore*
+
+# ============================================================================
+# Build fdk-aac (Non-free - High-quality AAC encoder)
+# ============================================================================
+RUN git clone --depth 1 --branch ${FDKAAC_VERSION} https://github.com/mstorsjo/fdk-aac.git && \
+    cd fdk-aac && \
+    ./autogen.sh && \
+    ./configure \
+        --prefix=$PREFIX \
+        --disable-shared \
+        --enable-static && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && rm -rf fdk-aac
+
+# ============================================================================
+# Build FLAC (BSD - Free Lossless Audio Codec)
+# ============================================================================
+RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/flac/flac-${FLAC_VERSION}.tar.xz && \
+    tar xf flac-${FLAC_VERSION}.tar.xz && \
+    cd flac-${FLAC_VERSION} && \
+    ./configure \
+        --prefix=$PREFIX \
+        --disable-shared \
+        --enable-static \
+        --disable-examples \
+        --disable-cpplibs && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && rm -rf flac-${FLAC_VERSION}*
+
+# ============================================================================
+# Build Speex (BSD - Speech codec)
+# ============================================================================
+RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/speex/speex-${SPEEX_VERSION}.tar.gz && \
+    tar xzf speex-${SPEEX_VERSION}.tar.gz && \
+    cd speex-${SPEEX_VERSION} && \
+    ./configure \
+        --prefix=$PREFIX \
+        --disable-shared \
+        --enable-static && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && rm -rf speex-${SPEEX_VERSION}*
+
+# ============================================================================
+# Build libfreetype (FreeType License - Font rendering)
+# ============================================================================
+RUN wget -q https://download.savannah.gnu.org/releases/freetype/freetype-${FREETYPE_VERSION}.tar.xz && \
+    tar xf freetype-${FREETYPE_VERSION}.tar.xz && \
+    cd freetype-${FREETYPE_VERSION} && \
+    ./configure \
+        --prefix=$PREFIX \
+        --disable-shared \
+        --enable-static \
+        --without-harfbuzz \
+        --without-bzip2 \
+        --without-png && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && rm -rf freetype-${FREETYPE_VERSION}*
+
+# ============================================================================
+# Build libass (ISC - Subtitle rendering)
+# ============================================================================
+RUN wget -q https://github.com/libass/libass/releases/download/${LIBASS_VERSION}/libass-${LIBASS_VERSION}.tar.gz && \
+    tar xzf libass-${LIBASS_VERSION}.tar.gz && \
+    cd libass-${LIBASS_VERSION} && \
+    ./configure \
+        --prefix=$PREFIX \
+        --disable-shared \
+        --enable-static \
+        --disable-require-system-font-provider && \
+    make -j$(nproc) && \
+    make install && \
+    cd .. && rm -rf libass-${LIBASS_VERSION}*
+
+# ============================================================================
+# Build FFmpeg with all codecs (GPL due to x264/x265, Non-free due to fdk-aac)
 # ============================================================================
 RUN git clone --depth 1 --branch ${FFMPEG_VERSION} https://git.ffmpeg.org/ffmpeg.git && \
     cd ffmpeg && \
@@ -198,6 +326,7 @@ RUN git clone --depth 1 --branch ${FFMPEG_VERSION} https://git.ffmpeg.org/ffmpeg
         --extra-libs="-lpthread -lm -lstdc++" \
         --enable-gpl \
         --enable-version3 \
+        --enable-nonfree \
         --enable-static \
         --disable-shared \
         --enable-pic \
@@ -209,9 +338,16 @@ RUN git clone --depth 1 --branch ${FFMPEG_VERSION} https://git.ffmpeg.org/ffmpeg
         --enable-libx265 \
         --enable-libvpx \
         --enable-libaom \
+        --enable-libsvtav1 \
+        --enable-libtheora \
+        --enable-libxvid \
         --enable-libopus \
         --enable-libmp3lame \
-        --enable-libvorbis && \
+        --enable-libfdk-aac \
+        --enable-libspeex \
+        --enable-libvorbis \
+        --enable-libfreetype \
+        --enable-libass && \
     make -j$(nproc) && \
     make install
 

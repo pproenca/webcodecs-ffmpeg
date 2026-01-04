@@ -20,18 +20,18 @@ Phase 1: Platform Expansion [COMPLETED ✅]
      - Deprecated darwin-x64 and darwin-arm64 packages (still available for backwards compat)
      - Updated platform detection in main package
 
-Phase 2: Codec Library Expansion [PENDING]
-  ⬜ SVT-AV1 (v2.3.0, BSD)
-  ⬜ rav1e (v0.7.1, BSD)
-  ⬜ Theora (v1.1.1, BSD)
-  ⬜ Xvid (1.3.7, GPL)
-  ⬜ fdk-aac (v2.0.3, Non-free)
-  ⬜ FLAC (1.4.3, BSD)
-  ⬜ Speex (1.2.1, BSD)
-  ⬜ libass (0.17.3, ISC)
-  ⬜ libfreetype (2.13.3, FreeType License)
-  ⬜ Create CODECS.md documentation
-  ⬜ Update build scripts for new codecs
+Phase 2: Codec Library Expansion [COMPLETED ✅]
+  ✅ SVT-AV1 (v2.3.0, BSD) - Intel's optimized AV1 encoder
+  ✅ rav1e (v0.7.1, BSD) - Rust AV1 encoder (optional, requires Cargo)
+  ✅ Theora (v1.1.1, BSD) - Legacy Ogg video codec
+  ✅ Xvid (1.3.7, GPL) - MPEG-4 ASP codec
+  ✅ fdk-aac (v2.0.3, Non-free) - High-quality AAC encoder
+  ✅ FLAC (1.4.3, BSD) - Lossless audio codec
+  ✅ Speex (1.2.1, BSD) - Speech codec
+  ✅ libass (0.17.3, ISC) - Subtitle rendering
+  ✅ libfreetype (2.13.3, FreeType License) - Font rendering
+  ✅ CODECS.md documentation created
+  ✅ Updated all platform build scripts (macOS, Linux glibc/musl, Windows)
 
 Phase 3: Hardware Acceleration [PENDING]
   ⬜ Linux VA-API variant (linux-x64-glibc-vaapi)
@@ -67,17 +67,17 @@ Legend:
 
 Statistics:
   - Total Phases: 5
-  - Completed Phases: 1 (Phase 1 complete!)
+  - Completed Phases: 2 (Phases 1-2 complete!)
   - Total Tasks: 43
-  - Completed: 11
+  - Completed: 22
   - In Progress: 0
-  - Remaining: 32
-  - Overall Progress: 26%
+  - Remaining: 21
+  - Overall Progress: 51%
 
-Current Focus: Phase 1 Complete - Ready for Phase 2
+Current Focus: Phase 2 Complete - Ready for Phase 3
 
 Next Steps:
-  1. Commit Phase 1 changes
-  2. Test Windows build (when Docker is available)
-  3. Begin Phase 2: Codec expansion
-  4. Add SVT-AV1, rav1e, Theora, Xvid, fdk-aac, FLAC, Speex, libass, libfreetype
+  1. Commit Phase 2 changes
+  2. Test codec builds (all platforms)
+  3. Begin Phase 3: Hardware acceleration variants
+  4. Add VA-API, VDPAU, NVENC, VideoToolbox, DXVA2 support
