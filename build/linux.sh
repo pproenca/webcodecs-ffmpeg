@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Linux FFmpeg Build Script (Docker-based)
-# Supports: linux-x64-glibc, linux-x64-musl, linux-arm64-glibc, linux-arm64-musl
+# Supports: linux-x64-glibc, linux-x64-musl, linux-arm64-glibc, linux-arm64-musl, linux-armv7-glibc
 #
 # This script builds FFmpeg and all codec dependencies inside Docker containers
 # for maximum reproducibility and isolation.
@@ -29,9 +29,12 @@ case "$PLATFORM" in
   linux-arm64-glibc|linux-arm64-musl)
     DOCKER_PLATFORM="linux/arm64"
     ;;
+  linux-armv7-glibc)
+    DOCKER_PLATFORM="linux/arm/v7"
+    ;;
   *)
     echo "ERROR: Invalid Linux platform '$PLATFORM'"
-    echo "Supported: linux-x64-glibc, linux-x64-musl, linux-arm64-glibc, linux-arm64-musl"
+    echo "Supported: linux-x64-glibc, linux-x64-musl, linux-arm64-glibc, linux-arm64-musl, linux-armv7-glibc"
     exit 1
     ;;
 esac
