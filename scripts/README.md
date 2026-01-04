@@ -4,17 +4,19 @@ Utility scripts for FFmpeg prebuilds repository.
 
 ## Dependency Update Automation
 
-### `check-dependency-updates.sh`
+### `fetch-versions.ts`
 
-Automatically checks for new versions of FFmpeg and codec dependencies.
+Checks for new versions of FFmpeg and codec dependencies and updates
+`versions.properties`.
 
 **Usage:**
 
 ```bash
 # Check for updates (dry run)
-./scripts/check-dependency-updates.sh
+npm run fetch-versions
 
-# Updates versions.properties if new versions available
+# Updates versions.properties if new versions are available
+npm run fetch-versions:write
 ```
 
 **What it checks:**
@@ -26,19 +28,33 @@ Automatically checks for new versions of FFmpeg and codec dependencies.
 | x265 | https://bitbucket.org/multicoreware/x265_git/tags |
 | libvpx | https://github.com/webmproject/libvpx/tags |
 | libaom | https://github.com/jbeich/aom/tags |
-| SVT-AV1 | https://github.com/AOMediaCodec/SVT-AV1/tags |
+| SVT-AV1 | https://gitlab.com/AOMediaCodec/SVT-AV1/tags |
+| dav1d | https://code.videolan.org/videolan/dav1d/-/tags |
+| rav1e | https://github.com/xiph/rav1e/tags |
+| Theora | https://ftp.osuosl.org/pub/xiph/releases/theora/ |
+| Xvid | https://downloads.xvid.com/downloads/ |
 | Opus | https://github.com/xiph/opus/tags |
 | LAME | 3.100 (stable) |
+| Vorbis | https://ftp.osuosl.org/pub/xiph/releases/vorbis/ |
+| Ogg | https://ftp.osuosl.org/pub/xiph/releases/ogg/ |
 | fdk-aac | https://github.com/mstorsjo/fdk-aac/tags |
+| FLAC | https://ftp.osuosl.org/pub/xiph/releases/flac/ |
+| Speex | https://ftp.osuosl.org/pub/xiph/releases/speex/ |
+| libass | https://github.com/libass/libass/releases |
+| FreeType | https://download.savannah.gnu.org/releases/freetype/ |
 | NASM | https://github.com/netwide-assembler/nasm/tags |
-| Yasm | https://github.com/yasm/yasm/tags |
-| CMake | https://github.com/Kitware/CMake/tags |
+| OpenSSL | https://github.com/openssl/openssl/tags |
+
+**Stability rules:**
+
+- Only numeric release tags are accepted (no rc/beta/dev suffixes).
+- Some dependencies are pinned to known stable versions (e.g., LAME).
 
 **Output:**
 
 ```
 ==========================================
-Dependency Update Checker
+Dependency Version Checker
 ==========================================
 
 ℹ Checking FFmpeg (current: n8.0)...
@@ -140,16 +156,18 @@ FFMPEG_VERSION=n8.0
 # Video Codecs
 X264_VERSION=stable
 X265_VERSION=4.0
-VPX_VERSION=v1.14.0
-AOM_VERSION=v3.9.1
+LIBVPX_VERSION=v1.15.2
+LIBAOM_VERSION=v3.12.1
 
 # Audio Codecs
-OPUS_VERSION=v1.5.2
+OPUS_VERSION=1.5.2
 LAME_VERSION=3.100
 
 # Build Tools
 NASM_VERSION=2.16.03
-CMAKE_VERSION=v3.30.5
+
+# Network Libraries
+OPENSSL_VERSION=3.4.0
 ```
 
 **Why pin versions?**

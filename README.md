@@ -234,7 +234,7 @@ All codec versions are centralized in `versions.properties`:
 ```properties
 FFMPEG_VERSION=n8.0
 X264_VERSION=stable
-X265_VERSION=3.6
+X265_VERSION=4.0
 LIBVPX_VERSION=v1.15.2
 LIBAOM_VERSION=v3.12.1
 # ... etc
@@ -242,10 +242,11 @@ LIBAOM_VERSION=v3.12.1
 
 To update dependencies:
 
-1. Edit `versions.properties`
-2. Bump `CACHE_VERSION` to invalidate CI cache
-3. Run builds locally to test
-4. Create a git tag and push to trigger release
+1. Run `npm run fetch-versions` to preview updates
+2. Update `versions.properties` (or run `npm run fetch-versions:write`)
+3. Bump `CACHE_VERSION` to invalidate CI cache
+4. Run builds locally to test
+5. Create a git tag and push to trigger release
 
 ## CI/CD Pipeline
 

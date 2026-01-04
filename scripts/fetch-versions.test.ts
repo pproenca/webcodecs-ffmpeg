@@ -1,7 +1,12 @@
 import {describe, test} from 'node:test';
 import assert from 'node:assert';
 import {writeFile, rm} from 'node:fs/promises';
-import {compareVersions, parseVersionsFile} from './fetch-versions.ts';
+import {
+  compareVersions,
+  isPrereleaseTag,
+  parseVersionsFile,
+  selectLatestStableTag,
+} from './fetch-versions.ts';
 
 describe('compareVersions', () => {
   test('correctly compares semantic versions', () => {
@@ -67,6 +72,54 @@ describe('compareVersions', () => {
 
     // Opus versions
     assert(compareVersions('1.5.2', '1.6') < 0, '1.5.2 should be less than 1.6');
+  });
+});
+
+describe('isPrereleaseTag', () => {
+  test('identifies stable tags', () => {
+    assert.strictEqual(isPrereleaseTag('v1.2.3'), false, 'v1.2.3 is stable');
+    assert.strictEqual(isPrereleaseTag('n8.0.1'), false, 'n8.0.1 is stable');
+    assert.strictEqual(
+      isPrereleaseTag('openssl-3.4.0'),
+      false,
+      'openssl-3.4.0 is stable',
+    );
+  });
+
+  test('identifies prerelease tags', () => {
+    assert.strictEqual(isPrereleaseTag('v1.2.3-rc1'), true, 'rc tag is prerelease');
+    assert.strictEqual(
+      isPrereleaseTag('v1.2.3beta'),
+      true,
+      'beta suffix is prerelease',
+    );
+    assert.strictEqual(
+      isPrereleaseTag('openssl-3.4.0-alpha1'),
+      true,
+      'alpha tag is prerelease',
+    );
+  });
+});
+
+describe('selectLatestStableTag', () => {
+  test('picks the newest stable tag', () => {
+    const tags = ['v1.2.0', 'v1.2.3', 'v1.3.0-rc1'];
+    const result = selectLatestStableTag(tags, /^v[0-9]+(?:\.[0-9]+)*$/);
+    assert.strictEqual(result, 'v1.2.3', 'latest stable tag should be v1.2.3');
+  });
+
+  test('handles FFmpeg-style tags', () => {
+    const tags = ['n8.0', 'n8.0.1', 'n8.1-rc1'];
+    const result = selectLatestStableTag(tags, /^n[0-9]+(?:\.[0-9]+){1,2}$/);
+    assert.strictEqual(result, 'n8.0.1', 'latest stable tag should be n8.0.1');
+  });
+
+  test('throws when no stable tags match', () => {
+    const tags = ['v1.2.3-rc1'];
+    assert.throws(
+      () => selectLatestStableTag(tags, /^v[0-9]+(?:\.[0-9]+)*$/),
+      /No stable tags found/,
+    );
   });
 });
 
