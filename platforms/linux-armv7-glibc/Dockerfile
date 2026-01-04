@@ -29,16 +29,25 @@ ARG LIBASS_VERSION=0.17.3
 ARG FREETYPE_VERSION=2.13.3
 ARG FFMPEG_VERSION=n8.0
 
+# SHA256 checksums for tarball verification
+ARG THEORA_SHA256
+ARG XVID_SHA256
+ARG OPUS_SHA256
+ARG LAME_SHA256
+ARG FLAC_SHA256
+ARG SPEEX_SHA256
+ARG LIBASS_SHA256
+ARG FREETYPE_SHA256
+
 # Prevent interactive prompts during apt-get
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install build dependencies (including ccache for faster incremental builds)
+# Note: NASM/YASM omitted - these are x86 assemblers, not used on ARM
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     git \
     cmake \
-    nasm \
-    yasm \
     pkg-config \
     autoconf \
     automake \
@@ -70,6 +79,7 @@ WORKDIR /src
 # ============================================================================
 # Build x264 (GPL - required for H.264 encoding)
 # Note: x264 has ARMv7 NEON optimizations (limited compared to ARM64)
+# Using ARMv7-A architecture with NEON SIMD and hard-float ABI for optimal performance
 # ============================================================================
 RUN git clone --depth 1 --branch ${X264_VERSION} https://code.videolan.org/videolan/x264.git && \
     cd x264 && \
@@ -79,7 +89,9 @@ RUN git clone --depth 1 --branch ${X264_VERSION} https://code.videolan.org/video
         --disable-shared \
         --enable-pic \
         --disable-cli \
-        --disable-opencl && \
+        --disable-opencl \
+        --extra-cflags="-march=armv7-a -mfpu=neon -mfloat-abi=hard" \
+        --extra-ldflags="-march=armv7-a" && \
     make -j$(nproc) && \
     make install && \
     cd .. && rm -rf x264
@@ -87,6 +99,7 @@ RUN git clone --depth 1 --branch ${X264_VERSION} https://code.videolan.org/video
 # ============================================================================
 # Build x265 (GPL - required for H.265/HEVC encoding)
 # Note: x265 has limited ARMv7 support (mostly scalar, some NEON)
+# Using ARMv7-A architecture flags for NEON optimizations
 # ============================================================================
 RUN git clone --depth 1 https://bitbucket.org/multicoreware/x265_git.git && \
     mkdir -p x265_git/build/linux && \
@@ -95,8 +108,8 @@ RUN git clone --depth 1 https://bitbucket.org/multicoreware/x265_git.git && \
         -DCMAKE_INSTALL_PREFIX=$PREFIX \
         -DLIB_INSTALL_DIR=$PREFIX/lib \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-        -DCMAKE_C_FLAGS="-fPIC" \
-        -DCMAKE_CXX_FLAGS="-fPIC" \
+        -DCMAKE_C_FLAGS="-fPIC -march=armv7-a -mfpu=neon -mfloat-abi=hard" \
+        -DCMAKE_CXX_FLAGS="-fPIC -march=armv7-a -mfpu=neon -mfloat-abi=hard" \
         -DENABLE_SHARED=OFF \
         -DENABLE_CLI=OFF \
         -DHIGH_BIT_DEPTH=ON \
@@ -127,6 +140,7 @@ RUN git clone --depth 1 --branch ${LIBVPX_VERSION} https://chromium.googlesource
 # ============================================================================
 # Build libaom (BSD - AV1 codec)
 # Note: libaom has limited ARMv7 optimizations
+# NASM is an x86 assembler and must be disabled on ARM platforms
 # ============================================================================
 RUN git clone --depth 1 --branch ${LIBAOM_VERSION} https://aomedia.googlesource.com/aom && \
     mkdir aom_build && \
@@ -137,7 +151,7 @@ RUN git clone --depth 1 --branch ${LIBAOM_VERSION} https://aomedia.googlesource.
         -DCMAKE_C_FLAGS="-fPIC" \
         -DCMAKE_CXX_FLAGS="-fPIC" \
         -DBUILD_SHARED_LIBS=OFF \
-        -DENABLE_NASM=ON \
+        -DENABLE_NASM=OFF \
         -DENABLE_DOCS=OFF \
         -DENABLE_EXAMPLES=OFF \
         -DENABLE_TESTS=OFF \
@@ -152,6 +166,7 @@ RUN git clone --depth 1 --branch ${LIBAOM_VERSION} https://aomedia.googlesource.
 # Build libopus (BSD - Opus audio codec)
 # ============================================================================
 RUN wget -q https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz && \
+    echo "${OPUS_SHA256}  opus-${OPUS_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf opus-${OPUS_VERSION}.tar.gz && \
     cd opus-${OPUS_VERSION} && \
     ./configure \
@@ -170,6 +185,7 @@ RUN wget -q https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz
 # Build libmp3lame (LGPL - MP3 encoder)
 # ============================================================================
 RUN wget -q "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}/lame-${LAME_VERSION}.tar.gz" && \
+    echo "${LAME_SHA256}  lame-${LAME_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf lame-${LAME_VERSION}.tar.gz && \
     cd lame-${LAME_VERSION} && \
     ./configure \
@@ -238,6 +254,7 @@ RUN git clone --depth 1 --branch ${SVTAV1_VERSION} https://gitlab.com/AOMediaCod
 # Build Theora (BSD - Ogg video codec)
 # ============================================================================
 RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${THEORA_VERSION}.tar.gz && \
+    echo "${THEORA_SHA256}  libtheora-${THEORA_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf libtheora-${THEORA_VERSION}.tar.gz && \
     cd libtheora-${THEORA_VERSION} && \
     ./configure \
@@ -255,6 +272,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${THEORA_V
 # Build Xvid (GPL - MPEG-4 ASP codec)
 # ============================================================================
 RUN wget -q https://downloads.xvid.com/downloads/xvidcore-${XVID_VERSION}.tar.gz && \
+    echo "${XVID_SHA256}  xvidcore-${XVID_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf xvidcore-${XVID_VERSION}.tar.gz && \
     cd xvidcore/build/generic && \
     ./configure \
@@ -285,6 +303,7 @@ RUN git clone --depth 1 --branch ${FDKAAC_VERSION} https://github.com/mstorsjo/f
 # Build FLAC (BSD - Free Lossless Audio Codec)
 # ============================================================================
 RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/flac/flac-${FLAC_VERSION}.tar.xz && \
+    echo "${FLAC_SHA256}  flac-${FLAC_VERSION}.tar.xz" | sha256sum -c - && \
     tar xf flac-${FLAC_VERSION}.tar.xz && \
     cd flac-${FLAC_VERSION} && \
     ./configure \
@@ -304,6 +323,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/flac/flac-${FLAC_VERSION}.t
 # Build Speex (BSD - Speech codec)
 # ============================================================================
 RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/speex/speex-${SPEEX_VERSION}.tar.gz && \
+    echo "${SPEEX_SHA256}  speex-${SPEEX_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf speex-${SPEEX_VERSION}.tar.gz && \
     cd speex-${SPEEX_VERSION} && \
     ./configure \
@@ -320,6 +340,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/speex/speex-${SPEEX_VERSION
 # Build libfreetype (FreeType License - Font rendering)
 # ============================================================================
 RUN wget -q https://download.savannah.gnu.org/releases/freetype/freetype-${FREETYPE_VERSION}.tar.xz && \
+    echo "${FREETYPE_SHA256}  freetype-${FREETYPE_VERSION}.tar.xz" | sha256sum -c - && \
     tar xf freetype-${FREETYPE_VERSION}.tar.xz && \
     cd freetype-${FREETYPE_VERSION} && \
     ./configure \
@@ -339,6 +360,7 @@ RUN wget -q https://download.savannah.gnu.org/releases/freetype/freetype-${FREET
 # Build libass (ISC - Subtitle rendering)
 # ============================================================================
 RUN wget -q https://github.com/libass/libass/releases/download/${LIBASS_VERSION}/libass-${LIBASS_VERSION}.tar.gz && \
+    echo "${LIBASS_SHA256}  libass-${LIBASS_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf libass-${LIBASS_VERSION}.tar.gz && \
     cd libass-${LIBASS_VERSION} && \
     ./configure \
@@ -355,14 +377,15 @@ RUN wget -q https://github.com/libass/libass/releases/download/${LIBASS_VERSION}
 # ============================================================================
 # Build FFmpeg with all codecs (GPL due to x264/x265, Non-free due to fdk-aac)
 # Note: FFmpeg has ARMv7 NEON optimizations where available
+# Using ARMv7-A with NEON for optimal SIMD performance (2-4x speedup vs scalar)
 # ============================================================================
 RUN git clone --depth 1 --branch ${FFMPEG_VERSION} https://git.ffmpeg.org/ffmpeg.git && \
     cd ffmpeg && \
     ./configure \
         --prefix=$PREFIX \
         --pkg-config-flags="--static" \
-        --extra-cflags="-I$PREFIX/include -fPIC" \
-        --extra-ldflags="-L$PREFIX/lib" \
+        --extra-cflags="-I$PREFIX/include -fPIC -march=armv7-a -mfpu=neon -mfloat-abi=hard" \
+        --extra-ldflags="-L$PREFIX/lib -march=armv7-a" \
         --extra-libs="-lpthread -lm -lstdc++" \
         --enable-gpl \
         --enable-version3 \

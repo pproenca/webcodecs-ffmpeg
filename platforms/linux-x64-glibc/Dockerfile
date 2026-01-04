@@ -20,14 +20,22 @@ ARG LIBAOM_VERSION=v3.12.1
 ARG SVTAV1_VERSION=v2.3.0
 ARG RAV1E_VERSION=v0.7.1
 ARG THEORA_VERSION=1.1.1
+ARG THEORA_SHA256
 ARG XVID_VERSION=1.3.7
+ARG XVID_SHA256
 ARG OPUS_VERSION=1.5.2
+ARG OPUS_SHA256
 ARG LAME_VERSION=3.100
+ARG LAME_SHA256
 ARG FDKAAC_VERSION=v2.0.3
 ARG FLAC_VERSION=1.4.3
+ARG FLAC_SHA256
 ARG SPEEX_VERSION=1.2.1
+ARG SPEEX_SHA256
 ARG LIBASS_VERSION=0.17.3
+ARG LIBASS_SHA256
 ARG FREETYPE_VERSION=2.13.3
+ARG FREETYPE_SHA256
 ARG FFMPEG_VERSION=n8.0
 
 # Prevent interactive prompts during apt-get
@@ -152,6 +160,7 @@ RUN git clone --depth 1 --branch ${LIBAOM_VERSION} https://aomedia.googlesource.
 # Build libopus (BSD - Opus audio codec)
 # ============================================================================
 RUN wget -q https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz && \
+    echo "${OPUS_SHA256}  opus-${OPUS_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf opus-${OPUS_VERSION}.tar.gz && \
     cd opus-${OPUS_VERSION} && \
     ./configure \
@@ -170,6 +179,7 @@ RUN wget -q https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz
 # Build libmp3lame (LGPL - MP3 encoder)
 # ============================================================================
 RUN wget -q "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}/lame-${LAME_VERSION}.tar.gz" && \
+    echo "${LAME_SHA256}  lame-${LAME_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf lame-${LAME_VERSION}.tar.gz && \
     cd lame-${LAME_VERSION} && \
     ./configure \
@@ -238,6 +248,7 @@ RUN git clone --depth 1 --branch ${SVTAV1_VERSION} https://gitlab.com/AOMediaCod
 # Build Theora (BSD - Ogg video codec)
 # ============================================================================
 RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${THEORA_VERSION}.tar.gz && \
+    echo "${THEORA_SHA256}  libtheora-${THEORA_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf libtheora-${THEORA_VERSION}.tar.gz && \
     cd libtheora-${THEORA_VERSION} && \
     ./configure \
@@ -255,6 +266,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${THEORA_V
 # Build Xvid (GPL - MPEG-4 ASP codec)
 # ============================================================================
 RUN wget -q https://downloads.xvid.com/downloads/xvidcore-${XVID_VERSION}.tar.gz && \
+    echo "${XVID_SHA256}  xvidcore-${XVID_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf xvidcore-${XVID_VERSION}.tar.gz && \
     cd xvidcore/build/generic && \
     ./configure \
@@ -285,6 +297,7 @@ RUN git clone --depth 1 --branch ${FDKAAC_VERSION} https://github.com/mstorsjo/f
 # Build FLAC (BSD - Free Lossless Audio Codec)
 # ============================================================================
 RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/flac/flac-${FLAC_VERSION}.tar.xz && \
+    echo "${FLAC_SHA256}  flac-${FLAC_VERSION}.tar.xz" | sha256sum -c - && \
     tar xf flac-${FLAC_VERSION}.tar.xz && \
     cd flac-${FLAC_VERSION} && \
     ./configure \
@@ -304,6 +317,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/flac/flac-${FLAC_VERSION}.t
 # Build Speex (BSD - Speech codec)
 # ============================================================================
 RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/speex/speex-${SPEEX_VERSION}.tar.gz && \
+    echo "${SPEEX_SHA256}  speex-${SPEEX_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf speex-${SPEEX_VERSION}.tar.gz && \
     cd speex-${SPEEX_VERSION} && \
     ./configure \
@@ -320,6 +334,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/speex/speex-${SPEEX_VERSION
 # Build libfreetype (FreeType License - Font rendering)
 # ============================================================================
 RUN wget -q https://download.savannah.gnu.org/releases/freetype/freetype-${FREETYPE_VERSION}.tar.xz && \
+    echo "${FREETYPE_SHA256}  freetype-${FREETYPE_VERSION}.tar.xz" | sha256sum -c - && \
     tar xf freetype-${FREETYPE_VERSION}.tar.xz && \
     cd freetype-${FREETYPE_VERSION} && \
     ./configure \
@@ -339,6 +354,7 @@ RUN wget -q https://download.savannah.gnu.org/releases/freetype/freetype-${FREET
 # Build libass (ISC - Subtitle rendering)
 # ============================================================================
 RUN wget -q https://github.com/libass/libass/releases/download/${LIBASS_VERSION}/libass-${LIBASS_VERSION}.tar.gz && \
+    echo "${LIBASS_SHA256}  libass-${LIBASS_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf libass-${LIBASS_VERSION}.tar.gz && \
     cd libass-${LIBASS_VERSION} && \
     ./configure \

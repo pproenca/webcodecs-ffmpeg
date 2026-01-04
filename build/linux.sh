@@ -61,13 +61,25 @@ docker buildx build \
   --build-arg LIBVPX_VERSION="$LIBVPX_VERSION" \
   --build-arg LIBAOM_VERSION="$LIBAOM_VERSION" \
   --build-arg OPUS_VERSION="$OPUS_VERSION" \
+  --build-arg OPUS_SHA256="$OPUS_SHA256" \
   --build-arg LAME_VERSION="$LAME_VERSION" \
+  --build-arg LAME_SHA256="$LAME_SHA256" \
+  --build-arg THEORA_VERSION="$THEORA_VERSION" \
+  --build-arg THEORA_SHA256="$THEORA_SHA256" \
+  --build-arg XVID_VERSION="$XVID_VERSION" \
+  --build-arg XVID_SHA256="$XVID_SHA256" \
+  --build-arg FLAC_VERSION="$FLAC_VERSION" \
+  --build-arg FLAC_SHA256="$FLAC_SHA256" \
+  --build-arg SPEEX_VERSION="$SPEEX_VERSION" \
+  --build-arg SPEEX_SHA256="$SPEEX_SHA256" \
+  --build-arg LIBASS_VERSION="$LIBASS_VERSION" \
+  --build-arg LIBASS_SHA256="$LIBASS_SHA256" \
+  --build-arg FREETYPE_VERSION="$FREETYPE_VERSION" \
+  --build-arg FREETYPE_SHA256="$FREETYPE_SHA256" \
   --build-arg VORBIS_VERSION="$VORBIS_VERSION" \
   --build-arg OGG_VERSION="$OGG_VERSION" \
   --build-arg NASM_VERSION="$NASM_VERSION" \
   --build-arg NASM_SHA256="$NASM_SHA256" \
-  --build-arg OPUS_SHA256="$OPUS_SHA256" \
-  --build-arg LAME_SHA256="$LAME_SHA256" \
   --cache-from type=gha,scope="$PLATFORM" \
   --cache-to type=gha,mode=max,scope="$PLATFORM" \
   -f "$DOCKERFILE" \
