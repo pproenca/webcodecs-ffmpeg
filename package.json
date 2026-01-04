@@ -1,0 +1,42 @@
+{
+  "name": "ffmpeg-prebuilds",
+  "version": "8.0.0",
+  "description": "FFmpeg static binaries and development libraries for Node.js",
+  "type": "module",
+  "scripts": {
+    "build:darwin-arm64": "build/orchestrator.sh darwin-arm64",
+    "build:darwin-x64": "build/orchestrator.sh darwin-x64",
+    "build:linux-x64-glibc": "build/orchestrator.sh linux-x64-glibc",
+    "build:linux-x64-musl": "build/orchestrator.sh linux-x64-musl",
+    "verify": "tsx scripts/verify-build.ts",
+    "package": "tsx scripts/package-npm.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pproenca/ffmpeg-prebuilds"
+  },
+  "keywords": [
+    "ffmpeg",
+    "video",
+    "audio",
+    "encoding",
+    "decoding",
+    "webcodecs",
+    "static",
+    "prebuilt",
+    "binary"
+  ],
+  "author": "Pedro Proenca",
+  "license": "GPL-2.0-or-later",
+  "bugs": {
+    "url": "https://github.com/pproenca/ffmpeg-prebuilds/issues"
+  },
+  "homepage": "https://github.com/pproenca/ffmpeg-prebuilds#readme",
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
