@@ -2,7 +2,7 @@
 /**
  * Fetch Latest Dependency Versions
  *
- * Fetches latest versions from official sources (release feeds, BitBucket),
+ * Fetches latest versions from official sources (GitHub, GitLab, BitBucket),
  * validates SHA256 checksums by downloading tarballs.
  *
  * Usage:
@@ -10,10 +10,9 @@
  *   tsx scripts/fetch-versions.ts --write  # Update versions.properties
  */
 
-import {mkdtemp, rm, writeFile} from 'node:fs/promises';
+import {writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {join, dirname} from 'node:path';
-import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
@@ -25,6 +24,7 @@ import {
   selectLatestStableTag,
   VersionsMap,
 } from './lib/versions.ts';
+import {DEPENDENCIES, DependencyMetadata} from './lib/dependencies.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -32,15 +32,6 @@ const __dirname = dirname(__filename);
 // ============================================================================
 // Types
 // ============================================================================
-
-interface DependencyVersion {
-  name: string;
-  versionKey: string;
-  urlKey?: string;
-  sha256Key?: string;
-  fetchLatest: () => Promise<string>;
-  downloadUrl?: (version: string) => string;
-}
 
 interface UpdateResult {
   name: string;
@@ -60,11 +51,7 @@ export {parseVersionsFile, compareVersions, isPrereleaseTag, selectLatestStableT
 
 const VERSIONS_FILE = join(__dirname, '..', 'versions.properties');
 const USER_AGENT = 'ffmpeg-prebuilds-version-fetcher/1.0';
-const SEMVER_TAG = /^v[0-9]+(?:\.[0-9]+)*$/;
-const SEMVER_NO_PREFIX_TAG = /^[0-9]+(?:\.[0-9]+)*$/;
-const FFMPEG_TAG = /^n[0-9]+(?:\.[0-9]+){1,2}$/;
-const NASM_TAG = /^nasm-[0-9]+(?:\.[0-9]+)*$/;
-const OPENSSL_TAG = /^openssl-3\.[0-9]+(?:\.[0-9]+)?$/;
+const GITLAB_PAGE_SIZE = 100;
 
 const execFileAsync = promisify(execFile);
 
@@ -108,8 +95,10 @@ async function fetchWithRetry(
     } catch (error) {
       lastError = error as Error;
       if (i < retries - 1) {
-        const delay = Math.pow(2, i) * 1000; // Exponential backoff
-        await new Promise((resolve) => setTimeout(resolve, delay));
+        const delay = Math.pow(2, i) * 1000;
+        await new Promise((resolve) => {
+          setTimeout(resolve, delay);
+        });
       }
     }
   }
@@ -135,7 +124,7 @@ async function downloadAndChecksum(url: string): Promise<string> {
 
   const reader = body.getReader();
   try {
-    while (true) {
+    for (;;) {
       const {done, value} = await reader.read();
       if (done) break;
       hash.update(value);
@@ -154,10 +143,7 @@ async function downloadAndChecksum(url: string): Promise<string> {
 /**
  * Fetch latest version from GitHub tags using gh CLI
  */
-async function fetchGitHubLatest(
-  repo: string,
-  tagPattern: RegExp,
-): Promise<string> {
+async function fetchGitHubLatest(repo: string, tagPattern: RegExp): Promise<string> {
   const tags = await ghApi<Array<{name: string}>>(`repos/${repo}/tags`);
   const tagNames = tags.map((t) => t.name);
   return selectLatestStableTag(tagNames, tagPattern);
@@ -166,15 +152,10 @@ async function fetchGitHubLatest(
 /**
  * Fetch latest version from BitBucket tags (with pagination)
  */
-async function fetchBitBucketLatest(
-  repo: string,
-  tagPattern: RegExp,
-): Promise<string> {
+async function fetchBitBucketLatest(repo: string, tagPattern: RegExp): Promise<string> {
   const allTags: string[] = [];
-  let nextUrl: string | null =
-    `https://api.bitbucket.org/2.0/repositories/${repo}/refs/tags?pagelen=100`;
+  let nextUrl: string | null = `https://api.bitbucket.org/2.0/repositories/${repo}/refs/tags?pagelen=100`;
 
-  // Fetch all pages (BitBucket returns oldest first, so we need all pages)
   while (nextUrl) {
     const response = await fetchWithRetry(nextUrl);
 
@@ -188,34 +169,26 @@ async function fetchBitBucketLatest(
     };
 
     allTags.push(...data.values.map((tag) => tag.name));
-    nextUrl = data.next || null;
+    nextUrl = data.next ?? null;
   }
 
-  const matching = allTags.filter(
-    (tag) => tagPattern.test(tag) && !isPrereleaseTag(tag),
-  );
+  const matching = allTags.filter((tag) => tagPattern.test(tag) && !isPrereleaseTag(tag));
 
   if (matching.length === 0) {
     throw new Error(`No matching tags found for ${repo}`);
   }
 
-  // Sort versions using semantic version comparison
   const sorted = matching.sort((a, b) => compareVersions(b, a));
-
   return sorted[0];
 }
 
 /**
  * Fetch latest version from GitLab tags API
  */
-async function fetchGitLabLatest(
-  host: string,
-  projectPath: string,
-  tagPattern: RegExp,
-): Promise<string> {
+async function fetchGitLabLatest(host: string, projectPath: string, tagPattern: RegExp): Promise<string> {
   const url =
     `https://${host}/api/v4/projects/${encodeURIComponent(projectPath)}` +
-    `/repository/tags?per_page=${TAGS_PAGE_SIZE}`;
+    `/repository/tags?per_page=${GITLAB_PAGE_SIZE}`;
   const response = await fetchWithRetry(url);
 
   if (!response.ok) {
@@ -227,221 +200,43 @@ async function fetchGitLabLatest(
   return selectLatestStableTag(tagNames, tagPattern);
 }
 
-// ============================================================================
-// Dependency Registry
-// ============================================================================
+/**
+ * Fetch latest version for a dependency based on its fetch source
+ */
+async function fetchLatestVersion(dep: DependencyMetadata): Promise<string> {
+  const source = dep.fetchSource;
 
-const DEPENDENCIES: DependencyVersion[] = [
-  // Core FFmpeg (Git-only)
-  {
-    name: 'FFmpeg',
-    versionKey: 'FFMPEG_VERSION',
-    fetchLatest: async () => {
-      // Fetch releases and filter out dev/rc versions
-      const tag = await fetchGitHubLatest('FFmpeg/FFmpeg', FFMPEG_TAG);
+  switch (source.type) {
+    case 'static':
+      return source.version;
+
+    case 'github': {
+      const tag = await fetchGitHubLatest(source.repo, source.tagPattern);
+      // Handle special cases for version prefixes
+      if (dep.versionKey === 'OPUS_VERSION') {
+        return tag.slice(1); // Remove 'v' prefix
+      }
+      if (dep.versionKey === 'NASM_VERSION') {
+        return tag.replace(/^nasm-/, '');
+      }
+      if (dep.versionKey === 'OPENSSL_VERSION') {
+        return tag.replace(/^openssl-/, '');
+      }
       return tag;
-    },
-  },
+    }
 
-  // Video Codecs
-  {
-    name: 'x264',
-    versionKey: 'X264_VERSION',
-    fetchLatest: async () => 'stable', // Pin to stable branch
-  },
-  {
-    name: 'x265',
-    versionKey: 'X265_VERSION',
-    fetchLatest: () =>
-      fetchBitBucketLatest('multicoreware/x265_git', SEMVER_NO_PREFIX_TAG),
-  },
-  {
-    name: 'libvpx',
-    versionKey: 'LIBVPX_VERSION',
-    fetchLatest: () => fetchGitHubLatest('webmproject/libvpx', SEMVER_TAG),
-  },
-  {
-    name: 'libaom',
-    versionKey: 'LIBAOM_VERSION',
-    fetchLatest: async () => {
-      // libaom is on Google Source, which doesn't have a convenient API
-      // Fallback to checking GitHub mirror
-      try {
-        return await fetchGitHubLatest('jbeich/aom', SEMVER_TAG);
-      } catch {
-        return 'v3.12.1'; // Current stable version
-      }
-    },
-  },
-  {
-    name: 'SVT-AV1',
-    versionKey: 'SVTAV1_VERSION',
-    fetchLatest: async () => {
-      // SVT-AV1 is on GitLab, fallback to current version if feed/API fails
-      try {
-        return await fetchGitLabLatest(
-          'gitlab.com',
-          'AOMediaCodec/SVT-AV1',
-          SEMVER_TAG,
-        );
-      } catch {
-        return 'v2.3.0'; // Current stable version
-      }
-    },
-  },
-  {
-    name: 'dav1d',
-    versionKey: 'DAV1D_VERSION',
-    urlKey: 'DAV1D_URL',
-    sha256Key: 'DAV1D_SHA256',
-    fetchLatest: async () => {
-      // dav1d on VideoLAN GitLab releases feed
-      try {
-        return await fetchGitLabLatest(
-          'code.videolan.org',
-          'videolan/dav1d',
-          SEMVER_NO_PREFIX_TAG,
-        );
-      } catch {
-        return '1.5.0'; // Current stable version
-      }
-    },
-    downloadUrl: (v) =>
-      `https://downloads.videolan.org/pub/videolan/dav1d/${v}/dav1d-${v}.tar.xz`,
-  },
-  {
-    name: 'rav1e',
-    versionKey: 'RAV1E_VERSION',
-    fetchLatest: () => fetchGitHubLatest('xiph/rav1e', SEMVER_TAG),
-  },
-  {
-    name: 'Theora',
-    versionKey: 'THEORA_VERSION',
-    urlKey: 'THEORA_URL',
-    sha256Key: 'THEORA_SHA256',
-    fetchLatest: async () => '1.1.1', // Stable version, rarely updates
-    downloadUrl: (v) =>
-      `https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${v}.tar.gz`,
-  },
-  {
-    name: 'Xvid',
-    versionKey: 'XVID_VERSION',
-    urlKey: 'XVID_URL',
-    sha256Key: 'XVID_SHA256',
-    fetchLatest: async () => '1.3.7', // Stable version
-    downloadUrl: (v) => `https://downloads.xvid.com/downloads/xvidcore-${v}.tar.gz`,
-  },
+    case 'gitlab':
+      return fetchGitLabLatest(source.host, source.project, source.tagPattern);
 
-  // Audio Codecs
-  {
-    name: 'Opus',
-    versionKey: 'OPUS_VERSION',
-    urlKey: 'OPUS_URL',
-    sha256Key: 'OPUS_SHA256',
-    fetchLatest: () =>
-      fetchGitHubLatest('xiph/opus', SEMVER_TAG).then((v) => v.slice(1)), // Remove 'v' prefix
-    downloadUrl: (v) => `https://downloads.xiph.org/releases/opus/opus-${v}.tar.gz`,
-  },
-  {
-    name: 'LAME',
-    versionKey: 'LAME_VERSION',
-    urlKey: 'LAME_URL',
-    sha256Key: 'LAME_SHA256',
-    fetchLatest: async () => '3.100', // Stable version, rarely updates
-    downloadUrl: (v) =>
-      `https://downloads.sourceforge.net/project/lame/lame/${v}/lame-${v}.tar.gz`,
-  },
-  {
-    name: 'Vorbis',
-    versionKey: 'VORBIS_VERSION',
-    urlKey: 'VORBIS_URL',
-    sha256Key: 'VORBIS_SHA256',
-    fetchLatest: async () => '1.3.7', // Stable version
-    downloadUrl: (v) =>
-      `https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-${v}.tar.gz`,
-  },
-  {
-    name: 'Ogg',
-    versionKey: 'OGG_VERSION',
-    urlKey: 'OGG_URL',
-    sha256Key: 'OGG_SHA256',
-    fetchLatest: async () => '1.3.5', // Stable version
-    downloadUrl: (v) => `https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-${v}.tar.gz`,
-  },
-  {
-    name: 'fdk-aac',
-    versionKey: 'FDKAAC_VERSION',
-    fetchLatest: () => fetchGitHubLatest('mstorsjo/fdk-aac', SEMVER_TAG),
-  },
-  {
-    name: 'FLAC',
-    versionKey: 'FLAC_VERSION',
-    urlKey: 'FLAC_URL',
-    sha256Key: 'FLAC_SHA256',
-    fetchLatest: async () => '1.4.3', // Stable version
-    downloadUrl: (v) => `https://ftp.osuosl.org/pub/xiph/releases/flac/flac-${v}.tar.xz`,
-  },
-  {
-    name: 'Speex',
-    versionKey: 'SPEEX_VERSION',
-    urlKey: 'SPEEX_URL',
-    sha256Key: 'SPEEX_SHA256',
-    fetchLatest: async () => '1.2.1', // Stable version
-    downloadUrl: (v) =>
-      `https://ftp.osuosl.org/pub/xiph/releases/speex/speex-${v}.tar.gz`,
-  },
+    case 'bitbucket':
+      return fetchBitBucketLatest(source.repo, source.tagPattern);
 
-  // Subtitle/Rendering Libraries
-  {
-    name: 'libass',
-    versionKey: 'LIBASS_VERSION',
-    urlKey: 'LIBASS_URL',
-    sha256Key: 'LIBASS_SHA256',
-    fetchLatest: async () => {
-      const tag = await fetchGitHubLatest('libass/libass', SEMVER_NO_PREFIX_TAG);
-      return tag;
-    },
-    downloadUrl: (v) =>
-      `https://github.com/libass/libass/releases/download/${v}/libass-${v}.tar.gz`,
-  },
-  {
-    name: 'FreeType',
-    versionKey: 'FREETYPE_VERSION',
-    urlKey: 'FREETYPE_URL',
-    sha256Key: 'FREETYPE_SHA256',
-    fetchLatest: async () => '2.13.3', // Check manually, complex versioning
-    downloadUrl: (v) =>
-      `https://download.savannah.gnu.org/releases/freetype/freetype-${v}.tar.xz`,
-  },
-
-  // Build Tools
-  {
-    name: 'NASM',
-    versionKey: 'NASM_VERSION',
-    urlKey: 'NASM_URL',
-    sha256Key: 'NASM_SHA256',
-    fetchLatest: async () => {
-      // Only stable releases (exclude rc/pre-release)
-      const tag = await fetchGitHubLatest('netwide-assembler/nasm', NASM_TAG);
-      return tag.replace(/^nasm-/, '');
-    },
-    downloadUrl: (v) =>
-      `https://github.com/netwide-assembler/nasm/archive/refs/tags/nasm-${v}.tar.gz`,
-  },
-
-  // Network Libraries
-  {
-    name: 'OpenSSL',
-    versionKey: 'OPENSSL_VERSION',
-    urlKey: 'OPENSSL_URL',
-    sha256Key: 'OPENSSL_SHA256',
-    fetchLatest: async () => {
-      const tag = await fetchGitHubLatest('openssl/openssl', OPENSSL_TAG);
-      return tag.replace(/^openssl-/, '');
-    },
-    downloadUrl: (v) => `https://www.openssl.org/source/openssl-${v}.tar.gz`,
-  },
-];
+    default: {
+      const exhaustiveCheck: never = source;
+      throw new Error(`Unknown fetch source type: ${exhaustiveCheck}`);
+    }
+  }
+}
 
 // ============================================================================
 // Main Logic
@@ -450,9 +245,7 @@ const DEPENDENCIES: DependencyVersion[] = [
 /**
  * Check for version updates
  */
-async function checkForUpdates(
-  currentVersions: VersionsMap,
-): Promise<UpdateResult[]> {
+async function checkForUpdates(currentVersions: VersionsMap): Promise<UpdateResult[]> {
   console.log('Checking for updates...\n');
 
   const results = await Promise.all(
@@ -461,7 +254,7 @@ async function checkForUpdates(
         const currentVersion = currentVersions[dep.versionKey] || 'unknown';
         console.log(`  Checking ${dep.name} (current: ${currentVersion})...`);
 
-        const latestVersion = await dep.fetchLatest();
+        const latestVersion = await fetchLatestVersion(dep);
         const updated = currentVersion !== latestVersion;
 
         let sha256: string | undefined;
@@ -513,18 +306,13 @@ function generateGitHubOutput(results: UpdateResult[]): void {
   const updates = results.filter((r) => r.updated);
   const hasUpdates = updates.length > 0;
 
-  const summary = updates
-    .map((u) => `- **${u.name}**: ${u.currentVersion} → ${u.latestVersion}`)
-    .join('\n');
+  const summary = updates.map((u) => `- **${u.name}**: ${u.currentVersion} → ${u.latestVersion}`).join('\n');
 
-  const output = [
-    `updates_available=${hasUpdates}`,
-    'update_summary<<EOF',
-    summary || 'No updates available',
-    'EOF',
-  ].join('\n');
+  const output = [`updates_available=${hasUpdates}`, 'update_summary<<EOF', summary || 'No updates available', 'EOF'].join(
+    '\n',
+  );
 
-  writeFile(githubOutput, output + '\n', {flag: 'a'}).catch((err) => {
+  writeFile(githubOutput, output + '\n', {flag: 'a'}).catch((err: unknown) => {
     console.error('Failed to write GitHub output:', err);
   });
 }
@@ -541,13 +329,9 @@ async function main(): Promise<void> {
   console.log('========================================\n');
 
   try {
-    // Parse current versions
     const currentVersions = await parseVersionsFile(VERSIONS_FILE);
-
-    // Check for updates
     const results = await checkForUpdates(currentVersions);
 
-    // Generate summary
     console.log('\n========================================');
     console.log('Summary');
     console.log('========================================\n');
@@ -558,9 +342,7 @@ async function main(): Promise<void> {
     if (updates.length > 0) {
       console.log(`⚠ ${updates.length} update(s) available:\n`);
       for (const update of updates) {
-        console.log(
-          `  - ${update.name}: ${update.currentVersion} → ${update.latestVersion}`,
-        );
+        console.log(`  - ${update.name}: ${update.currentVersion} → ${update.latestVersion}`);
       }
     } else {
       console.log('✓ All dependencies up to date');
@@ -568,12 +350,11 @@ async function main(): Promise<void> {
 
     if (errors.length > 0) {
       console.log(`\n✗ ${errors.length} error(s) occurred:\n`);
-      for (const error of errors) {
-        console.log(`  - ${error.name}: ${error.error}`);
+      for (const err of errors) {
+        console.log(`  - ${err.name}: ${err.error}`);
       }
     }
 
-    // Write updates if --write flag is set
     if (writeMode && updates.length > 0) {
       console.log('\n========================================');
       console.log('Writing updates to versions.properties');
@@ -605,17 +386,14 @@ async function main(): Promise<void> {
       console.log('\nℹ Run with --write to update versions.properties');
     }
 
-    // Generate GitHub Actions output
     generateGitHubOutput(results);
 
-    // Exit with success if we successfully wrote updates or if there were no updates
-    // Only fail if there were errors AND no successful updates
     if (writeMode && updates.length > 0) {
-      process.exit(0); // Successfully wrote updates
+      process.exit(0);
     } else if (errors.length > 0 && updates.length === 0) {
-      process.exit(1); // Only errors, no successful updates
+      process.exit(1);
     } else {
-      process.exit(0); // No updates or dry-run mode
+      process.exit(0);
     }
   } catch (error) {
     console.error('\n❌ Fatal error:');
@@ -624,7 +402,6 @@ async function main(): Promise<void> {
   }
 }
 
-// Run if invoked directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   main();
 }
