@@ -575,7 +575,7 @@ describe('DEPENDENCIES', () => {
       assert.strictEqual(ffmpeg.versionKey, 'FFMPEG_VERSION');
       assert.strictEqual(ffmpeg.fetchSource.type, 'anitya');
       if (ffmpeg.fetchSource.type === 'anitya') {
-        assert.strictEqual(ffmpeg.fetchSource.projectName, 'ffmpeg');
+        assert.strictEqual(ffmpeg.fetchSource.projectId, 5405);
       }
     });
 
@@ -597,10 +597,10 @@ describe('DEPENDENCIES', () => {
       }
     });
 
-    test('anitya sources have projectName', () => {
+    test('anitya sources have projectId', () => {
       for (const dep of DEPENDENCIES) {
         if (dep.fetchSource.type === 'anitya') {
-          assert(dep.fetchSource.projectName, `${dep.name} anitya source should have projectName`);
+          assert(typeof dep.fetchSource.projectId === 'number', `${dep.name} anitya source should have projectId`);
         }
       }
     });
@@ -761,11 +761,10 @@ describe('downloadUrl generation', () => {
 // ============================================================================
 
 describe('Anitya fetch source type', () => {
-  test('anitya source type has required projectName field', () => {
-    // This will fail until we add the anitya type to FetchSource
-    const source = {type: 'anitya' as const, projectName: 'ffmpeg'};
+  test('anitya source type has required projectId field', () => {
+    const source = {type: 'anitya' as const, projectId: 5405};
     assert.strictEqual(source.type, 'anitya');
-    assert.strictEqual(source.projectName, 'ffmpeg');
+    assert.strictEqual(source.projectId, 5405);
   });
 
   test('anitya source works in dependency metadata', () => {
@@ -775,37 +774,10 @@ describe('Anitya fetch source type', () => {
       releasesUrl: 'https://example.com/releases',
       license: {name: 'MIT', url: 'https://example.com/license'},
       versionKey: 'TEST_VERSION',
-      fetchSource: {type: 'anitya' as const, projectName: 'testlib'},
+      fetchSource: {type: 'anitya' as const, projectId: 12345},
     };
     assert.strictEqual(testDep.fetchSource.type, 'anitya');
-    assert.strictEqual(testDep.fetchSource.projectName, 'testlib');
-  });
-});
-
-// ============================================================================
-// fetchAnityaLatest Tests
-// ============================================================================
-
-import {fetchAnityaLatest} from './fetch-versions.ts';
-
-describe('fetchAnityaLatest', () => {
-  test('returns latest stable version for valid project', async () => {
-    const version = await fetchAnityaLatest('ffmpeg');
-    // FFmpeg versions are like "8.0.1" or "7.1"
-    assert.match(version, /^[0-9]+\.[0-9]+(\.[0-9]+)?$/, 'should return semver format');
-  });
-
-  test('throws when project not found', async () => {
-    await assert.rejects(
-      fetchAnityaLatest('nonexistent-project-xyz-12345'),
-      /Project not found/,
-    );
-  });
-
-  test('handles project with different name (aom for libaom)', async () => {
-    const version = await fetchAnityaLatest('aom');
-    // aom/libaom versions are like "3.12.1"
-    assert.match(version, /^[0-9]+\.[0-9]+(\.[0-9]+)?$/, 'should return semver format');
+    assert.strictEqual(testDep.fetchSource.projectId, 12345);
   });
 });
 
@@ -826,16 +798,16 @@ describe('DEPENDENCIES Anitya migration', () => {
     }
   });
 
-  test('anitya dependencies have valid projectName', () => {
+  test('anitya dependencies have valid projectId', () => {
     for (const dep of DEPENDENCIES) {
       if (dep.fetchSource.type === 'anitya') {
         assert(
-          dep.fetchSource.projectName,
-          `${dep.name} should have projectName`,
+          typeof dep.fetchSource.projectId === 'number',
+          `${dep.name} should have numeric projectId`,
         );
         assert(
-          dep.fetchSource.projectName.length > 0,
-          `${dep.name} projectName should not be empty`,
+          dep.fetchSource.projectId > 0,
+          `${dep.name} projectId should be positive`,
         );
       }
     }

@@ -127,35 +127,24 @@ async function downloadAndChecksum(url: string): Promise<string> {
 // ============================================================================
 
 /**
- * Fetch latest version from release-monitoring.org (Anitya)
+ * Fetch latest version from release-monitoring.org (Anitya) by project ID
  */
-export async function fetchAnityaLatest(projectName: string): Promise<string> {
-  const url = `https://release-monitoring.org/api/v2/projects/?name=${encodeURIComponent(projectName)}`;
+export async function fetchAnityaLatest(projectId: number): Promise<string> {
+  const url = `https://release-monitoring.org/api/project/${projectId}`;
   const response = await fetchWithRetry(url);
 
   if (!response.ok) {
-    throw new Error(`Anitya API error: ${response.status}`);
+    throw new Error(`Anitya API error: ${response.status} for project ${projectId}`);
   }
 
-  const data = (await response.json()) as {
-    items: Array<{
-      name: string;
-      stable_versions: string[];
-    }>;
+  const project = (await response.json()) as {
+    name: string;
+    stable_versions: string[];
   };
-
-  if (data.items.length === 0) {
-    throw new Error(`Project not found on Anitya: ${projectName}`);
-  }
-
-  // Find exact match for project name (case-insensitive)
-  const project = data.items.find(
-    (p) => p.name.toLowerCase() === projectName.toLowerCase(),
-  ) || data.items[0];
 
   const stableVersions = project.stable_versions || [];
   if (stableVersions.length === 0) {
-    throw new Error(`No stable versions for: ${projectName}`);
+    throw new Error(`No stable versions for project ${projectId}`);
   }
 
   return stableVersions[0]; // Most recent stable
@@ -172,7 +161,7 @@ async function fetchLatestVersion(dep: DependencyMetadata): Promise<string> {
       return source.version;
 
     case 'anitya':
-      return fetchAnityaLatest(source.projectName);
+      return fetchAnityaLatest(source.projectId);
 
     default: {
       const exhaustiveCheck: never = source;
