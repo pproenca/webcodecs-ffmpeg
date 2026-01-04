@@ -36,6 +36,9 @@ jobs:
           - platform: linux-x64-musl
             runner: ubuntu-24.04
             uses_docker: true
+          - platform: windows-x64
+            runner: ubuntu-24.04
+            uses_docker: true
           - platform: darwin-x64
             runner: macos-15-intel
             uses_docker: false
@@ -98,12 +101,86 @@ jobs:
           compression-level: 0  # Already compressed
 
   # ==========================================================================
+  # Create macOS Universal Binary
+  # ==========================================================================
+  universal:
+    name: Create darwin universal
+    runs-on: macos-15
+    needs: [build]
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Download darwin-x64 artifact
+      - name: Download darwin-x64
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-darwin-x64
+          path: artifacts-download
+
+      # Download darwin-arm64 artifact
+      - name: Download darwin-arm64
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-darwin-arm64
+          path: artifacts-download
+
+      # Extract both architectures
+      - name: Extract artifacts
+        run: |
+          mkdir -p artifacts
+          tar -xzf artifacts-download/darwin-x64.tar.gz -C artifacts/
+          tar -xzf artifacts-download/darwin-arm64.tar.gz -C artifacts/
+          echo "Extracted builds:"
+          ls -lh artifacts/
+
+      # Create universal binary
+      - name: Create universal binary
+        run: |
+          chmod +x build/create-universal.sh
+          ./build/create-universal.sh
+
+      # Verify universal binary
+      - name: Verify universal binary
+        run: |
+          echo "Verifying ffmpeg:"
+          file artifacts/darwin/bin/ffmpeg
+          lipo -info artifacts/darwin/bin/ffmpeg
+
+          echo ""
+          echo "Verifying ffprobe:"
+          file artifacts/darwin/bin/ffprobe
+          lipo -info artifacts/darwin/bin/ffprobe
+
+          echo ""
+          echo "Testing ffmpeg:"
+          artifacts/darwin/bin/ffmpeg -version | head -5
+
+      # Package darwin artifact
+      - name: Package darwin artifact
+        run: |
+          cd artifacts
+          tar -czf darwin.tar.gz darwin/
+
+      # Upload darwin artifact
+      - name: Upload darwin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-darwin
+          path: artifacts/darwin.tar.gz
+          retention-days: 14
+          compression-level: 0
+
+  # ==========================================================================
   # Package NPM Modules
   # ==========================================================================
   package:
     name: Package npm modules
     runs-on: ubuntu-24.04
-    needs: [build]
+    needs: [build, universal]
     permissions:
       contents: read
 

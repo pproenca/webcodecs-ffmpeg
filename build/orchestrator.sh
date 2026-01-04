@@ -4,7 +4,7 @@
 # Delegates platform builds to specialized scripts
 #
 # Usage: ./build/orchestrator.sh <platform>
-# Platforms: darwin-x64, darwin-arm64, linux-x64-glibc, linux-x64-musl
+# Platforms: darwin-x64, darwin-arm64, linux-x64-glibc, linux-x64-musl, windows-x64
 
 set -euo pipefail
 
@@ -22,6 +22,7 @@ if [[ -z "$PLATFORM" ]]; then
   echo "  darwin-arm64       - macOS Apple Silicon (arm64)"
   echo "  linux-x64-glibc    - Linux x64 with glibc (for .node linking)"
   echo "  linux-x64-musl     - Linux x64 with musl (fully static)"
+  echo "  windows-x64        - Windows x64 (MinGW cross-compile)"
   echo ""
   exit 1
 fi
@@ -79,9 +80,13 @@ case "$PLATFORM" in
     echo "Executing Linux Docker build script..."
     exec "$SCRIPT_DIR/linux.sh" "$PLATFORM"
     ;;
+  windows-x64)
+    echo "Executing Windows Docker build script..."
+    exec "$SCRIPT_DIR/windows.sh" "$PLATFORM"
+    ;;
   *)
     echo "ERROR: Unknown platform '$PLATFORM'"
-    echo "Supported: darwin-x64, darwin-arm64, linux-x64-glibc, linux-x64-musl"
+    echo "Supported: darwin-x64, darwin-arm64, linux-x64-glibc, linux-x64-musl, windows-x64"
     exit 1
     ;;
 esac

@@ -19,10 +19,16 @@ interface Platform {
 }
 
 const PLATFORMS: Platform[] = [
-  { name: 'darwin-x64', os: 'darwin', cpu: 'x64' },
-  { name: 'darwin-arm64', os: 'darwin', cpu: 'arm64' },
+  // macOS platform - universal binary (x64 + arm64)
+  { name: 'darwin', os: 'darwin', cpu: 'x64' },
+  // Deprecated platforms (for backwards compatibility)
+  { name: 'darwin-x64', os: 'darwin', cpu: 'x64' }, // Deprecated - use darwin
+  { name: 'darwin-arm64', os: 'darwin', cpu: 'arm64' }, // Deprecated - use darwin
+  // Linux platforms
   { name: 'linux-x64-glibc', os: 'linux', cpu: 'x64', libc: 'glibc' },
   { name: 'linux-x64-musl', os: 'linux', cpu: 'x64', libc: 'musl' },
+  // Windows platforms
+  { name: 'windows-x64', os: 'win32', cpu: 'x64' },
 ];
 
 const PROJECT_ROOT = resolve(__dirname, '..');
@@ -269,10 +275,14 @@ function createMainPackage(runtimePkgs: string[]): string {
     `const path = require('path');
 
 const PLATFORMS = {
-  'darwin-arm64': '@pproenca/ffmpeg-darwin-arm64',
-  'darwin-x64': '@pproenca/ffmpeg-darwin-x64',
+  // macOS - universal binary (x64 + arm64)
+  'darwin-arm64': '@pproenca/ffmpeg-darwin',
+  'darwin-x64': '@pproenca/ffmpeg-darwin',
+  // Linux
   'linux-x64-glibc': '@pproenca/ffmpeg-linux-x64-glibc',
   'linux-x64-musl': '@pproenca/ffmpeg-linux-x64-musl',
+  // Windows
+  'win32-x64': '@pproenca/ffmpeg-windows-x64',
 };
 
 function getPlatformKey() {
@@ -298,9 +308,12 @@ function getBinaryPath(binary = 'ffmpeg') {
     );
   }
 
+  // Add .exe extension for Windows binaries
+  const binaryName = process.platform === 'win32' ? \`\${binary}.exe\` : binary;
+
   try {
     const pkgPath = require.resolve(\`\${pkg}/package.json\`);
-    return path.join(path.dirname(pkgPath), 'bin', binary);
+    return path.join(path.dirname(pkgPath), 'bin', binaryName);
   } catch (e) {
     throw new Error(
       \`Binary package \${pkg} not found. \` +
