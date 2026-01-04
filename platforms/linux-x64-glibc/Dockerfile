@@ -92,20 +92,7 @@ RUN git clone --depth 1 https://bitbucket.org/multicoreware/x265_git.git && \
         ../../source && \
     make -j$(nproc) && \
     make install && \
-    mkdir -p $PREFIX/lib/pkgconfig && \
-    printf '%s\n' \
-        "prefix=/build" \
-        "exec_prefix=\${prefix}" \
-        "libdir=\${prefix}/lib" \
-        "includedir=\${prefix}/include" \
-        "" \
-        "Name: x265" \
-        "Description: H.265/HEVC video encoder" \
-        "Version: 3.6" \
-        "Libs: -L\${libdir} -lx265" \
-        "Libs.private: -lstdc++ -lm -lpthread" \
-        "Cflags: -I\${includedir}" \
-        > $PREFIX/lib/pkgconfig/x265.pc && \
+    # x265 doesn't generate pkg-config file, but we'll remove all .pc files later anyway
     cd /src && rm -rf x265_git
 
 # ============================================================================
@@ -246,6 +233,15 @@ RUN git clone --depth 1 --branch ${FFMPEG_VERSION} https://git.ffmpeg.org/ffmpeg
         --enable-libvorbis && \
     make -j$(nproc) && \
     make install
+
+# ============================================================================
+# Clean up build artifacts not needed for distribution
+# ============================================================================
+RUN echo "=== Cleaning build artifacts ===" && \
+    rm -rf $PREFIX/lib/pkgconfig && \
+    find $PREFIX/lib -name "*.la" -type f -delete && \
+    rm -rf $PREFIX/lib/cmake && \
+    echo "✓ Build artifacts cleaned"
 
 # ============================================================================
 # Strip debug symbols and verify PIC in static libraries

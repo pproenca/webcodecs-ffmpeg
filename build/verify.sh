@@ -63,16 +63,16 @@ for lib in "${REQUIRED_LIBS[@]}"; do
   fi
 done
 
-# Check for pkg-config files
+# Check that pkgconfig files were removed (we don't ship them for static builds)
 echo ""
 echo "=== pkg-config Files ==="
-if [[ -d "$ARTIFACT_DIR/lib/pkgconfig" ]]; then
-  PC_COUNT=$(find "$ARTIFACT_DIR/lib/pkgconfig" -name "*.pc" | wc -l | xargs)
-  echo "✓ Found $PC_COUNT pkg-config files"
-else
-  echo "✗ pkg-config directory missing"
+PKGCONFIG_COUNT=$(find "$ARTIFACT_DIR/lib/pkgconfig" -name "*.pc" 2>/dev/null | wc -l | tr -d ' ')
+if [[ "$PKGCONFIG_COUNT" != "0" ]]; then
+  echo "❌ VERIFICATION FAILED: Found $PKGCONFIG_COUNT pkgconfig files (expected 0)"
+  echo "   PKGConfig files should be removed for static distributions"
   exit 1
 fi
+echo "✓ PKGConfig files removed (static build - not needed)"
 
 # Check for headers
 echo ""

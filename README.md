@@ -51,22 +51,26 @@ execSync(`"${ffmpegPath}" -i input.mp4 -c:v libx264 output.mp4`);
     'target_name': 'addon',
     'sources': ['addon.cc'],
     'include_dirs': [
-      '<!@(node -p "require(\'path\').join(require.resolve(\'@pproenca/ffmpeg-dev-linux-x64-glibc/package.json\'), \'..\')")/include',
+      '<!@(node -p "require(\'path\').join(require.resolve(\'@pproenca/ffmpeg-dev-linux-x64-glibc/package.json\'), \'..\', \'include\')")',
     ],
     'libraries': [
-      '<!@(pkg-config --libs --static libavcodec libavformat libavutil)',
+      # Link directly against static libraries (no pkg-config needed)
+      '<!@(node -p "require(\'path\').join(require.resolve(\'@pproenca/ffmpeg-dev-linux-x64-glibc/package.json\'), \'..\', \'lib\')")/libavcodec.a',
+      '<!@(node -p "require(\'path\').join(require.resolve(\'@pproenca/ffmpeg-dev-linux-x64-glibc/package.json\'), \'..\', \'lib\')")/libavformat.a',
+      '<!@(node -p "require(\'path\').join(require.resolve(\'@pproenca/ffmpeg-dev-linux-x64-glibc/package.json\'), \'..\', \'lib\')")/libavutil.a',
+      # Add other FFmpeg libraries as needed (libswscale.a, libswresample.a, etc.)
     ],
   }],
 }
 ```
 
-Or set `FFMPEG_ROOT` in your environment:
+Or set `FFMPEG_ROOT` in your environment for easier linking:
 
 ```bash
 export FFMPEG_ROOT="$(npm root)/@pproenca/ffmpeg-dev-linux-x64-glibc"
-export PKG_CONFIG_PATH="$FFMPEG_ROOT/lib/pkgconfig"
 
-# Now node-gyp will find FFmpeg automatically
+# In your binding.gyp, reference libraries via environment variable
+# libraries: ['<(FFMPEG_ROOT)/lib/libavcodec.a', ...]
 npm run build
 ```
 
@@ -96,6 +100,23 @@ npm run build
 - **Opus** (libopus, BSD)
 - **MP3** (libmp3lame, LGPL)
 - **Vorbis** (libvorbis + libogg, BSD)
+
+## Build Artifacts
+
+### What's Included
+- **Binaries**: ffmpeg, ffprobe (statically linked, self-contained)
+- **Static Libraries**: libx264.a, libx265.a, libvpx.a, libaom.a, libopus.a, libmp3lame.a, etc.
+- **Headers**: Include files for all libraries (libavcodec, libavformat, libavutil, etc.)
+
+### What's Excluded
+- **PKGConfig files** (.pc): Not needed for static builds; removed to avoid path issues
+- **Libtool files** (.la): Can cause relocation issues; removed
+- **CMake files**: Build-time only; removed from distribution
+
+### Why Static Builds?
+This project distributes ready-to-use FFmpeg binaries, not development libraries.
+All dependencies are statically linked into the final binaries, making them
+completely self-contained with no external dependencies.
 
 ## Building from Source
 

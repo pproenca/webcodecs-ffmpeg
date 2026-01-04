@@ -128,21 +128,7 @@ cmake \
 make -j"$(sysctl -n hw.ncpu)"
 make install
 
-# x265 doesn't generate pkg-config file, create manually with relocatable paths
-mkdir -p "$TARGET/lib/pkgconfig"
-cat > "$TARGET/lib/pkgconfig/x265.pc" << 'PCEOF'
-prefix=${pcfiledir}/../..
-exec_prefix=${prefix}
-libdir=${prefix}/lib
-includedir=${prefix}/include
-
-Name: x265
-Description: H.265/HEVC video encoder
-Version: 3.6
-Libs: -L${libdir} -lx265
-Libs.private: -lc++ -lm -lpthread
-Cflags: -I${includedir}
-PCEOF
+# x265 doesn't generate pkg-config file, but we'll remove all .pc files later anyway
 cd ../../..
 
 #=============================================================================
@@ -225,9 +211,6 @@ cd "opus-${OPUS_VERSION}"
   LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
 make -j"$(sysctl -n hw.ncpu)"
 make install
-
-# Fix opus.pc to use relocatable prefix (Opus's build doesn't set it correctly)
-sed -i '' "s|^prefix=.*|prefix=\${pcfiledir}/../..|" "$TARGET/lib/pkgconfig/opus.pc"
 cd ..
 
 #=============================================================================
@@ -260,20 +243,7 @@ cd "lame-${LAME_VERSION}"
 make -j"$(sysctl -n hw.ncpu)"
 make install
 
-# LAME doesn't generate pkg-config file, create one with relocatable paths
-mkdir -p "$TARGET/lib/pkgconfig"
-cat > "$TARGET/lib/pkgconfig/lame.pc" << 'PCEOF'
-prefix=${pcfiledir}/../..
-exec_prefix=${prefix}
-libdir=${prefix}/lib
-includedir=${prefix}/include
-
-Name: lame
-Description: lame mp3 encoder library
-Version: 3.100
-Libs: -L${libdir} -lmp3lame
-Cflags: -I${includedir}
-PCEOF
+# LAME doesn't generate pkg-config file, but we'll remove all .pc files later anyway
 cd ..
 
 #=============================================================================
@@ -322,6 +292,32 @@ make distclean 2>/dev/null || true
 make -j"$(sysctl -n hw.ncpu)"
 make install
 cd ..
+
+#=============================================================================
+# Clean up build artifacts not needed for distribution
+#=============================================================================
+echo ""
+echo "=== Cleaning up build artifacts ==="
+
+# Remove pkgconfig files (not needed for static builds)
+if [[ -d "$TARGET/lib/pkgconfig" ]]; then
+  echo "Removing pkgconfig files..."
+  rm -rf "$TARGET/lib/pkgconfig"
+fi
+
+# Remove libtool .la files (can cause issues with relocation)
+if find "$TARGET/lib" -name "*.la" -type f 2>/dev/null | grep -q .; then
+  echo "Removing libtool .la files..."
+  find "$TARGET/lib" -name "*.la" -type f -delete
+fi
+
+# Remove CMake files (not needed for distribution)
+if [[ -d "$TARGET/lib/cmake" ]]; then
+  echo "Removing CMake files..."
+  rm -rf "$TARGET/lib/cmake"
+fi
+
+echo "✓ Build artifacts cleaned"
 
 #=============================================================================
 # Verify and strip binaries
