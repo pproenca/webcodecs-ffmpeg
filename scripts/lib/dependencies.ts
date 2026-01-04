@@ -32,6 +32,8 @@ export interface DependencyMetadata {
   gitUrlKey?: string;
   fetchSource: FetchSource;
   downloadUrl?: (version: string) => string;
+  /** Prefix for git tags (e.g., 'v' for 'v1.0.0', 'n' for 'n8.0.1') */
+  tagPrefix?: string;
 }
 
 // ============================================================================
@@ -53,6 +55,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'FFMPEG_VERSION',
     gitUrlKey: 'FFMPEG_GIT_URL',
     fetchSource: {type: 'anitya', projectId: 5405},
+    tagPrefix: 'n',
   },
 
   // ---------------------------------------------------------------------------
@@ -93,6 +96,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'LIBVPX_VERSION',
     gitUrlKey: 'LIBVPX_GIT_URL',
     fetchSource: {type: 'anitya', projectId: 11083},
+    tagPrefix: 'v',
   },
   {
     name: 'libaom',
@@ -105,6 +109,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'LIBAOM_VERSION',
     gitUrlKey: 'LIBAOM_GIT_URL',
     fetchSource: {type: 'anitya', projectId: 17628},
+    tagPrefix: 'v',
   },
   {
     name: 'SVT-AV1',
@@ -117,6 +122,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'SVTAV1_VERSION',
     gitUrlKey: 'SVTAV1_GIT_URL',
     fetchSource: {type: 'anitya', projectId: 24271},
+    tagPrefix: 'v',
   },
   {
     name: 'dav1d',
@@ -143,6 +149,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'RAV1E_VERSION',
     gitUrlKey: 'RAV1E_GIT_URL',
     fetchSource: {type: 'anitya', projectId: 75048},
+    tagPrefix: 'v',
   },
   {
     name: 'Theora',
@@ -243,6 +250,7 @@ export const DEPENDENCIES: readonly DependencyMetadata[] = [
     versionKey: 'FDKAAC_VERSION',
     gitUrlKey: 'FDKAAC_GIT_URL',
     fetchSource: {type: 'anitya', projectId: 16208},
+    tagPrefix: 'v',
   },
   {
     name: 'FLAC',

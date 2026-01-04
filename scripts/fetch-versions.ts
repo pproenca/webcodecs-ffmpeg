@@ -187,7 +187,11 @@ async function checkForUpdates(currentVersions: VersionsMap): Promise<UpdateResu
         console.log(`  Checking ${dep.name} (current: ${currentVersion})...`);
 
         const latestVersion = await fetchLatestVersion(dep);
-        const updated = currentVersion !== latestVersion;
+        // Apply tag prefix for comparison (currentVersion in file has prefix)
+        const latestWithPrefix = dep.tagPrefix
+          ? `${dep.tagPrefix}${latestVersion}`
+          : latestVersion;
+        const updated = currentVersion !== latestWithPrefix;
 
         let sha256: string | undefined;
         if (updated && dep.downloadUrl && dep.sha256Key) {
@@ -197,7 +201,7 @@ async function checkForUpdates(currentVersions: VersionsMap): Promise<UpdateResu
         }
 
         if (updated) {
-          console.log(`    ⚠ Update available: ${currentVersion} → ${latestVersion}`);
+          console.log(`    ⚠ Update available: ${currentVersion} → ${latestWithPrefix}`);
         } else {
           console.log(`    ✓ Up to date`);
         }
@@ -205,7 +209,7 @@ async function checkForUpdates(currentVersions: VersionsMap): Promise<UpdateResu
         return {
           name: dep.name,
           currentVersion,
-          latestVersion,
+          latestVersion: latestWithPrefix, // Prefixed version for display and writing
           updated,
           sha256,
         };
@@ -298,6 +302,7 @@ async function main(): Promise<void> {
         const dep = DEPENDENCIES.find((d) => d.name === update.name);
         if (!dep) continue;
 
+        // latestVersion already includes tag prefix from checkForUpdates
         updatesToWrite[dep.versionKey] = update.latestVersion;
 
         if (update.sha256 && dep.sha256Key) {
