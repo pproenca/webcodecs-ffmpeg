@@ -4,11 +4,12 @@ Static FFmpeg binaries and development libraries for Node.js, packaged as platfo
 
 ## Overview
 
-This repository builds and distributes FFmpeg with essential codecs (H.264, H.265, VP9, AV1, Opus, MP3) as:
+This repository builds and distributes FFmpeg with comprehensive codec support (H.264, H.265, VP9, AV1, SVT-AV1, Opus, MP3, AAC, FLAC, and more) as:
 
 - **Runtime packages**: `@pproenca/ffmpeg-*` — FFmpeg binaries for direct use
 - **Development packages**: `@pproenca/ffmpeg-dev-*` — Static libraries + headers for native addon compilation
 - **Main package**: `@pproenca/ffmpeg` — Meta-package with automatic platform detection
+- **Hardware acceleration packages**: Optional GPU-accelerated builds (VA-API, NVENC, VideoToolbox, DXVA2)
 
 Built following the [sharp-libvips](https://github.com/lovell/sharp-libvips) distribution model.
 
@@ -74,32 +75,91 @@ export FFMPEG_ROOT="$(npm root)/@pproenca/ffmpeg-dev-linux-x64-glibc"
 npm run build
 ```
 
+## Hardware Acceleration
+
+For GPU-accelerated encoding/decoding (5-15x faster), install a hardware acceleration variant:
+
+```bash
+# Linux with Intel/AMD GPU
+npm install @pproenca/ffmpeg-linux-x64-glibc-vaapi
+
+# Linux with NVIDIA GPU
+npm install @pproenca/ffmpeg-linux-x64-glibc-nvenc
+
+# Windows with GPU decode
+npm install @pproenca/ffmpeg-windows-x64-dxva2
+```
+
+Use with the `hardwareAccel` option:
+
+```javascript
+const { getBinaryPath } = require('@pproenca/ffmpeg');
+
+// Use hardware acceleration if available, fall back to software
+const ffmpegPath = getBinaryPath('ffmpeg', { hardwareAccel: 'vaapi' });
+```
+
+**Note:** macOS builds include VideoToolbox hardware acceleration by default (no separate package needed).
+
+**See:** [HARDWARE.md](HARDWARE.md) for detailed setup, usage examples, and performance comparisons.
+
 ## Supported Platforms
+
+### Standard Builds (Software Encoding)
 
 | Platform | Runtime Package | Dev Package |
 |----------|----------------|-------------|
-| macOS x64 | `@pproenca/ffmpeg-darwin-x64` | `@pproenca/ffmpeg-dev-darwin-x64` |
-| macOS ARM64 | `@pproenca/ffmpeg-darwin-arm64` | `@pproenca/ffmpeg-dev-darwin-arm64` |
+| macOS (universal) | `@pproenca/ffmpeg-darwin`<sup>1</sup> | `@pproenca/ffmpeg-dev-darwin` |
 | Linux x64 (glibc) | `@pproenca/ffmpeg-linux-x64-glibc` | `@pproenca/ffmpeg-dev-linux-x64-glibc` |
 | Linux x64 (musl) | `@pproenca/ffmpeg-linux-x64-musl` | `@pproenca/ffmpeg-dev-linux-x64-musl` |
+| Linux ARM64 (glibc) | `@pproenca/ffmpeg-linux-arm64-glibc` | `@pproenca/ffmpeg-dev-linux-arm64-glibc` |
+| Linux ARM64 (musl) | `@pproenca/ffmpeg-linux-arm64-musl` | `@pproenca/ffmpeg-dev-linux-arm64-musl` |
+| Linux ARMv7 (glibc) | `@pproenca/ffmpeg-linux-armv7-glibc` | `@pproenca/ffmpeg-dev-linux-armv7-glibc` |
+| Windows x64 | `@pproenca/ffmpeg-windows-x64` | `@pproenca/ffmpeg-dev-windows-x64` |
+
+<sup>1</sup> Universal binary (x64 + ARM64) with built-in VideoToolbox hardware acceleration
+
+### Hardware Acceleration Builds (GPU-Accelerated)
+
+| Platform | Runtime Package | Description |
+|----------|----------------|-------------|
+| Linux VA-API | `@pproenca/ffmpeg-linux-x64-glibc-vaapi` | Intel/AMD GPU acceleration (5-8x faster) |
+| Linux NVENC | `@pproenca/ffmpeg-linux-x64-glibc-nvenc` | NVIDIA GPU acceleration (10-15x faster) |
+| Windows DXVA2 | `@pproenca/ffmpeg-windows-x64-dxva2` | Windows GPU decode acceleration |
+
+See [HARDWARE.md](HARDWARE.md) for hardware acceleration setup and usage.
 
 **Requirements:**
 - macOS: 11.0 (Big Sur) or later
 - Linux (glibc): Ubuntu 24.04 or equivalent (glibc 2.35+)
 - Linux (musl): Alpine 3.21 or later
+- Windows: Windows 10 or later (x64)
+- ARM platforms: Raspberry Pi 2/3/4/5, AWS Graviton, NVIDIA Jetson
 
 ## Included Codecs
 
 ### Video
-- **H.264** (libx264, GPL)
-- **H.265/HEVC** (libx265, GPL)
-- **VP8/VP9** (libvpx, BSD)
-- **AV1** (libaom, BSD)
+- **H.264/AVC** (libx264, GPL) - Industry standard
+- **H.265/HEVC** (libx265, GPL) - High efficiency
+- **VP8/VP9** (libvpx, BSD) - WebM support
+- **AV1** (libaom, BSD) - Next-gen codec
+- **SVT-AV1** (Intel, BSD) - Optimized AV1 encoder
+- **Theora** (libtheora, BSD) - Ogg video codec
+- **Xvid** (MPEG-4 ASP, GPL) - Legacy MPEG-4
 
 ### Audio
-- **Opus** (libopus, BSD)
-- **MP3** (libmp3lame, LGPL)
-- **Vorbis** (libvorbis + libogg, BSD)
+- **Opus** (libopus, BSD) - Modern, versatile
+- **MP3** (libmp3lame, LGPL) - Universal support
+- **AAC** (native + fdk-aac, Non-free) - High quality
+- **Vorbis** (libvorbis + libogg, BSD) - Ogg audio
+- **FLAC** (BSD) - Lossless compression
+- **Speex** (BSD) - Speech codec
+
+### Subtitle & Other
+- **libass** (ISC) - Advanced subtitle rendering
+- **libfreetype** (FreeType License) - Font rendering
+
+See [CODECS.md](CODECS.md) for detailed licensing and codec information.
 
 ## Build Artifacts
 
