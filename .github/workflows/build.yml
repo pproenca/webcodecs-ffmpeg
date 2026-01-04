@@ -76,6 +76,22 @@ jobs:
       # Load versions into environment
       - name: Load versions from versions.properties
         run: |
+          # Verify file exists
+          if [[ ! -f versions.properties ]]; then
+            echo "ERROR: versions.properties file not found!"
+            echo "The build requires versions.properties to define FFmpeg and codec versions."
+            exit 1
+          fi
+
+          # Check file is not empty
+          if [[ ! -s versions.properties ]]; then
+            echo "ERROR: versions.properties file is empty!"
+            exit 1
+          fi
+
+          echo "Loading versions from versions.properties..."
+
+          # Parse and load into environment
           while IFS='=' read -r key value; do
             # Skip comments and empty lines
             [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
@@ -84,7 +100,10 @@ jobs:
             value=$(echo "$value" | xargs)
             # Export to GitHub environment
             echo "$key=$value" >> "$GITHUB_ENV"
+            echo "  $key=$value"
           done < versions.properties
+
+          echo "Versions loaded successfully"
 
       # Build the platform
       - name: Build ${{ matrix.platform }}

@@ -3,7 +3,27 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'  # Trigger on version tags (e.g., v8.0.0)
+      - 'v*'  # Primary trigger: version tags (e.g., v8.0.0)
+  workflow_dispatch:  # Secondary trigger: manual testing
+    inputs:
+      version:
+        description: 'Version to release (e.g., 8.0.1) - without v prefix'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+      npm_tag:
+        description: 'NPM tag to use'
+        required: false
+        type: choice
+        default: 'latest'
+        options:
+          - latest
+          - next
+          - canary
 
 permissions:
   contents: write
@@ -49,23 +69,51 @@ jobs:
           name: npm-packages
           path: npm-dist
 
-      - name: Extract version from tag
+      - name: Extract version from tag or input
         id: version
         run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Publishing version: $VERSION"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Manual trigger - use input version
+            VERSION="${{ inputs.version }}"
+            {
+              echo "version=$VERSION"
+              echo "is_prerelease=${{ inputs.prerelease }}"
+              echo "npm_tag=${{ inputs.npm_tag }}"
+            } >> "$GITHUB_OUTPUT"
+            echo "Manual release: v$VERSION (npm tag: ${{ inputs.npm_tag }})"
+          else
+            # Tag trigger - extract from tag
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            echo "Publishing version: $VERSION"
+
+            # Detect pre-release (contains -rc, -beta, -alpha)
+            if [[ "$VERSION" =~ -(rc|beta|alpha) ]]; then
+              {
+                echo "version=$VERSION"
+                echo "is_prerelease=true"
+                echo "npm_tag=next"
+              } >> "$GITHUB_OUTPUT"
+              echo "This is a pre-release, will use npm tag: next"
+            else
+              {
+                echo "version=$VERSION"
+                echo "is_prerelease=false"
+                echo "npm_tag=latest"
+              } >> "$GITHUB_OUTPUT"
+              echo "This is a stable release, will use npm tag: latest"
+            fi
+          fi
 
       # Publish platform packages first (main package depends on them)
       - name: Publish platform packages
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          echo "Publishing platform packages..."
+          echo "Publishing platform packages with tag: ${{ steps.version.outputs.npm_tag }}"
           for pkg in npm-dist/@pproenca/ffmpeg-*; do
             PKG_NAME=$(jq -r '.name' "$pkg/package.json")
             echo "Publishing $PKG_NAME..."
-            npm publish "$pkg" --access public --provenance
+            npm publish "$pkg" --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}
           done
 
       # Wait for npm propagation
@@ -79,8 +127,8 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
-          echo "Publishing main package..."
-          npm publish npm-dist/@pproenca/ffmpeg --access public --provenance
+          echo "Publishing main package with tag: ${{ steps.version.outputs.npm_tag }}"
+          npm publish npm-dist/@pproenca/ffmpeg --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}
 
       # Wait for main package propagation
       - name: Wait for main package propagation
@@ -152,6 +200,8 @@ jobs:
         with:
           files: release-assets/*.tar.gz
           generate_release_notes: true
+          prerelease: ${{ contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha') }}
+          make_latest: ${{ !(contains(github.ref, '-rc') || contains(github.ref, '-beta') || contains(github.ref, '-alpha')) }}
           body: |
             ## FFmpeg Prebuilds ${{ github.ref_name }}
 
