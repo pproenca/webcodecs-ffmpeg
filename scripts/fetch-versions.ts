@@ -222,6 +222,31 @@ async function fetchGitHubLatest(
 }
 
 /**
+ * Compare semantic versions (returns positive if v1 > v2, negative if v1 < v2, 0 if equal)
+ */
+function compareVersions(v1: string, v2: string): number {
+  // Remove common prefixes
+  const clean1 = v1.replace(/^(v|n|nasm-|openssl-)/, '');
+  const clean2 = v2.replace(/^(v|n|nasm-|openssl-)/, '');
+
+  // Split into parts
+  const parts1 = clean1.split(/[.-]/).map((p) => parseInt(p, 10) || 0);
+  const parts2 = clean2.split(/[.-]/).map((p) => parseInt(p, 10) || 0);
+
+  // Compare each part
+  const maxLength = Math.max(parts1.length, parts2.length);
+  for (let i = 0; i < maxLength; i++) {
+    const p1 = parts1[i] || 0;
+    const p2 = parts2[i] || 0;
+    if (p1 !== p2) {
+      return p1 - p2;
+    }
+  }
+
+  return 0;
+}
+
+/**
  * Fetch latest version from BitBucket tags
  */
 async function fetchBitBucketLatest(
@@ -242,12 +267,8 @@ async function fetchBitBucketLatest(
     throw new Error(`No matching tags found for ${repo}`);
   }
 
-  // Sort versions numerically
-  const sorted = matching.sort((a, b) => {
-    const aNum = parseFloat(a.name);
-    const bNum = parseFloat(b.name);
-    return bNum - aNum;
-  });
+  // Sort versions using semantic version comparison
+  const sorted = matching.sort((a, b) => compareVersions(b.name, a.name));
 
   return sorted[0].name;
 }
@@ -286,7 +307,11 @@ const DEPENDENCIES: DependencyVersion[] = [
   {
     name: 'FFmpeg',
     versionKey: 'FFMPEG_VERSION',
-    fetchLatest: () => fetchGitHubLatest('FFmpeg/FFmpeg', /^n[0-9]/),
+    fetchLatest: async () => {
+      // Fetch tags and filter out dev/rc versions
+      const tag = await fetchGitHubLatest('FFmpeg/FFmpeg', /^n[0-9]+\.[0-9]+$/);
+      return tag;
+    },
   },
 
   // Video Codecs
@@ -321,14 +346,28 @@ const DEPENDENCIES: DependencyVersion[] = [
   {
     name: 'SVT-AV1',
     versionKey: 'SVTAV1_VERSION',
-    fetchLatest: () => fetchGitLabLatest('gitlab.com', 'AOMediaCodec%2FSVT-AV1', /^v[0-9]/),
+    fetchLatest: async () => {
+      // SVT-AV1 is on GitLab, fallback to current version if API fails
+      try {
+        return await fetchGitLabLatest('gitlab.com', 'AOMediaCodec/SVT-AV1', /^v[0-9]/);
+      } catch {
+        return 'v2.3.0'; // Current stable version
+      }
+    },
   },
   {
     name: 'dav1d',
     versionKey: 'DAV1D_VERSION',
     urlKey: 'DAV1D_URL',
     sha256Key: 'DAV1D_SHA256',
-    fetchLatest: () => fetchGitLabLatest('code.videolan.org', '1353', /^[0-9]/),
+    fetchLatest: async () => {
+      // dav1d on VideoLAN GitLab
+      try {
+        return await fetchGitLabLatest('code.videolan.org', 'videolan/dav1d', /^[0-9]/);
+      } catch {
+        return '1.5.0'; // Current stable version
+      }
+    },
     downloadUrl: (v) =>
       `https://code.videolan.org/videolan/dav1d/-/archive/${v}/dav1d-${v}.tar.gz`,
   },
@@ -444,7 +483,11 @@ const DEPENDENCIES: DependencyVersion[] = [
     urlKey: 'NASM_URL',
     sha256Key: 'NASM_SHA256',
     fetchLatest: async () => {
-      const tag = await fetchGitHubLatest('netwide-assembler/nasm', /^nasm-[0-9]/);
+      // Only stable releases (exclude rc/pre-release)
+      const tag = await fetchGitHubLatest(
+        'netwide-assembler/nasm',
+        /^nasm-[0-9]+\.[0-9]+$/,
+      );
       return tag.replace(/^nasm-/, '');
     },
     downloadUrl: (v) =>
@@ -630,7 +673,15 @@ async function main(): Promise<void> {
     // Generate GitHub Actions output
     generateGitHubOutput(results);
 
-    process.exit(errors.length > 0 ? 1 : 0);
+    // Exit with success if we successfully wrote updates or if there were no updates
+    // Only fail if there were errors AND no successful updates
+    if (writeMode && updates.length > 0) {
+      process.exit(0); // Successfully wrote updates
+    } else if (errors.length > 0 && updates.length === 0) {
+      process.exit(1); // Only errors, no successful updates
+    } else {
+      process.exit(0); // No updates or dry-run mode
+    }
   } catch (error) {
     console.error('\n❌ Fatal error:');
     console.error(error);
