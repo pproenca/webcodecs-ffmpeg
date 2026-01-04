@@ -70,6 +70,25 @@ function copyRecursive(src: string, dest: string): void {
   }
 }
 
+/**
+ * Validates that package.json has correct repository URL for provenance attestation.
+ * Provenance generation requires exact repository URL match.
+ */
+function validateRepositoryUrl(pkgJson: Record<string, unknown>, pkgName: string): void {
+  const expectedUrl = 'https://github.com/pproenca/ffmpeg-prebuilds';
+  const actualUrl = (pkgJson.repository as any)?.url;
+
+  if (actualUrl !== expectedUrl) {
+    throw new Error(
+      `[${pkgName}] Repository URL mismatch for provenance attestation.\n` +
+      `Expected: "${expectedUrl}"\n` +
+      `Got: "${actualUrl}"\n` +
+      `Provenance requires exact repository URL match.`
+    );
+  }
+  console.log(`  ✓ Repository URL validated for provenance`);
+}
+
 //=============================================================================
 // Create Runtime Package (binaries only)
 //=============================================================================
@@ -124,6 +143,7 @@ function createRuntimePackage(platform: Platform): string | null {
   }
 
   writeFileSync(join(pkgDir, 'package.json'), JSON.stringify(pkgJson, null, 2) + '\n');
+  validateRepositoryUrl(pkgJson, pkgName);
 
   // Create minimal README
   const hwAccelNote = platform.hwAccel
@@ -222,6 +242,7 @@ function createDevPackage(platform: Platform): string | null {
   }
 
   writeFileSync(join(pkgDir, 'package.json'), JSON.stringify(pkgJson, null, 2) + '\n');
+  validateRepositoryUrl(pkgJson, pkgName);
 
   // Create README
   const devHwAccelNote = platform.hwAccel
@@ -308,6 +329,7 @@ function createMainPackage(runtimePkgs: string[]): string {
   };
 
   writeFileSync(join(pkgDir, 'package.json'), JSON.stringify(pkgJson, null, 2) + '\n');
+  validateRepositoryUrl(pkgJson, pkgName);
 
   // Create index.js (binary path resolver)
   writeFileSync(

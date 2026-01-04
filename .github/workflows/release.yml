@@ -65,6 +65,13 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Upgrade npm for trusted publishing
+        run: |
+          echo "Current npm version: $(npm --version)"
+          npm install -g npm@latest
+          echo "Upgraded npm version: $(npm --version)"
+          echo "✓ npm CLI ready for trusted publishing (requires 11.5.1+)"
+
       - name: Download npm packages
         uses: actions/download-artifact@v7
         with:
@@ -108,14 +115,24 @@ jobs:
 
       # Publish platform packages first (main package depends on them)
       - name: Publish platform packages
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo "Publishing platform packages with tag: ${{ steps.version.outputs.npm_tag }}"
+          echo "Using trusted publishing (OIDC) - provenance generated automatically"
           for pkg in npm-dist/@pproenca/ffmpeg-*; do
             PKG_NAME=$(jq -r '.name' "$pkg/package.json")
             echo "Publishing $PKG_NAME..."
-            npm publish "$pkg" --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}
+            npm publish "$pkg" --access public --tag ${{ steps.version.outputs.npm_tag }}
+          done
+
+      - name: Verify platform package attestations
+        run: |
+          echo "Verifying attestations for platform packages..."
+          for pkg in npm-dist/@pproenca/ffmpeg-*; do
+            PKG_NAME=$(jq -r '.name' "$pkg/package.json")
+            echo "Checking attestation for $PKG_NAME@${{ steps.version.outputs.version }}..."
+            sleep 5  # Allow npm registry to sync
+            npm view "$PKG_NAME@${{ steps.version.outputs.version }}" --json | \
+              jq -r 'if .provenance then "✓ Provenance present for " + .name else "✗ WARNING: No provenance for " + .name end'
           done
 
       # Wait for npm propagation
@@ -126,11 +143,10 @@ jobs:
 
       # Publish main package (depends on platform packages)
       - name: Publish main package
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           echo "Publishing main package with tag: ${{ steps.version.outputs.npm_tag }}"
-          npm publish npm-dist/@pproenca/ffmpeg --access public --provenance --tag ${{ steps.version.outputs.npm_tag }}
+          echo "Using trusted publishing (OIDC) - provenance generated automatically"
+          npm publish npm-dist/@pproenca/ffmpeg --access public --tag ${{ steps.version.outputs.npm_tag }}
 
       # Wait for main package propagation
       - name: Wait for main package propagation
@@ -156,6 +172,29 @@ jobs:
             if (!fs.existsSync(ffprobePath)) throw new Error('ffprobe binary not found');
             console.log('✅ Smoke test passed!');
           "
+
+      - name: Audit package signatures
+        run: |
+          echo "Auditing package signatures and attestations..."
+          cd /tmp/test-install
+          npm audit signatures || echo "⚠ Signature audit failed - this may indicate missing attestations"
+
+      - name: Report attestation status
+        run: |
+          echo "📝 Package Attestation Report"
+          echo "=============================="
+          echo ""
+          echo "Published packages with provenance:"
+          npm view "@pproenca/ffmpeg@${{ steps.version.outputs.version }}" --json | jq '{
+            name: .name,
+            version: .version,
+            hasProvenance: (.provenance != null),
+            publishConfig: .publishConfig
+          }'
+          echo ""
+          echo "✓ Packages published successfully"
+          echo "View on npm: https://www.npmjs.com/package/@pproenca/ffmpeg/v/${{ steps.version.outputs.version }}"
+          echo "Provenance badge should appear on package page (green checkmark)"
 
   # ==========================================================================
   # Create GitHub Release
