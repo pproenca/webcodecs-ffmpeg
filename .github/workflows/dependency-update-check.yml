@@ -85,9 +85,11 @@ jobs:
       - name: Comment if no updates
         if: steps.check.outputs.updates_available != 'true'
         run: |
-          echo "✅ No dependency updates available" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "All dependencies are up to date:" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          cat versions.properties | grep "_VERSION=" >> $GITHUB_STEP_SUMMARY
-          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "✅ No dependency updates available"
+            echo ""
+            echo "All dependencies are up to date:"
+            echo "\`\`\`"
+            cat versions.properties | grep "_VERSION="
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"

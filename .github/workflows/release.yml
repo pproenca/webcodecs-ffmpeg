@@ -137,13 +137,15 @@ jobs:
         run: |
           # Load key versions for release notes
           source versions.properties
-          echo "ffmpeg=$FFMPEG_VERSION" >> "$GITHUB_OUTPUT"
-          echo "x264=$X264_VERSION" >> "$GITHUB_OUTPUT"
-          echo "x265=$X265_VERSION" >> "$GITHUB_OUTPUT"
-          echo "libvpx=$LIBVPX_VERSION" >> "$GITHUB_OUTPUT"
-          echo "libaom=$LIBAOM_VERSION" >> "$GITHUB_OUTPUT"
-          echo "opus=$OPUS_VERSION" >> "$GITHUB_OUTPUT"
-          echo "lame=$LAME_VERSION" >> "$GITHUB_OUTPUT"
+          {
+            echo "ffmpeg=$FFMPEG_VERSION"
+            echo "x264=$X264_VERSION"
+            echo "x265=$X265_VERSION"
+            echo "libvpx=$LIBVPX_VERSION"
+            echo "libaom=$LIBAOM_VERSION"
+            echo "opus=$OPUS_VERSION"
+            echo "lame=$LAME_VERSION"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2

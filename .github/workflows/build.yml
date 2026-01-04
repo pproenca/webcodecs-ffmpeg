@@ -11,6 +11,7 @@ on:
         description: 'Skip Docker cache (force rebuild)'
         type: boolean
         default: false
+  workflow_call:  # Allow this workflow to be reused by other workflows
 
 # Minimal permissions
 permissions:
@@ -254,21 +255,25 @@ jobs:
 
       - name: Summary
         run: |
-          echo "## Build Summary" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "### NPM Packages Created:" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
-          find npm-dist -name "package.json" -exec sh -c 'jq -r ".name + \" v\" + .version" "$1"' _ {} \; | sort >> "$GITHUB_STEP_SUMMARY"
-          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "### Package Sizes:" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
-          du -sh npm-dist/@pproenca/* | sort -h >> "$GITHUB_STEP_SUMMARY"
-          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "✅ All platforms built successfully!" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## Build Summary"
+            echo ""
+            echo "### NPM Packages Created:"
+            echo ""
+            echo "\`\`\`"
+            find npm-dist -name "package.json" -exec sh -c 'jq -r ".name + \" v\" + .version" "$1"' _ {} \; | sort
+            echo "\`\`\`"
+            echo ""
+            echo "### Package Sizes:"
+            echo ""
+            echo "\`\`\`"
+            du -sh npm-dist/@pproenca/* | sort -h
+            echo "\`\`\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo ""
+            echo "✅ All platforms built successfully!"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # ==========================================================================
   # Security Scanning with Trivy
@@ -330,12 +335,14 @@ jobs:
       - name: Security scan summary
         if: always()
         run: |
-          echo "## Security Scan Results" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          if [[ -f security/results/scan-summary.txt ]]; then
-            echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
-            cat security/results/scan-summary.txt >> "$GITHUB_STEP_SUMMARY"
-            echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
-          else
-            echo "⚠️ Security scan did not complete" >> "$GITHUB_STEP_SUMMARY"
-          fi
+          {
+            echo "## Security Scan Results"
+            echo ""
+            if [[ -f security/results/scan-summary.txt ]]; then
+              echo "\`\`\`"
+              cat security/results/scan-summary.txt
+              echo "\`\`\`"
+            else
+              echo "⚠️ Security scan did not complete"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

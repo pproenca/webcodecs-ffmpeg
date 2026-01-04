@@ -1,0 +1,32 @@
+[tools]
+node = "22"
+act = "latest"
+actionlint = "latest"
+
+[tasks.act]
+description = "Run GitHub Actions locally using nektos/act"
+run = "act"
+
+[tasks.act-list]
+description = "List available GitHub Actions workflows"
+run = "act -l"
+
+[tasks.act-pull-request]
+description = "Run pull request workflow"
+run = "act pull_request"
+
+[tasks.act-push]
+description = "Run push workflow"
+run = "act push"
+
+[tasks.act-validate]
+description = "Validate/lint GitHub Actions workflows (dry-run)"
+run = "act --dryrun"
+
+[tasks.act-graph]
+description = "Show workflow execution graph"
+run = "act --graph"
+
+[tasks.lint-workflows]
+description = "Lint GitHub Actions workflows with actionlint"
+run = "actionlint"
