@@ -91,6 +91,7 @@ RUN cd ${SOURCES} && \
     ./autogen.sh && \
     ./configure --prefix="${TARGET}" && \
     make -j"$(nproc)" && \
+    mkdir -p "${TARGET}/bin" && \
     install -c nasm ndisasm "${TARGET}/bin/" && \
     cd ${SOURCES} && rm -rf nasm-*
 
