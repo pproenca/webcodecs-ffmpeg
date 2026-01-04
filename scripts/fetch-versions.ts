@@ -10,11 +10,13 @@
  *   tsx scripts/fetch-versions.ts --write  # Update versions.properties
  */
 
-import {mkdtemp, rm} from 'node:fs/promises';
+import {mkdtemp, rm, writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {join, dirname} from 'node:path';
 import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
 import {
   parseVersionsFile,
   updateVersionsFile,
@@ -63,15 +65,20 @@ const SEMVER_NO_PREFIX_TAG = /^[0-9]+(?:\.[0-9]+)*$/;
 const FFMPEG_TAG = /^n[0-9]+(?:\.[0-9]+){1,2}$/;
 const NASM_TAG = /^nasm-[0-9]+(?:\.[0-9]+)*$/;
 const OPENSSL_TAG = /^openssl-3\.[0-9]+(?:\.[0-9]+)?$/;
-const TAGS_PAGE_SIZE = 100;
-const MAX_TAG_PAGES = 2;
 
-// GitHub token for API authentication (avoids rate limits)
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
+const execFileAsync = promisify(execFile);
 
 // ============================================================================
 // Utility Functions
 // ============================================================================
+
+/**
+ * Call GitHub API using gh CLI (handles auth automatically)
+ */
+async function ghApi<T>(endpoint: string): Promise<T> {
+  const {stdout} = await execFileAsync('gh', ['api', endpoint, '--paginate']);
+  return JSON.parse(stdout);
+}
 
 /**
  * Fetch data from URL with retry logic
@@ -145,42 +152,15 @@ async function downloadAndChecksum(url: string): Promise<string> {
 // ============================================================================
 
 /**
- * Fetch latest version from GitHub tags API with optional authentication
+ * Fetch latest version from GitHub tags using gh CLI
  */
 async function fetchGitHubLatest(
   repo: string,
   tagPattern: RegExp,
 ): Promise<string> {
-  const tags: string[] = [];
-  const headers: Record<string, string> = {};
-
-  // Use GitHub token if available to avoid rate limits
-  if (GITHUB_TOKEN) {
-    headers['Authorization'] = `Bearer ${GITHUB_TOKEN}`;
-  }
-
-  for (let page = 1; page <= MAX_TAG_PAGES; page++) {
-    const url =
-      `https://api.github.com/repos/${repo}` +
-      `/tags?per_page=${TAGS_PAGE_SIZE}&page=${page}`;
-    const response = await fetchWithRetry(url, {headers});
-
-    if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status}`);
-    }
-
-    const pageTags = (await response.json()) as Array<{name: string}>;
-    if (pageTags.length === 0) {
-      break;
-    }
-
-    tags.push(...pageTags.map((tag) => tag.name));
-    if (pageTags.length < TAGS_PAGE_SIZE) {
-      break;
-    }
-  }
-
-  return selectLatestStableTag(tags, tagPattern);
+  const tags = await ghApi<Array<{name: string}>>(`repos/${repo}/tags`);
+  const tagNames = tags.map((t) => t.name);
+  return selectLatestStableTag(tagNames, tagPattern);
 }
 
 /**
