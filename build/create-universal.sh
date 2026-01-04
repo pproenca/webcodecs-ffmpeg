@@ -153,14 +153,12 @@ for binary in ffmpeg ffprobe; do
     lipo -info "$DARWIN/bin/$binary" | sed 's/^/    /'
 
     # Verify both architectures present
-    if ! lipo -info "$DARWIN/bin/$binary" | grep -q "x86_64"; then
-      echo "    ERROR: x86_64 architecture missing"
-      exit 1
-    fi
-    if ! lipo -info "$DARWIN/bin/$binary" | grep -q "arm64"; then
-      echo "    ERROR: arm64 architecture missing"
-      exit 1
-    fi
+    for arch in x86_64 arm64; do
+      if ! lipo -info "$DARWIN/bin/$binary" | grep -q "$arch"; then
+        echo "    ERROR: $arch architecture missing"
+        exit 1
+      fi
+    done
     echo "    ✓ Both architectures present"
   fi
 done

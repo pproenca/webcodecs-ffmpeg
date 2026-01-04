@@ -39,6 +39,28 @@ echo "Architecture: $ARCH"
 echo "Deployment Target: $MACOS_DEPLOYMENT_TARGET"
 echo ""
 
+# Common build settings
+NUM_CPUS=$(sysctl -n hw.ncpu)
+
+# Helper: download, verify checksum, and extract tarball
+# Usage: download_verify_extract "Name" "url" "sha256" "archive.tar.gz" [compression_flag]
+# compression_flag: "z" for .gz (default), "" for .xz
+download_verify_extract() {
+  local name="$1" url="$2" sha256="$3" archive="$4" compression="${5:-z}"
+  echo ""
+  echo "=== Building $name ==="
+  curl -fSL --retry 3 "$url" -o "$archive" || {
+    echo "ERROR: Failed to download $name"
+    exit 1
+  }
+  echo "$sha256  $archive" | shasum -a 256 -c - || {
+    echo "ERROR: $name checksum verification failed!"
+    exit 1
+  }
+  echo "✓ $name checksum verified"
+  tar "x${compression}f" "$archive"
+}
+
 # Set up build environment
 export TARGET="$PROJECT_ROOT/artifacts/$PLATFORM"
 export PKG_CONFIG_PATH="$TARGET/lib/pkgconfig"
@@ -98,7 +120,7 @@ tar xzf nasm.tar.gz
 cd "nasm-nasm-${NASM_VERSION}"
 ./autogen.sh
 ./configure --prefix="$TARGET"
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 install -c nasm ndisasm "$TARGET/bin/"
 cd ..
 
@@ -117,7 +139,7 @@ cd x264
   --disable-cli \
   --extra-cflags="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
   --extra-ldflags="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 make install
 cd ..
 
@@ -141,7 +163,7 @@ cmake \
   -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
   -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}" \
   ../../source
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 make install
 
 # x265 doesn't generate pkg-config file, but we'll remove all .pc files later anyway
@@ -156,11 +178,7 @@ git clone --depth 1 --branch "${LIBVPX_VERSION}" https://chromium.googlesource.c
 cd libvpx
 
 DARWIN_VERSION=$(uname -r | cut -d. -f1)
-if [ "$ARCH" = "arm64" ]; then
-  VPX_TARGET="arm64-darwin${DARWIN_VERSION}-gcc"
-else
-  VPX_TARGET="x86_64-darwin${DARWIN_VERSION}-gcc"
-fi
+VPX_TARGET="${ARCH}-darwin${DARWIN_VERSION}-gcc"
 echo "Using libvpx target: $VPX_TARGET"
 
 LDFLAGS="-mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
@@ -175,7 +193,7 @@ LDFLAGS="-mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
   --enable-static \
   --disable-shared \
   --extra-cflags="-mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 make install
 cd ..
 
@@ -200,7 +218,7 @@ cmake \
   -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
   -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}" \
   ../aom
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 make install
 cd ..
 
@@ -226,7 +244,7 @@ cmake \
   -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
   -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}" \
   ..
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 make install
 cd ../..
 
@@ -236,12 +254,12 @@ cd ../..
 echo ""
 echo "=== Building dav1d ${DAV1D_VERSION} ==="
 # Clean up any previous build
-rm -rf dav1d-${DAV1D_VERSION} dav1d_build
+rm -rf "dav1d-${DAV1D_VERSION}" dav1d_build
 
 # Download and extract dav1d
-curl -L "${DAV1D_URL}" -o dav1d-${DAV1D_VERSION}.tar.gz
-tar -xzf dav1d-${DAV1D_VERSION}.tar.gz
-cd dav1d-${DAV1D_VERSION}
+curl -L "${DAV1D_URL}" -o "dav1d-${DAV1D_VERSION}.tar.gz"
+tar -xzf "dav1d-${DAV1D_VERSION}.tar.gz"
+cd "dav1d-${DAV1D_VERSION}"
 
 # dav1d uses meson/ninja build system
 # Check if meson is available
@@ -269,7 +287,7 @@ else
     -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
     -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}" \
     ..
-  make -j"$(sysctl -n hw.ncpu)"
+  make -j"$NUM_CPUS"
   make install
   cd ../..
 fi
@@ -300,20 +318,7 @@ fi
 #=============================================================================
 # Build Theora (Ogg video codec, BSD)
 #=============================================================================
-echo ""
-echo "=== Building Theora ${THEORA_VERSION} ==="
-curl -fSL --retry 3 "${THEORA_URL}" -o theora.tar.gz || {
-  echo "ERROR: Failed to download Theora"
-  exit 1
-}
-
-echo "${THEORA_SHA256}  theora.tar.gz" | shasum -a 256 -c - || {
-  echo "ERROR: Theora checksum verification failed!"
-  exit 1
-}
-echo "✓ Theora checksum verified"
-
-tar xzf theora.tar.gz
+download_verify_extract "Theora ${THEORA_VERSION}" "${THEORA_URL}" "${THEORA_SHA256}" "theora.tar.gz"
 cd "libtheora-${THEORA_VERSION}"
 ./configure \
   --prefix="$TARGET" \
@@ -322,55 +327,27 @@ cd "libtheora-${THEORA_VERSION}"
   --disable-examples \
   CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
   LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 make install
 cd ..
 
 #=============================================================================
 # Build Xvid (MPEG-4 ASP codec, GPL)
 #=============================================================================
-echo ""
-echo "=== Building Xvid ${XVID_VERSION} ==="
-curl -fSL --retry 3 "${XVID_URL}" -o xvid.tar.gz || {
-  echo "ERROR: Failed to download Xvid"
-  exit 1
-}
-
-echo "${XVID_SHA256}  xvid.tar.gz" | shasum -a 256 -c - || {
-  echo "ERROR: Xvid checksum verification failed!"
-  exit 1
-}
-echo "✓ Xvid checksum verified"
-
-tar xzf xvid.tar.gz
+download_verify_extract "Xvid ${XVID_VERSION}" "${XVID_URL}" "${XVID_SHA256}" "xvid.tar.gz"
 cd "xvidcore/build/generic"
 ./configure \
   --prefix="$TARGET" \
   CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
   LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 make install
 cd ../../..
 
 #=============================================================================
 # Build Opus (audio codec, BSD)
 #=============================================================================
-echo ""
-echo "=== Building Opus ${OPUS_VERSION} ==="
-curl -fSL --retry 3 "https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz" -o opus.tar.gz || {
-  echo "ERROR: Failed to download Opus from xiph.org"
-  exit 1
-}
-
-echo "${OPUS_SHA256}  opus.tar.gz" | shasum -a 256 -c - || {
-  echo "ERROR: Opus checksum verification failed!"
-  echo "Expected: ${OPUS_SHA256}"
-  echo "Got:      $(shasum -a 256 opus.tar.gz | cut -d' ' -f1)"
-  exit 1
-}
-echo "✓ Opus checksum verified"
-
-tar xzf opus.tar.gz
+download_verify_extract "Opus ${OPUS_VERSION}" "https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz" "${OPUS_SHA256}" "opus.tar.gz"
 cd "opus-${OPUS_VERSION}"
 ./configure \
   --prefix="$TARGET" \
@@ -378,29 +355,14 @@ cd "opus-${OPUS_VERSION}"
   --enable-static \
   CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
   LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 make install
 cd ..
 
 #=============================================================================
 # Build LAME (MP3 encoder, LGPL)
 #=============================================================================
-echo ""
-echo "=== Building LAME ${LAME_VERSION} ==="
-curl -fSL --retry 3 "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}/lame-${LAME_VERSION}.tar.gz" -o lame.tar.gz || {
-  echo "ERROR: Failed to download LAME from SourceForge"
-  exit 1
-}
-
-echo "${LAME_SHA256}  lame.tar.gz" | shasum -a 256 -c - || {
-  echo "ERROR: LAME checksum verification failed!"
-  echo "Expected: ${LAME_SHA256}"
-  echo "Got:      $(shasum -a 256 lame.tar.gz | cut -d' ' -f1)"
-  exit 1
-}
-echo "✓ LAME checksum verified"
-
-tar xzf lame.tar.gz
+download_verify_extract "LAME ${LAME_VERSION}" "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}/lame-${LAME_VERSION}.tar.gz" "${LAME_SHA256}" "lame.tar.gz"
 cd "lame-${LAME_VERSION}"
 ./configure \
   --prefix="$TARGET" \
@@ -409,7 +371,7 @@ cd "lame-${LAME_VERSION}"
   --enable-nasm \
   CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
   LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 make install
 
 # LAME doesn't generate pkg-config file, but we'll remove all .pc files later anyway
@@ -430,27 +392,14 @@ cd fdk-aac
   CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
   CXXFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
   LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 make install
 cd ..
 
 #=============================================================================
 # Build FLAC (Free Lossless Audio Codec, BSD)
 #=============================================================================
-echo ""
-echo "=== Building FLAC ${FLAC_VERSION} ==="
-curl -fSL --retry 3 "${FLAC_URL}" -o flac.tar.xz || {
-  echo "ERROR: Failed to download FLAC"
-  exit 1
-}
-
-echo "${FLAC_SHA256}  flac.tar.xz" | shasum -a 256 -c - || {
-  echo "ERROR: FLAC checksum verification failed!"
-  exit 1
-}
-echo "✓ FLAC checksum verified"
-
-tar xf flac.tar.xz
+download_verify_extract "FLAC ${FLAC_VERSION}" "${FLAC_URL}" "${FLAC_SHA256}" "flac.tar.xz" ""
 cd "flac-${FLAC_VERSION}"
 ./configure \
   --prefix="$TARGET" \
@@ -461,27 +410,14 @@ cd "flac-${FLAC_VERSION}"
   CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
   CXXFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
   LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 make install
 cd ..
 
 #=============================================================================
 # Build Speex (Speech codec, BSD)
 #=============================================================================
-echo ""
-echo "=== Building Speex ${SPEEX_VERSION} ==="
-curl -fSL --retry 3 "${SPEEX_URL}" -o speex.tar.gz || {
-  echo "ERROR: Failed to download Speex"
-  exit 1
-}
-
-echo "${SPEEX_SHA256}  speex.tar.gz" | shasum -a 256 -c - || {
-  echo "ERROR: Speex checksum verification failed!"
-  exit 1
-}
-echo "✓ Speex checksum verified"
-
-tar xzf speex.tar.gz
+download_verify_extract "Speex ${SPEEX_VERSION}" "${SPEEX_URL}" "${SPEEX_SHA256}" "speex.tar.gz"
 cd "speex-${SPEEX_VERSION}"
 ./configure \
   --prefix="$TARGET" \
@@ -489,27 +425,14 @@ cd "speex-${SPEEX_VERSION}"
   --enable-static \
   CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
   LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 make install
 cd ..
 
 #=============================================================================
 # Build libfreetype (Font rendering, FreeType License)
 #=============================================================================
-echo ""
-echo "=== Building libfreetype ${FREETYPE_VERSION} ==="
-curl -fSL --retry 3 "${FREETYPE_URL}" -o freetype.tar.xz || {
-  echo "ERROR: Failed to download libfreetype"
-  exit 1
-}
-
-echo "${FREETYPE_SHA256}  freetype.tar.xz" | shasum -a 256 -c - || {
-  echo "ERROR: libfreetype checksum verification failed!"
-  exit 1
-}
-echo "✓ libfreetype checksum verified"
-
-tar xf freetype.tar.xz
+download_verify_extract "libfreetype ${FREETYPE_VERSION}" "${FREETYPE_URL}" "${FREETYPE_SHA256}" "freetype.tar.xz" ""
 cd "freetype-${FREETYPE_VERSION}"
 ./configure \
   --prefix="$TARGET" \
@@ -520,27 +443,14 @@ cd "freetype-${FREETYPE_VERSION}"
   --without-png \
   CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
   LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 make install
 cd ..
 
 #=============================================================================
 # Build libass (Subtitle rendering, ISC)
 #=============================================================================
-echo ""
-echo "=== Building libass ${LIBASS_VERSION} ==="
-curl -fSL --retry 3 "${LIBASS_URL}" -o libass.tar.gz || {
-  echo "ERROR: Failed to download libass"
-  exit 1
-}
-
-echo "${LIBASS_SHA256}  libass.tar.gz" | shasum -a 256 -c - || {
-  echo "ERROR: libass checksum verification failed!"
-  exit 1
-}
-echo "✓ libass checksum verified"
-
-tar xzf libass.tar.gz
+download_verify_extract "libass ${LIBASS_VERSION}" "${LIBASS_URL}" "${LIBASS_SHA256}" "libass.tar.gz"
 cd "libass-${LIBASS_VERSION}"
 ./configure \
   --prefix="$TARGET" \
@@ -549,7 +459,7 @@ cd "libass-${LIBASS_VERSION}"
   --disable-require-system-font-provider \
   CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
   LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 make install
 cd ..
 
@@ -559,22 +469,15 @@ cd ..
 echo ""
 echo "=== Building OpenSSL ${OPENSSL_VERSION} ==="
 # Clean up any previous build
-rm -rf openssl-${OPENSSL_VERSION}
+rm -rf "openssl-${OPENSSL_VERSION}"
 
 # Download and extract OpenSSL
-curl -L "${OPENSSL_URL}" -o openssl-${OPENSSL_VERSION}.tar.gz
-tar -xzf openssl-${OPENSSL_VERSION}.tar.gz
-cd openssl-${OPENSSL_VERSION}
+curl -L "${OPENSSL_URL}" -o "openssl-${OPENSSL_VERSION}.tar.gz"
+tar -xzf "openssl-${OPENSSL_VERSION}.tar.gz"
+cd "openssl-${OPENSSL_VERSION}"
 
 # Configure OpenSSL for macOS
-if [ "$ARCH" = "x86_64" ]; then
-  OPENSSL_TARGET="darwin64-x86_64-cc"
-elif [ "$ARCH" = "arm64" ]; then
-  OPENSSL_TARGET="darwin64-arm64-cc"
-else
-  echo "ERROR: Unsupported architecture: $ARCH"
-  exit 1
-fi
+OPENSSL_TARGET="darwin64-${ARCH}-cc"
 
 ./Configure \
   $OPENSSL_TARGET \
@@ -583,9 +486,9 @@ fi
   no-shared \
   no-tests \
   enable-static \
-  -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}
+  -mmacosx-version-min="${MACOS_DEPLOYMENT_TARGET}"
 
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 make install_sw install_ssldirs
 cd ..
 
@@ -641,7 +544,7 @@ make distclean 2>/dev/null || true
   --enable-libass \
   --enable-videotoolbox
 
-make -j"$(sysctl -n hw.ncpu)"
+make -j"$NUM_CPUS"
 make install
 cd ..
 

@@ -50,10 +50,9 @@ while IFS='=' read -r key value; do
 done < "$VERSIONS_FILE"
 
 # Validate required versions
-: "${FFMPEG_VERSION:?ERROR: FFMPEG_VERSION not set in versions.properties}"
-: "${X264_VERSION:?ERROR: X264_VERSION not set in versions.properties}"
-: "${X265_VERSION:?ERROR: X265_VERSION not set in versions.properties}"
-: "${NASM_VERSION:?ERROR: NASM_VERSION not set in versions.properties}"
+for var in FFMPEG_VERSION X264_VERSION X265_VERSION NASM_VERSION; do
+  : "${!var:?ERROR: $var not set in versions.properties}"
+done
 
 echo ""
 echo "=========================================="
