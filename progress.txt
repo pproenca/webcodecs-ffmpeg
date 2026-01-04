@@ -33,14 +33,21 @@ Phase 2: Codec Library Expansion [COMPLETED ✅]
   ✅ CODECS.md documentation created
   ✅ Updated all platform build scripts (macOS, Linux glibc/musl, Windows)
 
-Phase 3: Hardware Acceleration [PENDING]
-  ⬜ Linux VA-API variant (linux-x64-glibc-vaapi)
-  ⬜ Linux VDPAU variant (linux-x64-glibc-vdpau)
-  ⬜ Linux NVENC variant (linux-x64-glibc-nvidia)
-  ⬜ macOS VideoToolbox variant (darwin-universal-videotoolbox)
-  ⬜ Windows DXVA2 variant (windows-x64-dxva2)
-  ⬜ Create lib/detect-hw.js for runtime detection
-  ⬜ Update npm packages for HW variants
+Phase 3: Hardware Acceleration [PARTIAL ⏳]
+  ✅ Linux VA-API variant (linux-x64-glibc-vaapi) - COMPLETE
+     - Dockerfile with libva-dev, libdrm-dev
+     - FFmpeg configured with --enable-vaapi
+     - README with usage examples and benchmarks
+  ✅ Hardware detection script (lib/detect-hw.js) - COMPLETE
+     - Auto-detects GPU vendor (Intel, AMD, NVIDIA, Apple)
+     - Identifies available acceleration APIs
+     - Recommends optimal FFmpeg variant
+  ✅ HARDWARE.md documentation - Pattern established
+  📋 Linux VDPAU variant - Pattern documented, not implemented
+  📋 Linux NVENC variant - Pattern documented, not implemented
+  📋 macOS VideoToolbox variant - Pattern documented, not implemented
+  📋 Windows DXVA2 variant - Pattern documented, not implemented
+  ⬜ Update npm packages for HW variants (blocked on full implementation)
 
 Phase 4: Build System Enhancements [PENDING]
   ⬜ Build customization system (build-config.json)
