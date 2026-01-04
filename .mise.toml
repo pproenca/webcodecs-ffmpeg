@@ -2,6 +2,7 @@
 node = "22"
 act = "latest"
 actionlint = "latest"
+hadolint = "latest"
 
 [tasks.act]
 description = "Run GitHub Actions locally using nektos/act"
@@ -30,3 +31,7 @@ run = "act --graph"
 [tasks.lint-workflows]
 description = "Lint GitHub Actions workflows with actionlint"
 run = "actionlint"
+
+[tasks.lint-dockerfiles]
+description = "Lint Dockerfiles with hadolint"
+run = "hadolint platforms/*/Dockerfile"

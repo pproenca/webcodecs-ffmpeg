@@ -8,6 +8,9 @@
 
 FROM alpine:3.21 AS builder
 
+# hadolint: DL4006 - Ensure pipe failures are caught
+SHELL ["/bin/ash", "-o", "pipefail", "-c"]
+
 # Build arguments for version pinning (updated Jan 2026)
 ARG X264_VERSION=stable
 ARG X265_VERSION=3.6
@@ -62,7 +65,7 @@ ENV PREFIX=/build
 ENV PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig
 ENV PATH=/usr/lib/ccache:$PREFIX/bin:$PATH
 ENV CCACHE_DIR=/cache
-ENV MAKEFLAGS="-j$(nproc)"
+ENV MAKEFLAGS="-j"$(nproc)""
 
 WORKDIR /src
 
@@ -78,7 +81,7 @@ RUN git clone --depth 1 --branch ${X264_VERSION} https://code.videolan.org/video
         --enable-pic \
         --disable-cli \
         --disable-opencl && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf x264
 
@@ -98,7 +101,7 @@ RUN git clone --depth 1 https://bitbucket.org/multicoreware/x265_git.git && \
         -DSTATIC_LINK_CRT=ON \
         -DHIGH_BIT_DEPTH=ON \
         ../../source && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     # x265 doesn't generate pkg-config file, but we'll remove all .pc files later anyway
     cd /src && rm -rf x265_git
@@ -118,7 +121,7 @@ RUN git clone --depth 1 --branch ${LIBVPX_VERSION} https://chromium.googlesource
         --disable-shared \
         --enable-pic \
         --as=yasm && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf libvpx
 
@@ -139,7 +142,7 @@ RUN git clone --depth 1 --branch ${LIBAOM_VERSION} https://aomedia.googlesource.
         -DCONFIG_AV1_ENCODER=1 \
         -DCONFIG_AV1_DECODER=1 \
         ../aom && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf aom aom_build
 
@@ -157,7 +160,7 @@ RUN wget -q https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz
         --with-pic \
         --disable-doc \
         --disable-extra-programs && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf opus-${OPUS_VERSION}*
 
@@ -175,7 +178,7 @@ RUN wget -q "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}
         --with-pic \
         --enable-nasm \
         --disable-frontend && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf lame-${LAME_VERSION}*
 
@@ -190,7 +193,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-1.3.5.tar.gz && 
         --disable-shared \
         --enable-static \
         --with-pic && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf libogg-1.3.5*
 
@@ -203,7 +206,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-1.3.7.tar.
         --enable-static \
         --with-pic \
         --with-ogg=$PREFIX && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf libvorbis-1.3.7*
 
@@ -220,7 +223,7 @@ RUN git clone --depth 1 --branch ${SVTAV1_VERSION} https://gitlab.com/AOMediaCod
         -DBUILD_DEC=OFF \
         -DBUILD_TESTING=OFF \
         .. && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd /src && rm -rf SVT-AV1
 
@@ -236,7 +239,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${THEORA_V
         --disable-shared \
         --enable-static \
         --disable-examples && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf libtheora-${THEORA_VERSION}*
 
@@ -248,7 +251,7 @@ RUN wget -q https://downloads.xvid.com/downloads/xvidcore-${XVID_VERSION}.tar.gz
     tar xzf xvidcore-${XVID_VERSION}.tar.gz && \
     cd xvidcore/build/generic && \
     ./configure --prefix=$PREFIX && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd /src && rm -rf xvidcore*
 
@@ -262,7 +265,7 @@ RUN git clone --depth 1 --branch ${FDKAAC_VERSION} https://github.com/mstorsjo/f
         --prefix=$PREFIX \
         --disable-shared \
         --enable-static && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf fdk-aac
 
@@ -279,7 +282,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/flac/flac-${FLAC_VERSION}.t
         --enable-static \
         --disable-examples \
         --disable-cpplibs && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf flac-${FLAC_VERSION}*
 
@@ -294,7 +297,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/speex/speex-${SPEEX_VERSION
         --prefix=$PREFIX \
         --disable-shared \
         --enable-static && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf speex-${SPEEX_VERSION}*
 
@@ -312,7 +315,7 @@ RUN wget -q https://download.savannah.gnu.org/releases/freetype/freetype-${FREET
         --without-harfbuzz \
         --without-bzip2 \
         --without-png && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf freetype-${FREETYPE_VERSION}*
 
@@ -328,7 +331,7 @@ RUN wget -q https://github.com/libass/libass/releases/download/${LIBASS_VERSION}
         --disable-shared \
         --enable-static \
         --disable-require-system-font-provider && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf libass-${LIBASS_VERSION}*
 
@@ -367,7 +370,7 @@ RUN git clone --depth 1 --branch ${FFMPEG_VERSION} https://git.ffmpeg.org/ffmpeg
         --enable-libvorbis \
         --enable-libfreetype \
         --enable-libass && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install
 
 # ============================================================================

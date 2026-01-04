@@ -13,11 +13,14 @@
 
 FROM ubuntu:24.04
 
+# hadolint: DL4006 - Ensure pipe failures are caught
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 # Avoid interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install MinGW-w64 toolchain and build dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     # MinGW cross-compiler
     mingw-w64 \
     mingw-w64-tools \
@@ -98,7 +101,7 @@ RUN cd ${SOURCES} && \
     cd nasm-nasm-${NASM_VERSION} && \
     ./autogen.sh && \
     ./configure --prefix="${TARGET}" && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf nasm-*
 
@@ -113,7 +116,7 @@ RUN cd ${SOURCES} && \
         --enable-static \
         --disable-shared \
         --disable-cli && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf x264
 
@@ -131,7 +134,7 @@ RUN cd ${SOURCES} && \
         -DENABLE_SHARED=OFF \
         -DENABLE_CLI=OFF \
         ../../source && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf x265_git
 
@@ -149,7 +152,7 @@ RUN cd ${SOURCES} && \
         --disable-docs \
         --disable-unit-tests \
         --enable-vp9-highbitdepth && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf libvpx
 
@@ -169,7 +172,7 @@ RUN cd ${SOURCES} && \
         -DENABLE_TESTS=OFF \
         -DENABLE_EXAMPLES=OFF \
         -DENABLE_DOCS=OFF && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf aom
 
@@ -183,7 +186,7 @@ RUN cd ${SOURCES} && \
         --prefix=${TARGET} \
         --enable-static \
         --disable-shared && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf ogg
 
@@ -197,7 +200,7 @@ RUN cd ${SOURCES} && \
         --prefix=${TARGET} \
         --enable-static \
         --disable-shared && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf vorbis
 
@@ -212,7 +215,7 @@ RUN cd ${SOURCES} && \
         --prefix=${TARGET} \
         --enable-static \
         --disable-shared && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf opus-${OPUS_VERSION}*
 
@@ -228,7 +231,7 @@ RUN cd ${SOURCES} && \
         --enable-static \
         --disable-shared \
         --enable-nasm && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf lame-${LAME_VERSION}*
 
@@ -248,7 +251,7 @@ RUN cd ${SOURCES} && \
         -DBUILD_DEC=OFF \
         -DBUILD_TESTING=OFF \
         .. && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf SVT-AV1
 
@@ -264,7 +267,7 @@ RUN cd ${SOURCES} && \
         --enable-static \
         --disable-shared \
         --disable-examples && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf libtheora-${THEORA_VERSION}*
 
@@ -277,7 +280,7 @@ RUN cd ${SOURCES} && \
     ./configure \
         --host=x86_64-w64-mingw32 \
         --prefix=${TARGET} && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf xvidcore*
 
@@ -291,7 +294,7 @@ RUN cd ${SOURCES} && \
         --prefix=${TARGET} \
         --enable-static \
         --disable-shared && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf fdk-aac
 
@@ -308,7 +311,7 @@ RUN cd ${SOURCES} && \
         --disable-shared \
         --disable-examples \
         --disable-cpplibs && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf flac-${FLAC_VERSION}*
 
@@ -323,7 +326,7 @@ RUN cd ${SOURCES} && \
         --prefix=${TARGET} \
         --enable-static \
         --disable-shared && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf speex-${SPEEX_VERSION}*
 
@@ -341,7 +344,7 @@ RUN cd ${SOURCES} && \
         --without-harfbuzz \
         --without-bzip2 \
         --without-png && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf freetype-${FREETYPE_VERSION}*
 
@@ -357,7 +360,7 @@ RUN cd ${SOURCES} && \
         --enable-static \
         --disable-shared \
         --disable-require-system-font-provider && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd ${SOURCES} && rm -rf libass-${LIBASS_VERSION}*
 
@@ -400,7 +403,7 @@ RUN cd ${SOURCES} && \
         --enable-libfreetype \
         --enable-libass \
         --enable-dxva2 && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     # Strip binaries to reduce size
     ${CROSS_PREFIX}strip ${TARGET}/bin/*.exe && \

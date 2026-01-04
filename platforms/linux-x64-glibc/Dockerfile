@@ -12,6 +12,9 @@
 
 FROM ubuntu:24.04 AS builder
 
+# hadolint: DL4006 - Ensure pipe failures are caught
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 # Build arguments for version pinning (updated Jan 2026)
 ARG X264_VERSION=stable
 ARG X265_VERSION=3.6
@@ -73,7 +76,7 @@ ENV PREFIX=/build
 ENV PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig
 ENV PATH=/usr/lib/ccache:$PREFIX/bin:$PATH
 ENV CCACHE_DIR=/cache
-ENV MAKEFLAGS="-j$(nproc)"
+ENV MAKEFLAGS="-j"$(nproc)""
 ENV CFLAGS="-fPIC"
 ENV CXXFLAGS="-fPIC"
 
@@ -91,7 +94,7 @@ RUN git clone --depth 1 --branch ${X264_VERSION} https://code.videolan.org/video
         --enable-pic \
         --disable-cli \
         --disable-opencl && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf x264
 
@@ -112,7 +115,7 @@ RUN git clone --depth 1 https://bitbucket.org/multicoreware/x265_git.git && \
         -DENABLE_CLI=OFF \
         -DHIGH_BIT_DEPTH=ON \
         ../../source && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     # x265 doesn't generate pkg-config file, but we'll remove all .pc files later anyway
     cd /src && rm -rf x265_git
@@ -132,7 +135,7 @@ RUN git clone --depth 1 --branch ${LIBVPX_VERSION} https://chromium.googlesource
         --disable-shared \
         --enable-pic \
         --as=yasm && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf libvpx
 
@@ -155,7 +158,7 @@ RUN git clone --depth 1 --branch ${LIBAOM_VERSION} https://aomedia.googlesource.
         -DCONFIG_AV1_ENCODER=1 \
         -DCONFIG_AV1_DECODER=1 \
         ../aom && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf aom aom_build
 
@@ -193,7 +196,7 @@ RUN wget -q https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz
         --disable-doc \
         --disable-extra-programs \
         CFLAGS="-fPIC" && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf opus-${OPUS_VERSION}*
 
@@ -212,7 +215,7 @@ RUN wget -q "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}
         --enable-nasm \
         --disable-frontend \
         CFLAGS="-fPIC" && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf lame-${LAME_VERSION}*
 
@@ -228,7 +231,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-1.3.5.tar.gz && 
         --enable-static \
         --with-pic \
         CFLAGS="-fPIC" && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf libogg-1.3.5*
 
@@ -242,7 +245,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-1.3.7.tar.
         --with-pic \
         --with-ogg=$PREFIX \
         CFLAGS="-fPIC" && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf libvorbis-1.3.7*
 
@@ -262,7 +265,7 @@ RUN git clone --depth 1 --branch ${SVTAV1_VERSION} https://gitlab.com/AOMediaCod
         -DBUILD_DEC=OFF \
         -DBUILD_TESTING=OFF \
         .. && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd /src && rm -rf SVT-AV1
 
@@ -280,7 +283,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${THEORA_V
         --with-pic \
         --disable-examples \
         CFLAGS="-fPIC" && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf libtheora-${THEORA_VERSION}*
 
@@ -294,7 +297,7 @@ RUN wget -q https://downloads.xvid.com/downloads/xvidcore-${XVID_VERSION}.tar.gz
     ./configure \
         --prefix=$PREFIX \
         CFLAGS="-fPIC" && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd /src && rm -rf xvidcore*
 
@@ -311,7 +314,7 @@ RUN git clone --depth 1 --branch ${FDKAAC_VERSION} https://github.com/mstorsjo/f
         --with-pic \
         CFLAGS="-fPIC" \
         CXXFLAGS="-fPIC" && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf fdk-aac
 
@@ -331,7 +334,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/flac/flac-${FLAC_VERSION}.t
         --disable-cpplibs \
         CFLAGS="-fPIC" \
         CXXFLAGS="-fPIC" && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf flac-${FLAC_VERSION}*
 
@@ -348,7 +351,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/speex/speex-${SPEEX_VERSION
         --enable-static \
         --with-pic \
         CFLAGS="-fPIC" && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf speex-${SPEEX_VERSION}*
 
@@ -368,7 +371,7 @@ RUN wget -q https://download.savannah.gnu.org/releases/freetype/freetype-${FREET
         --without-bzip2 \
         --without-png \
         CFLAGS="-fPIC" && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf freetype-${FREETYPE_VERSION}*
 
@@ -386,7 +389,7 @@ RUN wget -q https://github.com/libass/libass/releases/download/${LIBASS_VERSION}
         --with-pic \
         --disable-require-system-font-provider \
         CFLAGS="-fPIC" && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf libass-${LIBASS_VERSION}*
 
@@ -405,7 +408,7 @@ RUN wget -q "${OPENSSL_URL}" && \
         no-tests \
         enable-static \
         -fPIC && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install_sw install_ssldirs && \
     cd .. && rm -rf openssl-${OPENSSL_VERSION}*
 
@@ -447,7 +450,7 @@ RUN git clone --depth 1 --branch ${FFMPEG_VERSION} https://git.ffmpeg.org/ffmpeg
         --enable-libvorbis \
         --enable-libfreetype \
         --enable-libass && \
-    make -j$(nproc) && \
+    make -j"$(nproc)" && \
     make install
 
 # ============================================================================
@@ -465,14 +468,14 @@ RUN echo "=== Cleaning build artifacts ===" && \
 RUN strip $PREFIX/bin/ffmpeg $PREFIX/bin/ffprobe && \
     echo "=== Verifying PIC in static libraries ===" && \
     # Check that object files in .a archives have PIC relocations
-    for lib in $PREFIX/lib/*.a; do \
-        echo "Checking $lib for PIC..."; \
+    for lib in "${PREFIX}"/lib/*.a; do \
+        echo "Checking ${lib} for PIC..."; \
         # Extract and check for non-PIC relocations (R_X86_64_32 or R_X86_64_32S)
         # These would fail when linking into a shared object
-        if ar -t "$lib" 2>/dev/null | head -1 | xargs -I{} sh -c "ar -p '$lib' {} 2>/dev/null | readelf -r - 2>/dev/null | grep -q 'R_X86_64_32'"; then \
-            echo "WARNING: $lib may have non-PIC code"; \
+        if ar -t "${lib}" 2>/dev/null | head -1 | xargs -I{} sh -c "ar -p '${lib}' {} 2>/dev/null | readelf -r - 2>/dev/null | grep -q 'R_X86_64_32'"; then \
+            echo "WARNING: ${lib} may have non-PIC code"; \
         else \
-            echo "OK: $lib"; \
+            echo "OK: ${lib}"; \
         fi; \
     done && \
     echo "=== Binary sizes ===" && \
