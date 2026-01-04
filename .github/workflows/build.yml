@@ -36,6 +36,9 @@ jobs:
           - platform: linux-x64-musl
             runner: ubuntu-24.04
             uses_docker: true
+          - platform: linux-arm64-glibc
+            runner: ubuntu-24.04
+            uses_docker: true
           - platform: windows-x64
             runner: ubuntu-24.04
             uses_docker: true

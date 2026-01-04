@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Linux FFmpeg Build Script (Docker-based)
-# Supports: linux-x64-glibc, linux-x64-musl
+# Supports: linux-x64-glibc, linux-x64-musl, linux-arm64-glibc, linux-arm64-musl
 #
 # This script builds FFmpeg and all codec dependencies inside Docker containers
 # for maximum reproducibility and isolation.
@@ -21,14 +21,17 @@ echo "=========================================="
 echo "Linux Docker Build: $PLATFORM"
 echo "=========================================="
 
-# Validate platform
+# Validate platform and determine Docker architecture
 case "$PLATFORM" in
   linux-x64-glibc|linux-x64-musl)
-    # Valid platform
+    DOCKER_PLATFORM="linux/amd64"
+    ;;
+  linux-arm64-glibc|linux-arm64-musl)
+    DOCKER_PLATFORM="linux/arm64"
     ;;
   *)
     echo "ERROR: Invalid Linux platform '$PLATFORM'"
-    echo "Supported: linux-x64-glibc, linux-x64-musl"
+    echo "Supported: linux-x64-glibc, linux-x64-musl, linux-arm64-glibc, linux-arm64-musl"
     exit 1
     ;;
 esac
@@ -46,9 +49,9 @@ echo "Image tag:  $IMAGE_TAG"
 echo ""
 
 # Build Docker image with all codec versions as build args
-echo "Building Docker image (this may take 20-30 minutes)..."
+echo "Building Docker image for $DOCKER_PLATFORM (this may take 20-40 minutes)..."
 docker buildx build \
-  --platform linux/amd64 \
+  --platform "$DOCKER_PLATFORM" \
   --build-arg FFMPEG_VERSION="$FFMPEG_VERSION" \
   --build-arg X264_VERSION="$X264_VERSION" \
   --build-arg X265_VERSION="$X265_VERSION" \
