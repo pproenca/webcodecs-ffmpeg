@@ -135,7 +135,7 @@ echo "Binaries:"
 ls -lh "$ARTIFACT_DIR"/bin/*.exe 2>/dev/null || echo "No executables found"
 echo ""
 echo "Libraries:"
-ls -lh "$ARTIFACT_DIR"/lib/*.a 2>/dev/null | head -5 || echo "No static libraries"
+find "$ARTIFACT_DIR/lib" -name "*.a" -type f -exec ls -lh {} + 2>/dev/null | head -5 || echo "No static libraries"
 echo ""
 
 # Run verification

@@ -20,7 +20,7 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
   echo "ERROR: Config file not found: $CONFIG_FILE" >&2
   echo "" >&2
   echo "Available presets:" >&2
-  ls -1 "$PROJECT_ROOT/presets/"*.json 2>/dev/null | xargs -n1 basename >&2 || true
+  find "$PROJECT_ROOT/presets" -name "*.json" -type f -print0 2>/dev/null | xargs -0 -n1 basename >&2 || true
   exit 1
 fi
 
@@ -170,12 +170,10 @@ if jq -e '.features.network.enabled == true' "$CONFIG_FILE" &>/dev/null; then
   # The default FFmpeg build disables network in our Dockerfiles with --disable-network
   # If this flag is true, we won't add --disable-network
   echo "  ✓ Network protocols enabled" >&2
-  NETWORK_ENABLED=true
   ENABLED_FEATURES=$((ENABLED_FEATURES + 1))
 else
   CONFIGURE_FLAGS+=("--disable-network")
   echo "  ✗ Network protocols disabled" >&2
-  NETWORK_ENABLED=false
 fi
 
 if [[ $ENABLED_FEATURES -eq 0 ]]; then
