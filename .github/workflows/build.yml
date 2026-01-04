@@ -102,7 +102,7 @@ jobs:
 
       # Upload artifacts
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ffmpeg-${{ matrix.platform }}
           path: artifacts/${{ matrix.platform }}.tar.gz
@@ -176,7 +176,7 @@ jobs:
 
       # Upload darwin artifact
       - name: Upload darwin artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: ffmpeg-darwin
           path: artifacts/darwin.tar.gz
@@ -229,7 +229,7 @@ jobs:
 
       # Upload npm packages
       - name: Upload npm packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: npm-packages
           path: npm-dist/
@@ -320,7 +320,7 @@ jobs:
       # Upload scan results
       - name: Upload security scan results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: security-scan-results
           path: security/results/
