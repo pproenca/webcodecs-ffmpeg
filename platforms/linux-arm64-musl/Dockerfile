@@ -54,6 +54,8 @@ RUN apk add --no-cache \
     git \
     linux-headers \
     libtool \
+    meson \
+    ninja \
     perl \
     pkgconfig \
     wget \

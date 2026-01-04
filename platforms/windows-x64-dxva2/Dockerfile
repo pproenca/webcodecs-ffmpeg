@@ -99,7 +99,7 @@ RUN cd ${SOURCES} && \
     ./autogen.sh && \
     ./configure --prefix="${TARGET}" && \
     make -j"$(nproc)" && \
-    make install && \
+    install -c nasm ndisasm "${TARGET}/bin/" && \
     cd ${SOURCES} && rm -rf nasm-*
 
 # Build x264 (H.264 encoder)

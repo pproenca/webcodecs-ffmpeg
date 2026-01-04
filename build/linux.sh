@@ -114,6 +114,12 @@ docker buildx build \
   --build-arg DAV1D_VERSION="$DAV1D_VERSION" \
   --build-arg DAV1D_URL="$DAV1D_URL" \
   --build-arg DAV1D_SHA256="$DAV1D_SHA256" \
+  --build-arg OPENSSL_VERSION="$OPENSSL_VERSION" \
+  --build-arg OPENSSL_URL="$OPENSSL_URL" \
+  --build-arg OPENSSL_SHA256="$OPENSSL_SHA256" \
+  --build-arg FDKAAC_VERSION="$FDKAAC_VERSION" \
+  --build-arg RAV1E_VERSION="$RAV1E_VERSION" \
+  --build-arg SVTAV1_VERSION="$SVTAV1_VERSION" \
   --cache-from type=gha,scope="$PLATFORM" \
   --cache-to type=gha,mode=max,scope="$PLATFORM" \
   -f "$DOCKERFILE" \

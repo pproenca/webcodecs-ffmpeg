@@ -42,6 +42,9 @@ ARG FREETYPE_SHA256
 ARG DAV1D_VERSION=1.5.3
 ARG DAV1D_URL
 ARG DAV1D_SHA256
+ARG OPENSSL_VERSION
+ARG OPENSSL_URL
+ARG OPENSSL_SHA256
 ARG FFMPEG_VERSION=n8.0
 
 # Prevent interactive prompts during apt-get
@@ -62,7 +65,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     libtool \
     linux-libc-dev \
+    meson \
     nasm \
+    ninja-build \
     perl \
     pkg-config \
     wget \

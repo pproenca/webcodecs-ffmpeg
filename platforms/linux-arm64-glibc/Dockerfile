@@ -61,6 +61,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     libtool \
     linux-libc-dev \
+    meson \
+    ninja-build \
     perl \
     pkg-config \
     wget \

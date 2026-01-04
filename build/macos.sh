@@ -203,6 +203,7 @@ cmake \
   -DENABLE_CLI=OFF \
   -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
   -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}" \
+  -DCMAKE_CXX_FLAGS="-include cstdint" \
   ../../source
 make -j"$NUM_CPUS"
 make install
@@ -298,8 +299,8 @@ echo "=== Building dav1d ${DAV1D_VERSION} ==="
 rm -rf "dav1d-${DAV1D_VERSION}" dav1d_build
 
 # Download and extract dav1d
-curl -L "${DAV1D_URL}" -o "dav1d-${DAV1D_VERSION}.tar.gz"
-tar -xzf "dav1d-${DAV1D_VERSION}.tar.gz"
+curl -L "${DAV1D_URL}" -o "dav1d-${DAV1D_VERSION}.tar.xz"
+tar xf "dav1d-${DAV1D_VERSION}.tar.xz"
 cd "dav1d-${DAV1D_VERSION}"
 
 # dav1d uses meson/ninja build system
