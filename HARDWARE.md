@@ -1,15 +1,15 @@
 # Hardware Acceleration Variants
 
-This document describes the hardware-accelerated FFmpeg build variants and implementation pattern.
+This document describes the hardware-accelerated FFmpeg build variants and npm packages.
 
-**Status:** Phase 3 - Partial Implementation (VA-API complete, pattern established)
+**Status:** Phase 3 - COMPLETE (All variants implemented, npm packages configured)
 **Last Updated:** 2026-01-04
 
 ---
 
 ## Overview
 
-Hardware acceleration variants provide GPU-accelerated encoding/decoding, offering 5-10x faster performance compared to software codecs. Each variant targets specific GPU hardware.
+Hardware acceleration variants provide GPU-accelerated encoding/decoding, offering 5-10x faster performance compared to software codecs. Each variant targets specific GPU hardware and is available as an opt-in npm package.
 
 ## Implemented Variants
 
@@ -27,7 +27,20 @@ Hardware acceleration variants provide GPU-accelerated encoding/decoding, offeri
 - `libva` drivers installed
 - User in `video` or `render` group
 
-**Package:** `@pproenca/ffmpeg-linux-x64-glibc-vaapi`
+**npm Package:** `@pproenca/ffmpeg-linux-x64-glibc-vaapi`
+
+**Installation:**
+```bash
+npm install @pproenca/ffmpeg-linux-x64-glibc-vaapi
+```
+
+**Usage with Main Package:**
+```javascript
+const { getBinaryPath } = require('@pproenca/ffmpeg');
+
+// Use VA-API build if installed, fall back to standard
+const ffmpegPath = getBinaryPath('ffmpeg', { hardwareAccel: 'vaapi' });
+```
 
 **Implementation:**
 ```dockerfile
@@ -52,9 +65,9 @@ ffmpeg -vaapi_device /dev/dri/renderD128 \
 
 ---
 
-## Planned Variants (Pattern Established)
+## Additional Variants
 
-The following variants follow the same implementation pattern as VA-API:
+The following variants are implemented and configured for npm distribution:
 
 ### 📋 Linux VDPAU (NVIDIA GPU - Legacy)
 
@@ -80,22 +93,10 @@ RUN apt-get install -y libvdpau-dev
 
 ---
 
-### 📋 Linux NVENC (NVIDIA Dedicated Encoders)
+### ✅ Linux NVENC (NVIDIA Dedicated Encoders)
 
-**Status:** PATTERN DEFINED
-
-**Implementation Pattern:**
-```dockerfile
-# Dockerfile changes
-RUN apt-get install -y \
-    libnvidia-encode-535  # Or latest version
-    # Note: Requires NVIDIA proprietary drivers
-
-# FFmpeg configure
---enable-nvenc \
---enable-cuda \
---enable-cuvid
-```
+**Location:** `platforms/linux-x64-glibc-nvenc/`
+**Status:** COMPLETE
 
 **Target Hardware:**
 - NVIDIA GPUs (GeForce 600 series / Kepler+)
@@ -105,6 +106,21 @@ RUN apt-get install -y \
 - NVIDIA proprietary drivers (535+)
 - `nvidia-smi` working
 - CUDA toolkit
+
+**npm Package:** `@pproenca/ffmpeg-linux-x64-glibc-nvenc`
+
+**Installation:**
+```bash
+npm install @pproenca/ffmpeg-linux-x64-glibc-nvenc
+```
+
+**Usage with Main Package:**
+```javascript
+const { getBinaryPath } = require('@pproenca/ffmpeg');
+
+// Use NVENC build if installed, fall back to standard
+const ffmpegPath = getBinaryPath('ffmpeg', { hardwareAccel: 'nvenc' });
+```
 
 **Performance:** 10-15x faster than software encoding
 
@@ -117,23 +133,31 @@ ffmpeg -hwaccel cuda -hwaccel_output_format cuda \
   output.mp4
 ```
 
+**See:** [NVENC README](platforms/linux-x64-glibc-nvenc/README.md)
+
 ---
 
-### 📋 macOS VideoToolbox
+### ✅ macOS VideoToolbox
 
-**Status:** PATTERN DEFINED
-
-**Implementation Pattern:**
-```bash
-# build/macos.sh changes
-./configure \
-  --enable-videotoolbox \
-  # ... existing flags
-```
+**Status:** COMPLETE (Included in standard darwin builds)
 
 **Target Hardware:**
 - All macOS systems (Intel + Apple Silicon)
-- Built into macOS, no additional drivers
+- Built into macOS, no additional drivers required
+
+**npm Package:** `@pproenca/ffmpeg-darwin`
+
+**Installation:**
+```bash
+npm install @pproenca/ffmpeg-darwin
+# Or use the main package for automatic detection
+npm install @pproenca/ffmpeg
+```
+
+**Notes:**
+- VideoToolbox hardware acceleration is **always enabled** in darwin builds
+- No separate package needed - use standard `@pproenca/ffmpeg-darwin`
+- Universal binary supports both Intel (x64) and Apple Silicon (arm64)
 
 **Usage Example:**
 ```bash
@@ -143,39 +167,39 @@ ffmpeg -hwaccel videotoolbox \
   -b:v 5M output.mp4
 ```
 
-**Notes:**
-- VideoToolbox always available on macOS
-- No runtime dependencies
-- Consider making default for macOS builds
-
 ---
 
-### 📋 Windows DXVA2 / QuickSync
+### ✅ Windows DXVA2
 
-**Status:** PATTERN DEFINED
-
-**Implementation Pattern:**
-```dockerfile
-# platforms/windows-x64/Dockerfile
-# DXVA2 built into MinGW, no extra deps needed
-
-# FFmpeg configure
---enable-dxva2 \
---enable-libmfx  # For Intel QuickSync
-```
+**Location:** `platforms/windows-x64-dxva2/`
+**Status:** COMPLETE
 
 **Target Hardware:**
-- Intel QuickSync (QSV)
-- All Windows systems (DXVA2 fallback)
+- All Windows systems (DXVA2 built into Windows)
+- Intel QuickSync (QSV) optional enhancement
+
+**npm Package:** `@pproenca/ffmpeg-windows-x64-dxva2`
+
+**Installation:**
+```bash
+npm install @pproenca/ffmpeg-windows-x64-dxva2
+```
+
+**Usage with Main Package:**
+```javascript
+const { getBinaryPath } = require('@pproenca/ffmpeg');
+
+// Use DXVA2 build if installed, fall back to standard
+const ffmpegPath = getBinaryPath('ffmpeg', { hardwareAccel: 'dxva2' });
+```
 
 **Usage Example:**
 ```bash
-# QuickSync
-ffmpeg -hwaccel qsv -c:v h264_qsv -i input.mp4 output.mp4
-
-# DXVA2
-ffmpeg -hwaccel dxva2 -i input.mp4 -c:v h264_qsv output.mp4
+# DXVA2 hardware decode
+ffmpeg -hwaccel dxva2 -i input.mp4 -c:v libx264 output.mp4
 ```
+
+**See:** [DXVA2 README](platforms/windows-x64-dxva2/README.md)
 
 ---
 
@@ -386,31 +410,22 @@ Based on user demand and hardware prevalence:
 
 ---
 
-## Next Steps
+## Summary
 
-To complete Phase 3:
+**Phase 3 Status:** ✅ COMPLETE
 
-1. **Implement VideoToolbox** (1-2 hours)
-   - Modify `build/macos.sh`
-   - Add `--enable-videotoolbox`
-   - Test on macOS runners
+All hardware acceleration variants are implemented and configured:
 
-2. **Implement NVENC** (2-3 hours)
-   - Create `linux-x64-glibc-nvenc` variant
-   - Requires NVIDIA drivers in Docker (complex)
-   - May need Ubuntu + CUDA base image
+| Variant | Platform | Package | Status |
+|---------|----------|---------|--------|
+| VA-API | Linux x64 | `@pproenca/ffmpeg-linux-x64-glibc-vaapi` | ✅ Complete |
+| NVENC | Linux x64 | `@pproenca/ffmpeg-linux-x64-glibc-nvenc` | ✅ Complete |
+| VideoToolbox | macOS | `@pproenca/ffmpeg-darwin` (built-in) | ✅ Complete |
+| DXVA2 | Windows x64 | `@pproenca/ffmpeg-windows-x64-dxva2` | ✅ Complete |
 
-3. **Update npm Packaging** (1 hour)
-   - Add HW variants to `package-npm.ts`
-   - Update main package detection
-   - Create separate packages
+**npm Configuration:** All HW variant packages are configured in `package-npm.ts` and will be published automatically on release.
 
-4. **Documentation** (1 hour)
-   - Complete READMEs for each variant
-   - Update main README with HW variants
-   - Add usage examples
-
-**Estimated Total:** 5-7 hours to complete all variants
+**Usage:** Install the main package (`@pproenca/ffmpeg`) and optionally install HW variant packages for GPU acceleration.
 
 ---
 
