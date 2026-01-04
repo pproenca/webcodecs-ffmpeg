@@ -1,0 +1,187 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags (e.g., v8.0.0)
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  # ==========================================================================
+  # Build all platforms (reuse build workflow)
+  # ==========================================================================
+  build:
+    uses: ./.github/workflows/build.yml
+    permissions:
+      contents: read
+
+  # ==========================================================================
+  # Publish to npm
+  # ==========================================================================
+  publish:
+    name: Publish to npm
+    runs-on: ubuntu-24.04
+    needs: [build]
+    permissions:
+      contents: write
+      id-token: write
+
+    environment:
+      name: npm
+      url: https://www.npmjs.com/package/@pproenca/ffmpeg
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download npm packages
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-packages
+          path: npm-dist
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Publishing version: $VERSION"
+
+      # Publish platform packages first (main package depends on them)
+      - name: Publish platform packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "Publishing platform packages..."
+          for pkg in npm-dist/@pproenca/ffmpeg-*; do
+            PKG_NAME=$(jq -r '.name' "$pkg/package.json")
+            echo "Publishing $PKG_NAME..."
+            npm publish "$pkg" --access public --provenance
+          done
+
+      # Wait for npm propagation
+      - name: Wait for npm propagation
+        run: |
+          echo "Waiting 30s for platform packages to propagate..."
+          sleep 30
+
+      # Publish main package (depends on platform packages)
+      - name: Publish main package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "Publishing main package..."
+          npm publish npm-dist/@pproenca/ffmpeg --access public --provenance
+
+      # Wait for main package propagation
+      - name: Wait for main package propagation
+        run: |
+          echo "Waiting 30s for main package to propagate..."
+          sleep 30
+
+      # Smoke test - verify installation works
+      - name: Smoke test
+        run: |
+          mkdir -p /tmp/test-install
+          cd /tmp/test-install
+          npm init -y
+          npm install @pproenca/ffmpeg@${{ steps.version.outputs.version }}
+
+          # Test that binary path resolution works
+          node -e "
+            const { ffmpegPath, ffprobePath } = require('@pproenca/ffmpeg');
+            console.log('FFmpeg path:', ffmpegPath);
+            console.log('ffprobe path:', ffprobePath);
+            const fs = require('fs');
+            if (!fs.existsSync(ffmpegPath)) throw new Error('FFmpeg binary not found');
+            if (!fs.existsSync(ffprobePath)) throw new Error('ffprobe binary not found');
+            console.log('✅ Smoke test passed!');
+          "
+
+  # ==========================================================================
+  # Create GitHub Release
+  # ==========================================================================
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-24.04
+    needs: [publish]
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ffmpeg-*
+          path: artifacts-download
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          cp artifacts-download/ffmpeg-*/*.tar.gz release-assets/
+
+      - name: Load versions
+        id: versions
+        run: |
+          # Load key versions for release notes
+          source versions.properties
+          echo "ffmpeg=$FFMPEG_VERSION" >> "$GITHUB_OUTPUT"
+          echo "x264=$X264_VERSION" >> "$GITHUB_OUTPUT"
+          echo "x265=$X265_VERSION" >> "$GITHUB_OUTPUT"
+          echo "libvpx=$LIBVPX_VERSION" >> "$GITHUB_OUTPUT"
+          echo "libaom=$LIBAOM_VERSION" >> "$GITHUB_OUTPUT"
+          echo "opus=$OPUS_VERSION" >> "$GITHUB_OUTPUT"
+          echo "lame=$LAME_VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*.tar.gz
+          generate_release_notes: true
+          body: |
+            ## FFmpeg Prebuilds ${{ github.ref_name }}
+
+            Static FFmpeg binaries and development libraries for Node.js.
+
+            ### 📦 Installation
+
+            ```bash
+            npm install @pproenca/ffmpeg
+            ```
+
+            ### 🔧 Codec Versions
+
+            - **FFmpeg**: `${{ steps.versions.outputs.ffmpeg }}`
+            - **x264**: `${{ steps.versions.outputs.x264 }}`
+            - **x265**: `${{ steps.versions.outputs.x265 }}`
+            - **libvpx**: `${{ steps.versions.outputs.libvpx }}`
+            - **libaom (AV1)**: `${{ steps.versions.outputs.libaom }}`
+            - **Opus**: `${{ steps.versions.outputs.opus }}`
+            - **LAME (MP3)**: `${{ steps.versions.outputs.lame }}`
+
+            ### 🖥️ Supported Platforms
+
+            - macOS x64 (Intel)
+            - macOS ARM64 (Apple Silicon)
+            - Linux x64 (glibc)
+            - Linux x64 (musl/Alpine)
+
+            ### 📚 Documentation
+
+            See [README.md](https://github.com/pproenca/ffmpeg-prebuilds#readme) for usage examples and build instructions.
+
+            ### 📝 License
+
+            GPL-2.0-or-later (due to x264/x265)

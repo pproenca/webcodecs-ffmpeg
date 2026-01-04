@@ -64,6 +64,11 @@ echo "libaom:   $LIBAOM_VERSION"
 echo "=========================================="
 echo ""
 
+# Isolate pkg-config to only use our locally-built dependencies
+# This prevents the build from accidentally using system libraries
+export PKG_CONFIG_LIBDIR="${PROJECT_ROOT}/artifacts/${PLATFORM}/lib/pkgconfig"
+unset PKG_CONFIG_PATH  # Don't use system packages
+
 # Platform routing
 case "$PLATFORM" in
   darwin-x64|darwin-arm64)

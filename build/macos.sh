@@ -128,20 +128,20 @@ cmake \
 make -j"$(sysctl -n hw.ncpu)"
 make install
 
-# x265 doesn't generate pkg-config file, create manually
+# x265 doesn't generate pkg-config file, create manually with relocatable paths
 mkdir -p "$TARGET/lib/pkgconfig"
-cat > "$TARGET/lib/pkgconfig/x265.pc" << PCEOF
-prefix=$TARGET
-exec_prefix=\${prefix}
-libdir=\${prefix}/lib
-includedir=\${prefix}/include
+cat > "$TARGET/lib/pkgconfig/x265.pc" << 'PCEOF'
+prefix=${pcfiledir}/../..
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
 
 Name: x265
 Description: H.265/HEVC video encoder
-Version: ${X265_VERSION}
-Libs: -L\${libdir} -lx265
+Version: 3.6
+Libs: -L${libdir} -lx265
 Libs.private: -lc++ -lm -lpthread
-Cflags: -I\${includedir}
+Cflags: -I${includedir}
 PCEOF
 cd ../../..
 
@@ -225,6 +225,9 @@ cd "opus-${OPUS_VERSION}"
   LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
 make -j"$(sysctl -n hw.ncpu)"
 make install
+
+# Fix opus.pc to use relocatable prefix (Opus's build doesn't set it correctly)
+sed -i '' "s|^prefix=.*|prefix=\${pcfiledir}/../..|" "$TARGET/lib/pkgconfig/opus.pc"
 cd ..
 
 #=============================================================================
@@ -256,6 +259,21 @@ cd "lame-${LAME_VERSION}"
   LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
 make -j"$(sysctl -n hw.ncpu)"
 make install
+
+# LAME doesn't generate pkg-config file, create one with relocatable paths
+mkdir -p "$TARGET/lib/pkgconfig"
+cat > "$TARGET/lib/pkgconfig/lame.pc" << 'PCEOF'
+prefix=${pcfiledir}/../..
+exec_prefix=${prefix}
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: lame
+Description: lame mp3 encoder library
+Version: 3.100
+Libs: -L${libdir} -lmp3lame
+Cflags: -I${includedir}
+PCEOF
 cd ..
 
 #=============================================================================
