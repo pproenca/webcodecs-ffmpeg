@@ -1,40 +1,25 @@
 diff --git a/source/CMakeLists.txt b/source/CMakeLists.txt
-index 1a2b3c4..5d6e7f8 100644
+index ab5ddfe..e26812c 100755
 --- a/source/CMakeLists.txt
 +++ b/source/CMakeLists.txt
-@@ -1,23 +1,28 @@
+@@ -1,4 +1,7 @@
  # vim: syntax=cmake
-+cmake_minimum_required (VERSION 3.5) # Updated for CMake 4.x compatibility
-+
-+# CMake 4.x compatibility - set all relevant policies
-+if(POLICY CMP0167)
-+    cmake_policy(SET CMP0167 OLD)
-+endif()
-+if(POLICY CMP0025)
-+    cmake_policy(SET CMP0025 NEW) # report Apple's Clang as just Clang
-+endif()
-+if(POLICY CMP0042)
-+    cmake_policy(SET CMP0042 NEW) # MACOSX_RPATH
-+endif()
-+if(POLICY CMP0054)
-+    cmake_policy(SET CMP0054 NEW) # Only interpret if() arguments as variables or keywords when unquoted
-+endif()
-+
++cmake_minimum_required (VERSION 3.5) # CMake 4.x requires minimum 3.5
 +project (x265)
 +
  if(NOT CMAKE_BUILD_TYPE)
      # default to Release build for GCC builds
      set(CMAKE_BUILD_TYPE Release CACHE STRING
-         "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel."
+@@ -6,18 +9,9 @@ if(NOT CMAKE_BUILD_TYPE)
          FORCE)
  endif()
  message(STATUS "cmake version ${CMAKE_VERSION}")
 -if(POLICY CMP0025)
 -    cmake_policy(SET CMP0025 OLD) # report Apple's Clang as just Clang
 -endif()
--if(POLICY CMP0042)
--    cmake_policy(SET CMP0042 NEW) # MACOSX_RPATH
--endif()
+ if(POLICY CMP0042)
+     cmake_policy(SET CMP0042 NEW) # MACOSX_RPATH
+ endif()
 -if(POLICY CMP0054)
 -    cmake_policy(SET CMP0054 OLD) # Only interpret if() arguments as variables or keywords when unquoted
 -endif()
