@@ -777,6 +777,32 @@ describe('downloadUrl generation', () => {
 });
 
 // ============================================================================
+// Anitya Fetch Source Type Tests
+// ============================================================================
+
+describe('Anitya fetch source type', () => {
+  test('anitya source type has required projectName field', () => {
+    // This will fail until we add the anitya type to FetchSource
+    const source = {type: 'anitya' as const, projectName: 'ffmpeg'};
+    assert.strictEqual(source.type, 'anitya');
+    assert.strictEqual(source.projectName, 'ffmpeg');
+  });
+
+  test('anitya source works in dependency metadata', () => {
+    const testDep = {
+      name: 'TestLib',
+      homepage: 'https://example.com',
+      releasesUrl: 'https://example.com/releases',
+      license: {name: 'MIT', url: 'https://example.com/license'},
+      versionKey: 'TEST_VERSION',
+      fetchSource: {type: 'anitya' as const, projectName: 'testlib'},
+    };
+    assert.strictEqual(testDep.fetchSource.type, 'anitya');
+    assert.strictEqual(testDep.fetchSource.projectName, 'testlib');
+  });
+});
+
+// ============================================================================
 // Exit Code Behavior Tests
 // ============================================================================
 

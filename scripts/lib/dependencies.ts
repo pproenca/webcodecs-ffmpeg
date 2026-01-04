@@ -21,7 +21,8 @@ export type FetchSource =
   | {type: 'github'; repo: string; tagPattern: RegExp}
   | {type: 'gitlab'; host: string; project: string; tagPattern: RegExp}
   | {type: 'bitbucket'; repo: string; tagPattern: RegExp}
-  | {type: 'static'; version: string};
+  | {type: 'static'; version: string}
+  | {type: 'anitya'; projectName: string};
 
 export interface DependencyMetadata {
   name: string;
