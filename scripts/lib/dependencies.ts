@@ -18,9 +18,6 @@ export interface License {
 }
 
 export type FetchSource =
-  | {type: 'github'; repo: string; tagPattern: RegExp}
-  | {type: 'gitlab'; host: string; project: string; tagPattern: RegExp}
-  | {type: 'bitbucket'; repo: string; tagPattern: RegExp}
   | {type: 'static'; version: string}
   | {type: 'anitya'; projectName: string};
 
@@ -36,16 +33,6 @@ export interface DependencyMetadata {
   fetchSource: FetchSource;
   downloadUrl?: (version: string) => string;
 }
-
-// ============================================================================
-// Tag Patterns
-// ============================================================================
-
-const SEMVER_TAG = /^v[0-9]+(?:\.[0-9]+)*$/;
-const SEMVER_NO_PREFIX_TAG = /^[0-9]+(?:\.[0-9]+)*$/;
-const FFMPEG_TAG = /^n[0-9]+(?:\.[0-9]+){1,2}$/;
-const NASM_TAG = /^nasm-[0-9]+(?:\.[0-9]+)*$/;
-const OPENSSL_TAG = /^openssl-3\.[0-9]+(?:\.[0-9]+)?$/;
 
 // ============================================================================
 // Dependency Registry

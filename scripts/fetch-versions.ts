@@ -2,7 +2,7 @@
 /**
  * Fetch Latest Dependency Versions
  *
- * Fetches latest versions from official sources (GitHub, GitLab, BitBucket),
+ * Fetches latest versions from release-monitoring.org (Anitya) and
  * validates SHA256 checksums by downloading tarballs.
  *
  * Usage:
@@ -13,8 +13,6 @@
 import {writeFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {join} from 'node:path';
-import {execFile} from 'node:child_process';
-import {promisify} from 'node:util';
 import {
   parseVersionsFile,
   updateVersionsFile,
@@ -50,21 +48,10 @@ export {parseVersionsFile, compareVersions, isPrereleaseTag, selectLatestStableT
 
 const VERSIONS_FILE = join(__dirname, '..', 'versions.properties');
 const USER_AGENT = 'ffmpeg-prebuilds-version-fetcher/1.0';
-const GITLAB_PAGE_SIZE = 100;
-
-const execFileAsync = promisify(execFile);
 
 // ============================================================================
 // Utility Functions
 // ============================================================================
-
-/**
- * Call GitHub API using gh CLI (handles auth automatically)
- */
-async function ghApi<T>(endpoint: string): Promise<T> {
-  const {stdout} = await execFileAsync('gh', ['api', endpoint, '--paginate']);
-  return JSON.parse(stdout);
-}
 
 /**
  * Fetch data from URL with retry logic
@@ -140,66 +127,6 @@ async function downloadAndChecksum(url: string): Promise<string> {
 // ============================================================================
 
 /**
- * Fetch latest version from GitHub tags using gh CLI
- */
-async function fetchGitHubLatest(repo: string, tagPattern: RegExp): Promise<string> {
-  const tags = await ghApi<Array<{name: string}>>(`repos/${repo}/tags`);
-  const tagNames = tags.map((t) => t.name);
-  return selectLatestStableTag(tagNames, tagPattern);
-}
-
-/**
- * Fetch latest version from BitBucket tags (with pagination)
- */
-async function fetchBitBucketLatest(repo: string, tagPattern: RegExp): Promise<string> {
-  const allTags: string[] = [];
-  let nextUrl: string | null = `https://api.bitbucket.org/2.0/repositories/${repo}/refs/tags?pagelen=100`;
-
-  while (nextUrl) {
-    const response = await fetchWithRetry(nextUrl);
-
-    if (!response.ok) {
-      throw new Error(`BitBucket API error: ${response.status}`);
-    }
-
-    const data = (await response.json()) as {
-      values: Array<{name: string}>;
-      next?: string;
-    };
-
-    allTags.push(...data.values.map((tag) => tag.name));
-    nextUrl = data.next ?? null;
-  }
-
-  const matching = allTags.filter((tag) => tagPattern.test(tag) && !isPrereleaseTag(tag));
-
-  if (matching.length === 0) {
-    throw new Error(`No matching tags found for ${repo}`);
-  }
-
-  const sorted = matching.sort((a, b) => compareVersions(b, a));
-  return sorted[0];
-}
-
-/**
- * Fetch latest version from GitLab tags API
- */
-async function fetchGitLabLatest(host: string, projectPath: string, tagPattern: RegExp): Promise<string> {
-  const url =
-    `https://${host}/api/v4/projects/${encodeURIComponent(projectPath)}` +
-    `/repository/tags?per_page=${GITLAB_PAGE_SIZE}`;
-  const response = await fetchWithRetry(url);
-
-  if (!response.ok) {
-    throw new Error(`GitLab API error: ${response.status}`);
-  }
-
-  const tags = (await response.json()) as Array<{name: string}>;
-  const tagNames = tags.map((tag) => tag.name);
-  return selectLatestStableTag(tagNames, tagPattern);
-}
-
-/**
  * Fetch latest version from release-monitoring.org (Anitya)
  */
 export async function fetchAnityaLatest(projectName: string): Promise<string> {
@@ -243,27 +170,6 @@ async function fetchLatestVersion(dep: DependencyMetadata): Promise<string> {
   switch (source.type) {
     case 'static':
       return source.version;
-
-    case 'github': {
-      const tag = await fetchGitHubLatest(source.repo, source.tagPattern);
-      // Handle special cases for version prefixes
-      if (dep.versionKey === 'OPUS_VERSION') {
-        return tag.slice(1); // Remove 'v' prefix
-      }
-      if (dep.versionKey === 'NASM_VERSION') {
-        return tag.replace(/^nasm-/, '');
-      }
-      if (dep.versionKey === 'OPENSSL_VERSION') {
-        return tag.replace(/^openssl-/, '');
-      }
-      return tag;
-    }
-
-    case 'gitlab':
-      return fetchGitLabLatest(source.host, source.project, source.tagPattern);
-
-    case 'bitbucket':
-      return fetchBitBucketLatest(source.repo, source.tagPattern);
 
     case 'anitya':
       return fetchAnityaLatest(source.projectName);

@@ -580,7 +580,7 @@ describe('DEPENDENCIES', () => {
     });
 
     test('all fetch source types are valid', () => {
-      const validTypes = ['github', 'gitlab', 'bitbucket', 'static', 'anitya'];
+      const validTypes = ['static', 'anitya'];
       for (const dep of DEPENDENCIES) {
         assert(
           validTypes.includes(dep.fetchSource.type),
@@ -589,38 +589,18 @@ describe('DEPENDENCIES', () => {
       }
     });
 
-    test('github sources have repo and tagPattern', () => {
-      for (const dep of DEPENDENCIES) {
-        if (dep.fetchSource.type === 'github') {
-          assert(dep.fetchSource.repo, `${dep.name} github source should have repo`);
-          assert(dep.fetchSource.tagPattern, `${dep.name} github source should have tagPattern`);
-        }
-      }
-    });
-
-    test('gitlab sources have host, project, and tagPattern', () => {
-      for (const dep of DEPENDENCIES) {
-        if (dep.fetchSource.type === 'gitlab') {
-          assert(dep.fetchSource.host, `${dep.name} gitlab source should have host`);
-          assert(dep.fetchSource.project, `${dep.name} gitlab source should have project`);
-          assert(dep.fetchSource.tagPattern, `${dep.name} gitlab source should have tagPattern`);
-        }
-      }
-    });
-
-    test('bitbucket sources have repo and tagPattern', () => {
-      for (const dep of DEPENDENCIES) {
-        if (dep.fetchSource.type === 'bitbucket') {
-          assert(dep.fetchSource.repo, `${dep.name} bitbucket source should have repo`);
-          assert(dep.fetchSource.tagPattern, `${dep.name} bitbucket source should have tagPattern`);
-        }
-      }
-    });
-
     test('static sources have version', () => {
       for (const dep of DEPENDENCIES) {
         if (dep.fetchSource.type === 'static') {
           assert(dep.fetchSource.version, `${dep.name} static source should have version`);
+        }
+      }
+    });
+
+    test('anitya sources have projectName', () => {
+      for (const dep of DEPENDENCIES) {
+        if (dep.fetchSource.type === 'anitya') {
+          assert(dep.fetchSource.projectName, `${dep.name} anitya source should have projectName`);
         }
       }
     });
