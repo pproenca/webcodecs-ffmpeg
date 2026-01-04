@@ -111,6 +111,11 @@ cd ..
 echo ""
 echo "=== Building x265 ${X265_VERSION} ==="
 git clone --depth 1 --branch "${X265_VERSION}" https://bitbucket.org/multicoreware/x265_git.git
+
+# Apply CMake 4.x compatibility patch
+echo "Applying CMake 4.x compatibility patch..."
+patch -p1 -d x265_git < "$SCRIPT_DIR/patches/x265-cmake4-compat.patch"
+
 mkdir -p x265_git/build/xcode && cd x265_git/build/xcode
 cmake \
   -DCMAKE_INSTALL_PREFIX="$TARGET" \
