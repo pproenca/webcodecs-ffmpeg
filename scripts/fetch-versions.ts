@@ -200,6 +200,41 @@ async function fetchGitLabLatest(host: string, projectPath: string, tagPattern: 
 }
 
 /**
+ * Fetch latest version from release-monitoring.org (Anitya)
+ */
+export async function fetchAnityaLatest(projectName: string): Promise<string> {
+  const url = `https://release-monitoring.org/api/v2/projects/?name=${encodeURIComponent(projectName)}`;
+  const response = await fetchWithRetry(url);
+
+  if (!response.ok) {
+    throw new Error(`Anitya API error: ${response.status}`);
+  }
+
+  const data = (await response.json()) as {
+    items: Array<{
+      name: string;
+      stable_versions: string[];
+    }>;
+  };
+
+  if (data.items.length === 0) {
+    throw new Error(`Project not found on Anitya: ${projectName}`);
+  }
+
+  // Find exact match for project name (case-insensitive)
+  const project = data.items.find(
+    (p) => p.name.toLowerCase() === projectName.toLowerCase(),
+  ) || data.items[0];
+
+  const stableVersions = project.stable_versions || [];
+  if (stableVersions.length === 0) {
+    throw new Error(`No stable versions for: ${projectName}`);
+  }
+
+  return stableVersions[0]; // Most recent stable
+}
+
+/**
  * Fetch latest version for a dependency based on its fetch source
  */
 async function fetchLatestVersion(dep: DependencyMetadata): Promise<string> {
@@ -229,6 +264,9 @@ async function fetchLatestVersion(dep: DependencyMetadata): Promise<string> {
 
     case 'bitbucket':
       return fetchBitBucketLatest(source.repo, source.tagPattern);
+
+    case 'anitya':
+      return fetchAnityaLatest(source.projectName);
 
     default: {
       const exhaustiveCheck: never = source;

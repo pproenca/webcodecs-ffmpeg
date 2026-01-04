@@ -803,6 +803,33 @@ describe('Anitya fetch source type', () => {
 });
 
 // ============================================================================
+// fetchAnityaLatest Tests
+// ============================================================================
+
+import {fetchAnityaLatest} from './fetch-versions.ts';
+
+describe('fetchAnityaLatest', () => {
+  test('returns latest stable version for valid project', async () => {
+    const version = await fetchAnityaLatest('ffmpeg');
+    // FFmpeg versions are like "8.0.1" or "7.1"
+    assert.match(version, /^[0-9]+\.[0-9]+(\.[0-9]+)?$/, 'should return semver format');
+  });
+
+  test('throws when project not found', async () => {
+    await assert.rejects(
+      fetchAnityaLatest('nonexistent-project-xyz-12345'),
+      /Project not found/,
+    );
+  });
+
+  test('handles project with different name (aom for libaom)', async () => {
+    const version = await fetchAnityaLatest('aom');
+    // aom/libaom versions are like "3.12.1"
+    assert.match(version, /^[0-9]+\.[0-9]+(\.[0-9]+)?$/, 'should return semver format');
+  });
+});
+
+// ============================================================================
 // Exit Code Behavior Tests
 // ============================================================================
 
