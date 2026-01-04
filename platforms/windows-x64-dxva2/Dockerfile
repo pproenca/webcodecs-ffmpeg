@@ -74,6 +74,7 @@ ARG FREETYPE_SHA256
 ARG LIBVORBIS_VERSION
 ARG LIBOGG_VERSION
 ARG NASM_VERSION
+ARG NASM_URL
 ARG NASM_SHA256
 
 # Environment setup
@@ -90,14 +91,15 @@ WORKDIR ${SOURCES}
 
 # Install NASM (assembler for x264/x265)
 RUN cd ${SOURCES} && \
-    wget -q https://www.nasm.us/pub/nasm/releasebuilds/${NASM_VERSION}/nasm-${NASM_VERSION}.tar.xz && \
-    echo "${NASM_SHA256}  nasm-${NASM_VERSION}.tar.xz" | sha256sum -c - && \
-    tar xf nasm-${NASM_VERSION}.tar.xz && \
-    cd nasm-${NASM_VERSION} && \
+    wget -q -O nasm-${NASM_VERSION}.tar.gz "${NASM_URL}" && \
+    echo "${NASM_SHA256}  nasm-${NASM_VERSION}.tar.gz" | sha256sum -c - && \
+    tar xzf nasm-${NASM_VERSION}.tar.gz && \
+    cd nasm-nasm-${NASM_VERSION} && \
+    ./autogen.sh && \
     ./configure --prefix="${TARGET}" && \
     make -j$(nproc) && \
     make install && \
-    cd ${SOURCES} && rm -rf nasm-${NASM_VERSION}*
+    cd ${SOURCES} && rm -rf nasm-*
 
 # Build x264 (H.264 encoder)
 RUN cd ${SOURCES} && \

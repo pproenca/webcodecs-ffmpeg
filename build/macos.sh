@@ -184,8 +184,13 @@ cd ..
 #=============================================================================
 echo ""
 echo "=== Building libaom ${LIBAOM_VERSION} ==="
+# Clean up any previous build
+rm -rf aom aom_build
+
 git clone --depth 1 --branch "${LIBAOM_VERSION}" https://aomedia.googlesource.com/aom
-mkdir aom_build && cd aom_build
+mkdir -p aom_build
+cd aom_build
+
 cmake \
   -DCMAKE_INSTALL_PREFIX="$TARGET" \
   -DBUILD_SHARED_LIBS=OFF \
@@ -204,8 +209,14 @@ cd ..
 #=============================================================================
 echo ""
 echo "=== Building SVT-AV1 ${SVTAV1_VERSION} ==="
+# Clean up any previous build
+rm -rf SVT-AV1
+
 git clone --depth 1 --branch "${SVTAV1_VERSION}" "${SVTAV1_GIT_URL}"
-mkdir SVT-AV1/build && cd SVT-AV1/build
+cd SVT-AV1
+mkdir -p build
+cd build
+
 cmake \
   -DCMAKE_INSTALL_PREFIX="$TARGET" \
   -DBUILD_SHARED_LIBS=OFF \

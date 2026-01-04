@@ -77,6 +77,7 @@ docker buildx build \
   --build-arg LIBVORBIS_VERSION="$VORBIS_VERSION" \
   --build-arg LIBOGG_VERSION="$OGG_VERSION" \
   --build-arg NASM_VERSION="$NASM_VERSION" \
+  --build-arg NASM_URL="$NASM_URL" \
   --build-arg NASM_SHA256="$NASM_SHA256" \
   --cache-from type=gha,scope="$PLATFORM" \
   --cache-to type=gha,mode=max,scope="$PLATFORM" \
