@@ -81,6 +81,9 @@ ENV CXXFLAGS="-fPIC"
 
 WORKDIR /src
 
+# Copy patches for source compatibility
+COPY build/patches/x265-cmake4-compat.patch /tmp/x265-cmake4-compat.patch
+
 # ============================================================================
 # Build x264 (GPL - required for H.264 encoding)
 # Note: x264 has ARMv7 NEON optimizations (limited compared to ARM64)
@@ -106,9 +109,11 @@ RUN git clone --depth 1 --branch ${X264_VERSION} https://code.videolan.org/video
 # Note: x265 has limited ARMv7 support (mostly scalar, some NEON)
 # Using ARMv7-A architecture flags for NEON optimizations
 # ============================================================================
-RUN git clone --depth 1 https://bitbucket.org/multicoreware/x265_git.git && \
-    mkdir -p x265_git/build/linux && \
-    cd x265_git/build/linux && \
+RUN git clone --depth 1 --branch ${X265_VERSION} https://bitbucket.org/multicoreware/x265_git.git && \
+    cd x265_git && \
+    patch -p1 < /tmp/x265-cmake4-compat.patch && \
+    mkdir -p build/linux && \
+    cd build/linux && \
     cmake -G "Unix Makefiles" \
         -DCMAKE_INSTALL_PREFIX=$PREFIX \
         -DLIB_INSTALL_DIR=$PREFIX/lib \

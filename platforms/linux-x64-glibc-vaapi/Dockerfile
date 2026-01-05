@@ -37,6 +37,16 @@ ARG LIBASS_VERSION=0.17.3
 ARG FREETYPE_VERSION=2.13.3
 ARG FFMPEG_VERSION=n8.0
 
+# SHA256 checksums for tarball verification
+ARG THEORA_SHA256
+ARG XVID_SHA256
+ARG OPUS_SHA256
+ARG LAME_SHA256
+ARG FLAC_SHA256
+ARG SPEEX_SHA256
+ARG LIBASS_SHA256
+ARG FREETYPE_SHA256
+
 # Prevent interactive prompts during apt-get
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -77,6 +87,9 @@ ENV CXXFLAGS="-fPIC"
 
 WORKDIR /src
 
+# Copy patches for source compatibility
+COPY build/patches/x265-cmake4-compat.patch /tmp/x265-cmake4-compat.patch
+
 # ============================================================================
 # Build x264 (GPL - required for H.264 encoding)
 # ============================================================================
@@ -97,9 +110,11 @@ RUN git clone --depth 1 --branch ${X264_VERSION} https://code.videolan.org/video
 # Build x265 (GPL - required for H.265/HEVC encoding)
 # Note: x265 cmake doesn't always install .pc file, so we create it manually
 # ============================================================================
-RUN git clone --depth 1 https://bitbucket.org/multicoreware/x265_git.git && \
-    mkdir -p x265_git/build/linux && \
-    cd x265_git/build/linux && \
+RUN git clone --depth 1 --branch ${X265_VERSION} https://bitbucket.org/multicoreware/x265_git.git && \
+    cd x265_git && \
+    patch -p1 < /tmp/x265-cmake4-compat.patch && \
+    mkdir -p build/linux && \
+    cd build/linux && \
     cmake -G "Unix Makefiles" \
         -DCMAKE_INSTALL_PREFIX=$PREFIX \
         -DLIB_INSTALL_DIR=$PREFIX/lib \
@@ -161,6 +176,7 @@ RUN git clone --depth 1 --branch ${LIBAOM_VERSION} https://aomedia.googlesource.
 # Build libopus (BSD - Opus audio codec)
 # ============================================================================
 RUN wget -q https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz && \
+    echo "${OPUS_SHA256}  opus-${OPUS_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf opus-${OPUS_VERSION}.tar.gz && \
     cd opus-${OPUS_VERSION} && \
     ./configure \
@@ -179,6 +195,7 @@ RUN wget -q https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz
 # Build libmp3lame (LGPL - MP3 encoder)
 # ============================================================================
 RUN wget -q "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}/lame-${LAME_VERSION}.tar.gz" && \
+    echo "${LAME_SHA256}  lame-${LAME_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf lame-${LAME_VERSION}.tar.gz && \
     cd lame-${LAME_VERSION} && \
     ./configure \

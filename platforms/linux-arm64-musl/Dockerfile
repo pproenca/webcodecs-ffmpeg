@@ -63,13 +63,19 @@ RUN apk add --no-cache \
     zlib-static
 
 # Set up build environment
+# CRITICAL: -fPIC is required for all code that will be linked into shared objects
 ENV PREFIX=/build
 ENV PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig
 ENV PATH=/usr/lib/ccache:$PREFIX/bin:$PATH
 ENV CCACHE_DIR=/cache
 ENV MAKEFLAGS="-j"$(nproc)""
+ENV CFLAGS="-fPIC"
+ENV CXXFLAGS="-fPIC"
 
 WORKDIR /src
+
+# Copy patches for source compatibility
+COPY build/patches/x265-cmake4-compat.patch /tmp/x265-cmake4-compat.patch
 
 # ============================================================================
 # Build x264 (GPL - required for H.264 encoding)
@@ -92,13 +98,17 @@ RUN git clone --depth 1 --branch ${X264_VERSION} https://code.videolan.org/video
 # Build x265 (GPL - required for H.265/HEVC encoding)
 # Note: x265 has ARM64 NEON support
 # ============================================================================
-RUN git clone --depth 1 https://bitbucket.org/multicoreware/x265_git.git && \
-    mkdir -p x265_git/build/linux && \
-    cd x265_git/build/linux && \
+RUN git clone --depth 1 --branch ${X265_VERSION} https://bitbucket.org/multicoreware/x265_git.git && \
+    cd x265_git && \
+    patch -p1 < /tmp/x265-cmake4-compat.patch && \
+    mkdir -p build/linux && \
+    cd build/linux && \
     cmake -G "Unix Makefiles" \
         -DCMAKE_INSTALL_PREFIX=$PREFIX \
         -DLIB_INSTALL_DIR=$PREFIX/lib \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DCMAKE_C_FLAGS="-fPIC" \
+        -DCMAKE_CXX_FLAGS="-fPIC" \
         -DENABLE_SHARED=OFF \
         -DENABLE_CLI=OFF \
         -DSTATIC_LINK_CRT=ON \
@@ -111,6 +121,7 @@ RUN git clone --depth 1 https://bitbucket.org/multicoreware/x265_git.git && \
 # ============================================================================
 # Build libvpx (BSD - VP8/VP9 codec)
 # Note: libvpx auto-detects ARM64 and uses NEON intrinsics
+# Note: --as=yasm omitted - YASM is an x86 assembler, not used on ARM
 # ============================================================================
 RUN git clone --depth 1 --branch ${LIBVPX_VERSION} https://chromium.googlesource.com/webm/libvpx.git && \
     cd libvpx && \
@@ -122,8 +133,7 @@ RUN git clone --depth 1 --branch ${LIBVPX_VERSION} https://chromium.googlesource
         --enable-vp9-highbitdepth \
         --enable-static \
         --disable-shared \
-        --enable-pic \
-        --as=yasm && \
+        --enable-pic && \
     make -j"$(nproc)" && \
     make install && \
     cd .. && rm -rf libvpx
@@ -139,6 +149,8 @@ RUN git clone --depth 1 --branch ${LIBAOM_VERSION} https://aomedia.googlesource.
     cmake -G "Unix Makefiles" \
         -DCMAKE_INSTALL_PREFIX=$PREFIX \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DCMAKE_C_FLAGS="-fPIC" \
+        -DCMAKE_CXX_FLAGS="-fPIC" \
         -DBUILD_SHARED_LIBS=OFF \
         -DENABLE_NASM=OFF \
         -DENABLE_DOCS=OFF \
@@ -171,6 +183,7 @@ RUN wget -q https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz
 
 # ============================================================================
 # Build libmp3lame (LGPL - MP3 encoder)
+# Note: --enable-nasm omitted - NASM is an x86 assembler, not used on ARM
 # ============================================================================
 RUN wget -q "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}/lame-${LAME_VERSION}.tar.gz" && \
     echo "${LAME_SHA256}  lame-${LAME_VERSION}.tar.gz" | sha256sum -c - && \
@@ -181,7 +194,6 @@ RUN wget -q "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}
         --disable-shared \
         --enable-static \
         --with-pic \
-        --enable-nasm \
         --disable-frontend && \
     make -j"$(nproc)" && \
     make install && \
@@ -224,6 +236,9 @@ RUN git clone --depth 1 --branch ${SVTAV1_VERSION} https://gitlab.com/AOMediaCod
     cd SVT-AV1/build && \
     cmake -G "Unix Makefiles" \
         -DCMAKE_INSTALL_PREFIX=$PREFIX \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DCMAKE_C_FLAGS="-fPIC" \
+        -DCMAKE_CXX_FLAGS="-fPIC" \
         -DBUILD_SHARED_LIBS=OFF \
         -DBUILD_APPS=OFF \
         -DBUILD_DEC=OFF \

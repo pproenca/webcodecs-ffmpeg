@@ -195,13 +195,16 @@ git clone --depth 1 --branch "${X265_VERSION}" https://bitbucket.org/multicorewa
 echo "Applying CMake 4.x compatibility patch..."
 patch -p1 -d x265_git < "$SCRIPT_DIR/patches/x265-cmake4-compat.patch"
 
-# Apply Apple ARM64 NEON patch for Xcode 16+ compatibility
-if [[ "$ARCH" == "arm64" ]]; then
-  echo "Applying Apple ARM64 NEON patch..."
-  patch -p1 -d x265_git < "$SCRIPT_DIR/patches/x265-apple-arm64-neon.patch"
-fi
-
 mkdir -p x265_git/build/xcode && cd x265_git/build/xcode
+
+# Disable assembly on ARM64 to avoid Xcode 16+ NEON compatibility issues
+# x265 4.1's ARM64 NEON code uses intrinsics incompatible with newer Xcode
+if [[ "$ARCH" == "arm64" ]]; then
+  X265_ASM_FLAG="-DENABLE_ASSEMBLY=OFF"
+  echo "Note: Disabling x265 assembly on ARM64 due to Xcode 16+ compatibility"
+else
+  X265_ASM_FLAG=""
+fi
 
 cmake \
   -DCMAKE_INSTALL_PREFIX="$TARGET" \
@@ -210,6 +213,7 @@ cmake \
   -DENABLE_CLI=OFF \
   -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
   -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}" \
+  $X265_ASM_FLAG \
   ../../source
 make -j"$NUM_CPUS"
 make install

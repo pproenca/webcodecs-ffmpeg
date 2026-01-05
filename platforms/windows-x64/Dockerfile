@@ -82,6 +82,9 @@ ENV CCACHE_DIR=/cache
 RUN mkdir -p ${TARGET} ${SOURCES}
 WORKDIR ${SOURCES}
 
+# Copy patches for source compatibility
+COPY build/patches/x265-cmake4-compat.patch /tmp/x265-cmake4-compat.patch
+
 # Install NASM (assembler for x264/x265)
 RUN cd ${SOURCES} && \
     wget -q -O nasm-${NASM_VERSION}.tar.gz "${NASM_URL}" && \
@@ -113,7 +116,9 @@ RUN cd ${SOURCES} && \
 # Build x265 (H.265/HEVC encoder)
 RUN cd ${SOURCES} && \
     git clone --depth 1 --branch ${X265_VERSION} https://bitbucket.org/multicoreware/x265_git.git && \
-    cd x265_git/build/linux && \
+    cd x265_git && \
+    patch -p1 < /tmp/x265-cmake4-compat.patch && \
+    cd build/linux && \
     cmake -G "Unix Makefiles" \
         -DCMAKE_SYSTEM_NAME=Windows \
         -DCMAKE_C_COMPILER=${CROSS_PREFIX}gcc \
