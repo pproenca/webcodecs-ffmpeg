@@ -42,7 +42,10 @@ build_nasm() {
     run ./autogen.sh
     run ./configure --prefix="$PREFIX"
     run make -j"$(nproc_safe)"
-    run make install
+
+    # Install binaries manually (make install fails on man pages from tarball)
+    run mkdir -p "$PREFIX/bin"
+    run install -c nasm ndisasm "$PREFIX/bin/"
 
     enter /
     run rm -rf "$work_dir"
