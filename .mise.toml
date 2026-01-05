@@ -4,34 +4,56 @@ act = "latest"
 actionlint = "latest"
 hadolint = "latest"
 
+# =============================================================================
+# Lint tasks
+# =============================================================================
+
+[tasks.lint]
+description = "Run all linters"
+depends = ["lint:workflows", "lint:docker"]
+
+[tasks."lint:workflows"]
+description = "Lint GitHub Actions workflows with actionlint"
+run = "actionlint"
+
+[tasks."lint:docker"]
+description = "Lint Dockerfiles with hadolint"
+run = "hadolint platforms/*/Dockerfile"
+
+[tasks."lint:docker-check"]
+description = "Validate Dockerfiles with Docker Build Checks (dry-run)"
+run = """
+for df in platforms/*/Dockerfile; do
+  echo "Checking $df..."
+  docker build --check "$(dirname "$df")" || exit 1
+done
+echo "All Dockerfiles passed build checks"
+"""
+
+# =============================================================================
+# Act tasks (local GitHub Actions runner)
+# =============================================================================
+
 [tasks.act]
 description = "Run GitHub Actions locally using nektos/act"
 run = "act"
 
-[tasks.act-list]
+[tasks."act:list"]
 description = "List available GitHub Actions workflows"
 run = "act -l"
 
-[tasks.act-pull-request]
+[tasks."act:pull-request"]
 description = "Run pull request workflow"
 run = "act pull_request"
 
-[tasks.act-push]
+[tasks."act:push"]
 description = "Run push workflow"
 run = "act push"
 
-[tasks.act-validate]
+[tasks."act:validate"]
 description = "Validate/lint GitHub Actions workflows (dry-run)"
 run = "act --dryrun"
 
-[tasks.act-graph]
+[tasks."act:graph"]
 description = "Show workflow execution graph"
 run = "act --graph"
-
-[tasks.lint-workflows]
-description = "Lint GitHub Actions workflows with actionlint"
-run = "actionlint"
-
-[tasks.lint-dockerfiles]
-description = "Lint Dockerfiles with hadolint"
-run = "hadolint platforms/*/Dockerfile"

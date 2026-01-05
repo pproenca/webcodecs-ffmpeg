@@ -19,46 +19,39 @@ FROM ubuntu:24.04 AS builder
 # hadolint: DL4006 - Ensure pipe failures are caught
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Build arguments for version pinning (updated Jan 2026)
-ARG X264_VERSION=stable
-ARG X265_VERSION=3.6
-ARG LIBVPX_VERSION=v1.15.2
-ARG LIBAOM_VERSION=v3.12.1
-ARG SVTAV1_VERSION=v2.3.0
-ARG RAV1E_VERSION=v0.7.1
-ARG THEORA_VERSION=1.1.1
-ARG XVID_VERSION=1.3.7
-ARG OPUS_VERSION=1.5.2
-ARG LAME_VERSION=3.100
-ARG FDKAAC_VERSION=v2.0.3
-ARG FLAC_VERSION=1.4.3
-ARG SPEEX_VERSION=1.2.1
-ARG LIBASS_VERSION=0.17.3
-ARG FREETYPE_VERSION=2.13.3
-ARG FFMPEG_VERSION=n8.0
-
-# SHA256 checksums for tarball verification
+# Build arguments - ALL values come from versions.properties (no defaults)
+ARG X264_VERSION
+ARG X265_VERSION
+ARG LIBVPX_VERSION
+ARG LIBAOM_VERSION
+ARG SVTAV1_VERSION
+ARG THEORA_VERSION
 ARG THEORA_SHA256
+ARG XVID_VERSION
 ARG XVID_SHA256
+ARG OPUS_VERSION
 ARG OPUS_SHA256
+ARG LAME_VERSION
 ARG LAME_SHA256
+ARG FDKAAC_VERSION
+ARG FLAC_VERSION
 ARG FLAC_SHA256
+ARG SPEEX_VERSION
 ARG SPEEX_SHA256
+ARG LIBASS_VERSION
 ARG LIBASS_SHA256
+ARG FREETYPE_VERSION
 ARG FREETYPE_SHA256
-
-# dav1d (fast AV1 decoder)
 ARG DAV1D_VERSION
 ARG DAV1D_URL
 ARG DAV1D_SHA256
-
-# libogg/libvorbis
-ARG LIBOGG_VERSION
-ARG LIBOGG_URL
-ARG LIBOGG_SHA256
-ARG LIBVORBIS_VERSION
-ARG LIBVORBIS_URL
-ARG LIBVORBIS_SHA256
+ARG OGG_VERSION
+ARG OGG_URL
+ARG OGG_SHA256
+ARG VORBIS_VERSION
+ARG VORBIS_URL
+ARG VORBIS_SHA256
+ARG FFMPEG_VERSION
 
 # Prevent interactive prompts during apt-get
 ENV DEBIAN_FRONTEND=noninteractive
@@ -83,6 +76,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     meson \
     nasm \
     ninja-build \
+    patch \
     perl \
     pkg-config \
     wget \
@@ -96,333 +90,45 @@ ENV PREFIX=/build
 ENV PKG_CONFIG_PATH=$PREFIX/lib/pkgconfig
 ENV PATH=/usr/lib/ccache:$PREFIX/bin:$PATH
 ENV CCACHE_DIR=/cache
-ENV MAKEFLAGS="-j"$(nproc)""
+ENV MAKEFLAGS="-j$(nproc)"
 ENV CFLAGS="-fPIC"
 ENV CXXFLAGS="-fPIC"
 
 WORKDIR /src
 
-# Copy patches for source compatibility
-COPY build/patches/x265-cmake4-compat.patch /tmp/x265-cmake4-compat.patch
+# Copy codec build scripts and patches
+COPY build/codecs /codecs
+COPY build/patches /patches
 
 # ============================================================================
-# Build x264 (GPL - required for H.264 encoding)
+# Build codec libraries using scripts
 # ============================================================================
-RUN git clone --depth 1 --branch ${X264_VERSION} https://code.videolan.org/videolan/x264.git && \
-    cd x264 && \
-    ./configure \
-        --prefix=$PREFIX \
-        --enable-static \
-        --disable-shared \
-        --enable-pic \
-        --disable-cli \
-        --disable-opencl && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd .. && rm -rf x264
+
+# Video codecs
+RUN export PREFIX X264_VERSION && /codecs/x264.sh
+RUN export PREFIX X265_VERSION PATCH_DIR=/patches && /codecs/x265.sh
+RUN export PREFIX LIBVPX_VERSION && /codecs/libvpx.sh
+RUN export PREFIX LIBAOM_VERSION && /codecs/libaom.sh
+RUN export PREFIX DAV1D_VERSION DAV1D_URL DAV1D_SHA256 && /codecs/dav1d.sh
+RUN export PREFIX SVTAV1_VERSION && /codecs/svt-av1.sh
+RUN export PREFIX THEORA_VERSION THEORA_SHA256 && /codecs/theora.sh
+RUN export PREFIX XVID_VERSION XVID_SHA256 && /codecs/xvid.sh
+
+# Audio codecs
+RUN export PREFIX OPUS_VERSION OPUS_SHA256 && /codecs/opus.sh
+RUN export PREFIX LAME_VERSION LAME_SHA256 && /codecs/lame.sh
+RUN export PREFIX FDKAAC_VERSION && /codecs/fdk-aac.sh
+RUN export PREFIX FLAC_VERSION FLAC_SHA256 && /codecs/flac.sh
+RUN export PREFIX SPEEX_VERSION SPEEX_SHA256 && /codecs/speex.sh
+RUN export PREFIX OGG_VERSION OGG_URL OGG_SHA256 && /codecs/ogg.sh
+RUN export PREFIX VORBIS_VERSION VORBIS_URL VORBIS_SHA256 && /codecs/vorbis.sh
+
+# Support libraries
+RUN export PREFIX FREETYPE_VERSION FREETYPE_SHA256 && /codecs/freetype.sh
+RUN export PREFIX LIBASS_VERSION LIBASS_SHA256 && /codecs/libass.sh
 
 # ============================================================================
-# Build x265 (GPL - required for H.265/HEVC encoding)
-# Note: x265 cmake doesn't always install .pc file, so we create it manually
-# ============================================================================
-RUN git clone --depth 1 --branch ${X265_VERSION} https://bitbucket.org/multicoreware/x265_git.git && \
-    cd x265_git && \
-    patch -p1 < /tmp/x265-cmake4-compat.patch && \
-    mkdir -p build/linux && \
-    cd build/linux && \
-    cmake -G "Unix Makefiles" \
-        -DCMAKE_INSTALL_PREFIX=$PREFIX \
-        -DLIB_INSTALL_DIR=$PREFIX/lib \
-        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-        -DCMAKE_C_FLAGS="-fPIC" \
-        -DCMAKE_CXX_FLAGS="-fPIC" \
-        -DENABLE_SHARED=OFF \
-        -DENABLE_CLI=OFF \
-        -DHIGH_BIT_DEPTH=ON \
-        ../../source && \
-    make -j"$(nproc)" && \
-    make install && \
-    # x265 doesn't generate pkg-config file, but we'll remove all .pc files later anyway
-    cd /src && rm -rf x265_git
-
-# ============================================================================
-# Build libvpx (BSD - VP8/VP9 codec)
-# ============================================================================
-RUN git clone --depth 1 --branch ${LIBVPX_VERSION} https://chromium.googlesource.com/webm/libvpx.git && \
-    cd libvpx && \
-    ./configure \
-        --prefix=$PREFIX \
-        --disable-examples \
-        --disable-unit-tests \
-        --disable-docs \
-        --enable-vp9-highbitdepth \
-        --enable-static \
-        --disable-shared \
-        --enable-pic \
-        --as=yasm && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd .. && rm -rf libvpx
-
-# ============================================================================
-# Build libaom (BSD - AV1 codec)
-# ============================================================================
-RUN git clone --depth 1 --branch ${LIBAOM_VERSION} https://aomedia.googlesource.com/aom && \
-    mkdir aom_build && \
-    cd aom_build && \
-    cmake -G "Unix Makefiles" \
-        -DCMAKE_INSTALL_PREFIX=$PREFIX \
-        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-        -DCMAKE_C_FLAGS="-fPIC" \
-        -DCMAKE_CXX_FLAGS="-fPIC" \
-        -DBUILD_SHARED_LIBS=OFF \
-        -DENABLE_NASM=ON \
-        -DENABLE_DOCS=OFF \
-        -DENABLE_EXAMPLES=OFF \
-        -DENABLE_TESTS=OFF \
-        -DCONFIG_AV1_ENCODER=1 \
-        -DCONFIG_AV1_DECODER=1 \
-        ../aom && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd .. && rm -rf aom aom_build
-
-# ============================================================================
-# Build dav1d (BSD - Fast AV1 decoder)
-# dav1d is 10x faster than libaom for AV1 decoding
-# ============================================================================
-RUN wget -q "${DAV1D_URL}" && \
-    echo "${DAV1D_SHA256}  dav1d-${DAV1D_VERSION}.tar.xz" | sha256sum -c - && \
-    tar xJf dav1d-${DAV1D_VERSION}.tar.xz && \
-    cd dav1d-${DAV1D_VERSION} && \
-    meson setup build \
-        --prefix=$PREFIX \
-        --libdir=lib \
-        --default-library=static \
-        --buildtype=release \
-        -Denable_tools=false \
-        -Denable_tests=false \
-        -Denable_examples=false && \
-    ninja -C build && \
-    ninja -C build install && \
-    cd .. && rm -rf dav1d-${DAV1D_VERSION}*
-
-# ============================================================================
-# Build libopus (BSD - Opus audio codec)
-# ============================================================================
-RUN wget -q https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz && \
-    echo "${OPUS_SHA256}  opus-${OPUS_VERSION}.tar.gz" | sha256sum -c - && \
-    tar xzf opus-${OPUS_VERSION}.tar.gz && \
-    cd opus-${OPUS_VERSION} && \
-    ./configure \
-        --prefix=$PREFIX \
-        --disable-shared \
-        --enable-static \
-        --with-pic \
-        --disable-doc \
-        --disable-extra-programs \
-        CFLAGS="-fPIC" && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd .. && rm -rf opus-${OPUS_VERSION}*
-
-# ============================================================================
-# Build libmp3lame (LGPL - MP3 encoder)
-# ============================================================================
-RUN wget -q "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}/lame-${LAME_VERSION}.tar.gz" && \
-    echo "${LAME_SHA256}  lame-${LAME_VERSION}.tar.gz" | sha256sum -c - && \
-    tar xzf lame-${LAME_VERSION}.tar.gz && \
-    cd lame-${LAME_VERSION} && \
-    ./configure \
-        --prefix=$PREFIX \
-        --disable-shared \
-        --enable-static \
-        --with-pic \
-        --enable-nasm \
-        --disable-frontend \
-        CFLAGS="-fPIC" && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd .. && rm -rf lame-${LAME_VERSION}*
-
-# ============================================================================
-# Build libogg + libvorbis (BSD - Vorbis audio codec)
-# ============================================================================
-RUN wget -q "${LIBOGG_URL:-https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-${LIBOGG_VERSION}.tar.gz}" -O libogg-${LIBOGG_VERSION}.tar.gz && \
-    if [ -n "${LIBOGG_SHA256}" ]; then echo "${LIBOGG_SHA256}  libogg-${LIBOGG_VERSION}.tar.gz" | sha256sum -c -; fi && \
-    tar xzf libogg-${LIBOGG_VERSION}.tar.gz && \
-    cd libogg-${LIBOGG_VERSION} && \
-    ./configure \
-        --prefix=$PREFIX \
-        --disable-shared \
-        --enable-static \
-        --with-pic \
-        CFLAGS="-fPIC" && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd .. && rm -rf libogg-${LIBOGG_VERSION}*
-
-RUN wget -q "${LIBVORBIS_URL:-https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-${LIBVORBIS_VERSION}.tar.gz}" -O libvorbis-${LIBVORBIS_VERSION}.tar.gz && \
-    if [ -n "${LIBVORBIS_SHA256}" ]; then echo "${LIBVORBIS_SHA256}  libvorbis-${LIBVORBIS_VERSION}.tar.gz" | sha256sum -c -; fi && \
-    tar xzf libvorbis-${LIBVORBIS_VERSION}.tar.gz && \
-    cd libvorbis-${LIBVORBIS_VERSION} && \
-    ./configure \
-        --prefix=$PREFIX \
-        --disable-shared \
-        --enable-static \
-        --with-pic \
-        --with-ogg=$PREFIX \
-        CFLAGS="-fPIC" && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd .. && rm -rf libvorbis-${LIBVORBIS_VERSION}*
-
-# ============================================================================
-# Build SVT-AV1 (BSD - Intel's AV1 encoder)
-# ============================================================================
-RUN git clone --depth 1 --branch ${SVTAV1_VERSION} https://gitlab.com/AOMediaCodec/SVT-AV1.git && \
-    mkdir SVT-AV1/build && \
-    cd SVT-AV1/build && \
-    cmake -G "Unix Makefiles" \
-        -DCMAKE_INSTALL_PREFIX=$PREFIX \
-        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-        -DCMAKE_C_FLAGS="-fPIC" \
-        -DCMAKE_CXX_FLAGS="-fPIC" \
-        -DBUILD_SHARED_LIBS=OFF \
-        -DBUILD_APPS=OFF \
-        -DBUILD_DEC=OFF \
-        -DBUILD_TESTING=OFF \
-        .. && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd /src && rm -rf SVT-AV1
-
-# ============================================================================
-# Build Theora (BSD - Ogg video codec)
-# ============================================================================
-RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${THEORA_VERSION}.tar.gz && \
-    echo "${THEORA_SHA256}  libtheora-${THEORA_VERSION}.tar.gz" | sha256sum -c - && \
-    tar xzf libtheora-${THEORA_VERSION}.tar.gz && \
-    cd libtheora-${THEORA_VERSION} && \
-    ./configure \
-        --prefix=$PREFIX \
-        --disable-shared \
-        --enable-static \
-        --with-pic \
-        --disable-examples \
-        CFLAGS="-fPIC" && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd .. && rm -rf libtheora-${THEORA_VERSION}*
-
-# ============================================================================
-# Build Xvid (GPL - MPEG-4 ASP codec)
-# ============================================================================
-RUN wget -q https://downloads.xvid.com/downloads/xvidcore-${XVID_VERSION}.tar.gz && \
-    echo "${XVID_SHA256}  xvidcore-${XVID_VERSION}.tar.gz" | sha256sum -c - && \
-    tar xzf xvidcore-${XVID_VERSION}.tar.gz && \
-    cd xvidcore/build/generic && \
-    ./configure \
-        --prefix=$PREFIX \
-        CFLAGS="-fPIC" && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd /src && rm -rf xvidcore*
-
-# ============================================================================
-# Build fdk-aac (Non-free - High-quality AAC encoder)
-# ============================================================================
-RUN git clone --depth 1 --branch ${FDKAAC_VERSION} https://github.com/mstorsjo/fdk-aac.git && \
-    cd fdk-aac && \
-    ./autogen.sh && \
-    ./configure \
-        --prefix=$PREFIX \
-        --disable-shared \
-        --enable-static \
-        --with-pic \
-        CFLAGS="-fPIC" \
-        CXXFLAGS="-fPIC" && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd .. && rm -rf fdk-aac
-
-# ============================================================================
-# Build FLAC (BSD - Free Lossless Audio Codec)
-# ============================================================================
-RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/flac/flac-${FLAC_VERSION}.tar.xz && \
-    echo "${FLAC_SHA256}  flac-${FLAC_VERSION}.tar.xz" | sha256sum -c - && \
-    tar xf flac-${FLAC_VERSION}.tar.xz && \
-    cd flac-${FLAC_VERSION} && \
-    ./configure \
-        --prefix=$PREFIX \
-        --disable-shared \
-        --enable-static \
-        --with-pic \
-        --disable-examples \
-        --disable-cpplibs \
-        CFLAGS="-fPIC" \
-        CXXFLAGS="-fPIC" && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd .. && rm -rf flac-${FLAC_VERSION}*
-
-# ============================================================================
-# Build Speex (BSD - Speech codec)
-# ============================================================================
-RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/speex/speex-${SPEEX_VERSION}.tar.gz && \
-    echo "${SPEEX_SHA256}  speex-${SPEEX_VERSION}.tar.gz" | sha256sum -c - && \
-    tar xzf speex-${SPEEX_VERSION}.tar.gz && \
-    cd speex-${SPEEX_VERSION} && \
-    ./configure \
-        --prefix=$PREFIX \
-        --disable-shared \
-        --enable-static \
-        --with-pic \
-        CFLAGS="-fPIC" && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd .. && rm -rf speex-${SPEEX_VERSION}*
-
-# ============================================================================
-# Build libfreetype (FreeType License - Font rendering)
-# ============================================================================
-RUN wget -q https://download.savannah.gnu.org/releases/freetype/freetype-${FREETYPE_VERSION}.tar.xz && \
-    echo "${FREETYPE_SHA256}  freetype-${FREETYPE_VERSION}.tar.xz" | sha256sum -c - && \
-    tar xf freetype-${FREETYPE_VERSION}.tar.xz && \
-    cd freetype-${FREETYPE_VERSION} && \
-    ./configure \
-        --prefix=$PREFIX \
-        --disable-shared \
-        --enable-static \
-        --with-pic \
-        --without-harfbuzz \
-        --without-bzip2 \
-        --without-png \
-        CFLAGS="-fPIC" && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd .. && rm -rf freetype-${FREETYPE_VERSION}*
-
-# ============================================================================
-# Build libass (ISC - Subtitle rendering)
-# ============================================================================
-RUN wget -q https://github.com/libass/libass/releases/download/${LIBASS_VERSION}/libass-${LIBASS_VERSION}.tar.gz && \
-    echo "${LIBASS_SHA256}  libass-${LIBASS_VERSION}.tar.gz" | sha256sum -c - && \
-    tar xzf libass-${LIBASS_VERSION}.tar.gz && \
-    cd libass-${LIBASS_VERSION} && \
-    ./configure \
-        --prefix=$PREFIX \
-        --disable-shared \
-        --enable-static \
-        --with-pic \
-        --disable-require-system-font-provider \
-        CFLAGS="-fPIC" && \
-    make -j"$(nproc)" && \
-    make install && \
-    cd .. && rm -rf libass-${LIBASS_VERSION}*
-
-# ============================================================================
-# Build FFmpeg with all codecs (GPL due to x264/x265, Non-free due to fdk-aac)
+# Build FFmpeg with all codecs + VA-API (GPL due to x264/x265, Non-free due to fdk-aac)
 # Note: We don't use -static here because we want libs that can link into .so
 # ============================================================================
 RUN git clone --depth 1 --branch ${FFMPEG_VERSION} https://git.ffmpeg.org/ffmpeg.git && \
@@ -469,18 +175,15 @@ RUN echo "=== Cleaning build artifacts ===" && \
     rm -rf $PREFIX/lib/pkgconfig && \
     find $PREFIX/lib -name "*.la" -type f -delete && \
     rm -rf $PREFIX/lib/cmake && \
-    echo "✓ Build artifacts cleaned"
+    echo "Build artifacts cleaned"
 
 # ============================================================================
 # Strip debug symbols and verify PIC in static libraries
 # ============================================================================
 RUN strip $PREFIX/bin/ffmpeg $PREFIX/bin/ffprobe && \
     echo "=== Verifying PIC in static libraries ===" && \
-    # Check that object files in .a archives have PIC relocations
     for lib in "${PREFIX}"/lib/*.a; do \
         echo "Checking ${lib} for PIC..."; \
-        # Extract and check for non-PIC relocations (R_X86_64_32 or R_X86_64_32S)
-        # These would fail when linking into a shared object
         if ar -t "${lib}" 2>/dev/null | head -1 | xargs -I{} sh -c "ar -p '${lib}' {} 2>/dev/null | readelf -r - 2>/dev/null | grep -q 'R_X86_64_32'"; then \
             echo "WARNING: ${lib} may have non-PIC code"; \
         else \

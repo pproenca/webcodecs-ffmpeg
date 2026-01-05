@@ -64,8 +64,8 @@ ARG LIBASS_VERSION
 ARG LIBASS_SHA256
 ARG FREETYPE_VERSION
 ARG FREETYPE_SHA256
-ARG LIBVORBIS_VERSION
-ARG LIBOGG_VERSION
+ARG VORBIS_VERSION
+ARG OGG_VERSION
 ARG NASM_VERSION
 ARG NASM_URL
 ARG NASM_SHA256
@@ -173,7 +173,7 @@ RUN cd ${SOURCES} && \
 
 # Build libogg (Ogg container - required for vorbis/opus)
 RUN cd ${SOURCES} && \
-    git clone --depth 1 --branch v${LIBOGG_VERSION} https://github.com/xiph/ogg.git && \
+    git clone --depth 1 --branch v${OGG_VERSION} https://github.com/xiph/ogg.git && \
     cd ogg && \
     ./autogen.sh && \
     ./configure \
@@ -187,7 +187,7 @@ RUN cd ${SOURCES} && \
 
 # Build libvorbis (Vorbis audio codec)
 RUN cd ${SOURCES} && \
-    git clone --depth 1 --branch v${LIBVORBIS_VERSION} https://github.com/xiph/vorbis.git && \
+    git clone --depth 1 --branch v${VORBIS_VERSION} https://github.com/xiph/vorbis.git && \
     cd vorbis && \
     ./autogen.sh && \
     ./configure \

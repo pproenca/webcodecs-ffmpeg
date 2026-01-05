@@ -19,11 +19,30 @@ permissions:
 
 jobs:
   # ==========================================================================
+  # Validate - Dry-run codec scripts before expensive builds
+  # ==========================================================================
+  validate:
+    name: Validate codec scripts
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run dry-run validation
+        run: |
+          chmod +x build/dry-run.sh
+          ./build/dry-run.sh
+
+  # ==========================================================================
   # Matrix Build - All Platforms in Parallel
   # ==========================================================================
   build:
     name: Build ${{ matrix.platform }}
     runs-on: ${{ matrix.runner }}
+    needs: [validate]
     permissions:
       contents: read
 
