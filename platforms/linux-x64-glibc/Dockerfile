@@ -39,9 +39,15 @@ ARG LIBASS_VERSION=0.17.3
 ARG LIBASS_SHA256
 ARG FREETYPE_VERSION=2.13.3
 ARG FREETYPE_SHA256
-ARG DAV1D_VERSION=1.5.3
+ARG DAV1D_VERSION
 ARG DAV1D_URL
 ARG DAV1D_SHA256
+ARG LIBOGG_VERSION
+ARG LIBOGG_URL
+ARG LIBOGG_SHA256
+ARG LIBVORBIS_VERSION
+ARG LIBVORBIS_URL
+ARG LIBVORBIS_SHA256
 ARG OPENSSL_VERSION
 ARG OPENSSL_URL
 ARG OPENSSL_SHA256
@@ -232,9 +238,10 @@ RUN wget -q "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}
 # ============================================================================
 # Build libogg + libvorbis (BSD - Vorbis audio codec)
 # ============================================================================
-RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-1.3.5.tar.gz && \
-    tar xzf libogg-1.3.5.tar.gz && \
-    cd libogg-1.3.5 && \
+RUN wget -q "${LIBOGG_URL:-https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-${LIBOGG_VERSION}.tar.gz}" -O libogg-${LIBOGG_VERSION}.tar.gz && \
+    if [ -n "${LIBOGG_SHA256}" ]; then echo "${LIBOGG_SHA256}  libogg-${LIBOGG_VERSION}.tar.gz" | sha256sum -c -; fi && \
+    tar xzf libogg-${LIBOGG_VERSION}.tar.gz && \
+    cd libogg-${LIBOGG_VERSION} && \
     ./configure \
         --prefix=$PREFIX \
         --disable-shared \
@@ -243,11 +250,12 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-1.3.5.tar.gz && 
         CFLAGS="-fPIC" && \
     make -j"$(nproc)" && \
     make install && \
-    cd .. && rm -rf libogg-1.3.5*
+    cd .. && rm -rf libogg-${LIBOGG_VERSION}*
 
-RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-1.3.7.tar.gz && \
-    tar xzf libvorbis-1.3.7.tar.gz && \
-    cd libvorbis-1.3.7 && \
+RUN wget -q "${LIBVORBIS_URL:-https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-${LIBVORBIS_VERSION}.tar.gz}" -O libvorbis-${LIBVORBIS_VERSION}.tar.gz && \
+    if [ -n "${LIBVORBIS_SHA256}" ]; then echo "${LIBVORBIS_SHA256}  libvorbis-${LIBVORBIS_VERSION}.tar.gz" | sha256sum -c -; fi && \
+    tar xzf libvorbis-${LIBVORBIS_VERSION}.tar.gz && \
+    cd libvorbis-${LIBVORBIS_VERSION} && \
     ./configure \
         --prefix=$PREFIX \
         --disable-shared \
@@ -257,7 +265,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-1.3.7.tar.
         CFLAGS="-fPIC" && \
     make -j"$(nproc)" && \
     make install && \
-    cd .. && rm -rf libvorbis-1.3.7*
+    cd .. && rm -rf libvorbis-${LIBVORBIS_VERSION}*
 
 # ============================================================================
 # Build SVT-AV1 (BSD - Intel's AV1 encoder)

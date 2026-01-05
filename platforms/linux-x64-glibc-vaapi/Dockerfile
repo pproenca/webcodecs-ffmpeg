@@ -47,6 +47,19 @@ ARG SPEEX_SHA256
 ARG LIBASS_SHA256
 ARG FREETYPE_SHA256
 
+# dav1d (fast AV1 decoder)
+ARG DAV1D_VERSION
+ARG DAV1D_URL
+ARG DAV1D_SHA256
+
+# libogg/libvorbis
+ARG LIBOGG_VERSION
+ARG LIBOGG_URL
+ARG LIBOGG_SHA256
+ARG LIBVORBIS_VERSION
+ARG LIBVORBIS_URL
+ARG LIBVORBIS_SHA256
+
 # Prevent interactive prompts during apt-get
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -67,7 +80,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libtool \
     libva-dev \
     linux-libc-dev \
+    meson \
     nasm \
+    ninja-build \
     perl \
     pkg-config \
     wget \
@@ -173,6 +188,26 @@ RUN git clone --depth 1 --branch ${LIBAOM_VERSION} https://aomedia.googlesource.
     cd .. && rm -rf aom aom_build
 
 # ============================================================================
+# Build dav1d (BSD - Fast AV1 decoder)
+# dav1d is 10x faster than libaom for AV1 decoding
+# ============================================================================
+RUN wget -q "${DAV1D_URL}" && \
+    echo "${DAV1D_SHA256}  dav1d-${DAV1D_VERSION}.tar.xz" | sha256sum -c - && \
+    tar xJf dav1d-${DAV1D_VERSION}.tar.xz && \
+    cd dav1d-${DAV1D_VERSION} && \
+    meson setup build \
+        --prefix=$PREFIX \
+        --libdir=lib \
+        --default-library=static \
+        --buildtype=release \
+        -Denable_tools=false \
+        -Denable_tests=false \
+        -Denable_examples=false && \
+    ninja -C build && \
+    ninja -C build install && \
+    cd .. && rm -rf dav1d-${DAV1D_VERSION}*
+
+# ============================================================================
 # Build libopus (BSD - Opus audio codec)
 # ============================================================================
 RUN wget -q https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz && \
@@ -213,9 +248,10 @@ RUN wget -q "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}
 # ============================================================================
 # Build libogg + libvorbis (BSD - Vorbis audio codec)
 # ============================================================================
-RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-1.3.5.tar.gz && \
-    tar xzf libogg-1.3.5.tar.gz && \
-    cd libogg-1.3.5 && \
+RUN wget -q "${LIBOGG_URL:-https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-${LIBOGG_VERSION}.tar.gz}" -O libogg-${LIBOGG_VERSION}.tar.gz && \
+    if [ -n "${LIBOGG_SHA256}" ]; then echo "${LIBOGG_SHA256}  libogg-${LIBOGG_VERSION}.tar.gz" | sha256sum -c -; fi && \
+    tar xzf libogg-${LIBOGG_VERSION}.tar.gz && \
+    cd libogg-${LIBOGG_VERSION} && \
     ./configure \
         --prefix=$PREFIX \
         --disable-shared \
@@ -224,11 +260,12 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-1.3.5.tar.gz && 
         CFLAGS="-fPIC" && \
     make -j"$(nproc)" && \
     make install && \
-    cd .. && rm -rf libogg-1.3.5*
+    cd .. && rm -rf libogg-${LIBOGG_VERSION}*
 
-RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-1.3.7.tar.gz && \
-    tar xzf libvorbis-1.3.7.tar.gz && \
-    cd libvorbis-1.3.7 && \
+RUN wget -q "${LIBVORBIS_URL:-https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-${LIBVORBIS_VERSION}.tar.gz}" -O libvorbis-${LIBVORBIS_VERSION}.tar.gz && \
+    if [ -n "${LIBVORBIS_SHA256}" ]; then echo "${LIBVORBIS_SHA256}  libvorbis-${LIBVORBIS_VERSION}.tar.gz" | sha256sum -c -; fi && \
+    tar xzf libvorbis-${LIBVORBIS_VERSION}.tar.gz && \
+    cd libvorbis-${LIBVORBIS_VERSION} && \
     ./configure \
         --prefix=$PREFIX \
         --disable-shared \
@@ -238,7 +275,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-1.3.7.tar.
         CFLAGS="-fPIC" && \
     make -j"$(nproc)" && \
     make install && \
-    cd .. && rm -rf libvorbis-1.3.7*
+    cd .. && rm -rf libvorbis-${LIBVORBIS_VERSION}*
 
 # ============================================================================
 # Build SVT-AV1 (BSD - Intel's AV1 encoder)
@@ -264,6 +301,7 @@ RUN git clone --depth 1 --branch ${SVTAV1_VERSION} https://gitlab.com/AOMediaCod
 # Build Theora (BSD - Ogg video codec)
 # ============================================================================
 RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${THEORA_VERSION}.tar.gz && \
+    echo "${THEORA_SHA256}  libtheora-${THEORA_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf libtheora-${THEORA_VERSION}.tar.gz && \
     cd libtheora-${THEORA_VERSION} && \
     ./configure \
@@ -281,6 +319,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/theora/libtheora-${THEORA_V
 # Build Xvid (GPL - MPEG-4 ASP codec)
 # ============================================================================
 RUN wget -q https://downloads.xvid.com/downloads/xvidcore-${XVID_VERSION}.tar.gz && \
+    echo "${XVID_SHA256}  xvidcore-${XVID_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf xvidcore-${XVID_VERSION}.tar.gz && \
     cd xvidcore/build/generic && \
     ./configure \
@@ -311,6 +350,7 @@ RUN git clone --depth 1 --branch ${FDKAAC_VERSION} https://github.com/mstorsjo/f
 # Build FLAC (BSD - Free Lossless Audio Codec)
 # ============================================================================
 RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/flac/flac-${FLAC_VERSION}.tar.xz && \
+    echo "${FLAC_SHA256}  flac-${FLAC_VERSION}.tar.xz" | sha256sum -c - && \
     tar xf flac-${FLAC_VERSION}.tar.xz && \
     cd flac-${FLAC_VERSION} && \
     ./configure \
@@ -330,6 +370,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/flac/flac-${FLAC_VERSION}.t
 # Build Speex (BSD - Speech codec)
 # ============================================================================
 RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/speex/speex-${SPEEX_VERSION}.tar.gz && \
+    echo "${SPEEX_SHA256}  speex-${SPEEX_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf speex-${SPEEX_VERSION}.tar.gz && \
     cd speex-${SPEEX_VERSION} && \
     ./configure \
@@ -346,6 +387,7 @@ RUN wget -q https://ftp.osuosl.org/pub/xiph/releases/speex/speex-${SPEEX_VERSION
 # Build libfreetype (FreeType License - Font rendering)
 # ============================================================================
 RUN wget -q https://download.savannah.gnu.org/releases/freetype/freetype-${FREETYPE_VERSION}.tar.xz && \
+    echo "${FREETYPE_SHA256}  freetype-${FREETYPE_VERSION}.tar.xz" | sha256sum -c - && \
     tar xf freetype-${FREETYPE_VERSION}.tar.xz && \
     cd freetype-${FREETYPE_VERSION} && \
     ./configure \
@@ -365,6 +407,7 @@ RUN wget -q https://download.savannah.gnu.org/releases/freetype/freetype-${FREET
 # Build libass (ISC - Subtitle rendering)
 # ============================================================================
 RUN wget -q https://github.com/libass/libass/releases/download/${LIBASS_VERSION}/libass-${LIBASS_VERSION}.tar.gz && \
+    echo "${LIBASS_SHA256}  libass-${LIBASS_VERSION}.tar.gz" | sha256sum -c - && \
     tar xzf libass-${LIBASS_VERSION}.tar.gz && \
     cd libass-${LIBASS_VERSION} && \
     ./configure \
@@ -404,6 +447,7 @@ RUN git clone --depth 1 --branch ${FFMPEG_VERSION} https://git.ffmpeg.org/ffmpeg
         --enable-libx265 \
         --enable-libvpx \
         --enable-libaom \
+        --enable-libdav1d \
         --enable-libsvtav1 \
         --enable-libtheora \
         --enable-libxvid \
