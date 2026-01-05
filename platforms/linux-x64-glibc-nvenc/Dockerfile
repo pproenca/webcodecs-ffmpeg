@@ -122,17 +122,17 @@ RUN export LIBVPX_VERSION="${LIBVPX_VERSION}" && /codecs/libvpx.sh
 RUN export LIBAOM_VERSION="${LIBAOM_VERSION}" && /codecs/libaom.sh
 RUN export DAV1D_VERSION="${DAV1D_VERSION}" DAV1D_URL="${DAV1D_URL}" DAV1D_SHA256="${DAV1D_SHA256}" && /codecs/dav1d.sh
 RUN export SVTAV1_VERSION="${SVTAV1_VERSION}" && /codecs/svt-av1.sh
-RUN export THEORA_VERSION="${THEORA_VERSION}" THEORA_SHA256="${THEORA_SHA256}" && /codecs/theora.sh
 RUN export XVID_VERSION="${XVID_VERSION}" XVID_SHA256="${XVID_SHA256}" && /codecs/xvid.sh
 
-# Audio codecs
+# Audio codecs (ogg must be built before vorbis and theora)
+RUN export OGG_VERSION="${OGG_VERSION}" OGG_URL="${OGG_URL}" OGG_SHA256="${OGG_SHA256}" && /codecs/ogg.sh
+RUN export VORBIS_VERSION="${VORBIS_VERSION}" VORBIS_URL="${VORBIS_URL}" VORBIS_SHA256="${VORBIS_SHA256}" && /codecs/vorbis.sh
+RUN export THEORA_VERSION="${THEORA_VERSION}" THEORA_SHA256="${THEORA_SHA256}" && /codecs/theora.sh
 RUN export OPUS_VERSION="${OPUS_VERSION}" OPUS_SHA256="${OPUS_SHA256}" && /codecs/opus.sh
 RUN export LAME_VERSION="${LAME_VERSION}" LAME_SHA256="${LAME_SHA256}" && /codecs/lame.sh
 RUN export FDKAAC_VERSION="${FDKAAC_VERSION}" && /codecs/fdk-aac.sh
 RUN export FLAC_VERSION="${FLAC_VERSION}" FLAC_SHA256="${FLAC_SHA256}" && /codecs/flac.sh
 RUN export SPEEX_VERSION="${SPEEX_VERSION}" SPEEX_SHA256="${SPEEX_SHA256}" && /codecs/speex.sh
-RUN export OGG_VERSION="${OGG_VERSION}" OGG_URL="${OGG_URL}" OGG_SHA256="${OGG_SHA256}" && /codecs/ogg.sh
-RUN export VORBIS_VERSION="${VORBIS_VERSION}" VORBIS_URL="${VORBIS_URL}" VORBIS_SHA256="${VORBIS_SHA256}" && /codecs/vorbis.sh
 
 # Support libraries
 RUN export FREETYPE_VERSION="${FREETYPE_VERSION}" FREETYPE_SHA256="${FREETYPE_SHA256}" && /codecs/freetype.sh
