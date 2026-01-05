@@ -52,10 +52,9 @@ build_libvpx() {
         local darwin_version
         darwin_version="$(uname -r | cut -d. -f1)"
         configure_args+=("--target=${arch}-darwin${darwin_version}-gcc")
-        # Pass deployment target via LDFLAGS
-        if [[ -n "${EXTRA_LDFLAGS:-}" ]]; then
-            configure_args+=("--extra-cflags=${EXTRA_CFLAGS:-}")
-            configure_args+=("--extra-ldflags=${EXTRA_LDFLAGS:-}")
+        # libvpx only supports --extra-cflags, LDFLAGS must be via environment
+        if [[ -n "${EXTRA_CFLAGS:-}" ]]; then
+            configure_args+=("--extra-cflags=${EXTRA_CFLAGS}")
         fi
     fi
 
