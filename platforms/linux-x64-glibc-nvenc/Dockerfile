@@ -116,27 +116,27 @@ RUN git clone --depth 1 --branch ${FFNVCODEC_VERSION} https://github.com/FFmpeg/
 # ============================================================================
 
 # Video codecs
-RUN X264_VERSION="${X264_VERSION}" /codecs/x264.sh
-RUN X265_VERSION="${X265_VERSION}" PATCH_DIR=/patches /codecs/x265.sh
-RUN LIBVPX_VERSION="${LIBVPX_VERSION}" /codecs/libvpx.sh
-RUN LIBAOM_VERSION="${LIBAOM_VERSION}" /codecs/libaom.sh
-RUN DAV1D_VERSION="${DAV1D_VERSION}" DAV1D_URL="${DAV1D_URL}" DAV1D_SHA256="${DAV1D_SHA256}" /codecs/dav1d.sh
-RUN SVTAV1_VERSION="${SVTAV1_VERSION}" /codecs/svt-av1.sh
-RUN THEORA_VERSION="${THEORA_VERSION}" THEORA_SHA256="${THEORA_SHA256}" /codecs/theora.sh
-RUN XVID_VERSION="${XVID_VERSION}" XVID_SHA256="${XVID_SHA256}" /codecs/xvid.sh
+RUN export X264_VERSION="${X264_VERSION}" && /codecs/x264.sh
+RUN export X265_VERSION="${X265_VERSION}" PATCH_DIR=/patches && /codecs/x265.sh
+RUN export LIBVPX_VERSION="${LIBVPX_VERSION}" && /codecs/libvpx.sh
+RUN export LIBAOM_VERSION="${LIBAOM_VERSION}" && /codecs/libaom.sh
+RUN export DAV1D_VERSION="${DAV1D_VERSION}" DAV1D_URL="${DAV1D_URL}" DAV1D_SHA256="${DAV1D_SHA256}" && /codecs/dav1d.sh
+RUN export SVTAV1_VERSION="${SVTAV1_VERSION}" && /codecs/svt-av1.sh
+RUN export THEORA_VERSION="${THEORA_VERSION}" THEORA_SHA256="${THEORA_SHA256}" && /codecs/theora.sh
+RUN export XVID_VERSION="${XVID_VERSION}" XVID_SHA256="${XVID_SHA256}" && /codecs/xvid.sh
 
 # Audio codecs
-RUN OPUS_VERSION="${OPUS_VERSION}" OPUS_SHA256="${OPUS_SHA256}" /codecs/opus.sh
-RUN LAME_VERSION="${LAME_VERSION}" LAME_SHA256="${LAME_SHA256}" /codecs/lame.sh
-RUN FDKAAC_VERSION="${FDKAAC_VERSION}" /codecs/fdk-aac.sh
-RUN FLAC_VERSION="${FLAC_VERSION}" FLAC_SHA256="${FLAC_SHA256}" /codecs/flac.sh
-RUN SPEEX_VERSION="${SPEEX_VERSION}" SPEEX_SHA256="${SPEEX_SHA256}" /codecs/speex.sh
-RUN OGG_VERSION="${OGG_VERSION}" OGG_URL="${OGG_URL}" OGG_SHA256="${OGG_SHA256}" /codecs/ogg.sh
-RUN VORBIS_VERSION="${VORBIS_VERSION}" VORBIS_URL="${VORBIS_URL}" VORBIS_SHA256="${VORBIS_SHA256}" /codecs/vorbis.sh
+RUN export OPUS_VERSION="${OPUS_VERSION}" OPUS_SHA256="${OPUS_SHA256}" && /codecs/opus.sh
+RUN export LAME_VERSION="${LAME_VERSION}" LAME_SHA256="${LAME_SHA256}" && /codecs/lame.sh
+RUN export FDKAAC_VERSION="${FDKAAC_VERSION}" && /codecs/fdk-aac.sh
+RUN export FLAC_VERSION="${FLAC_VERSION}" FLAC_SHA256="${FLAC_SHA256}" && /codecs/flac.sh
+RUN export SPEEX_VERSION="${SPEEX_VERSION}" SPEEX_SHA256="${SPEEX_SHA256}" && /codecs/speex.sh
+RUN export OGG_VERSION="${OGG_VERSION}" OGG_URL="${OGG_URL}" OGG_SHA256="${OGG_SHA256}" && /codecs/ogg.sh
+RUN export VORBIS_VERSION="${VORBIS_VERSION}" VORBIS_URL="${VORBIS_URL}" VORBIS_SHA256="${VORBIS_SHA256}" && /codecs/vorbis.sh
 
 # Support libraries
-RUN FREETYPE_VERSION="${FREETYPE_VERSION}" FREETYPE_SHA256="${FREETYPE_SHA256}" /codecs/freetype.sh
-RUN LIBASS_VERSION="${LIBASS_VERSION}" LIBASS_SHA256="${LIBASS_SHA256}" /codecs/libass.sh
+RUN export FREETYPE_VERSION="${FREETYPE_VERSION}" FREETYPE_SHA256="${FREETYPE_SHA256}" && /codecs/freetype.sh
+RUN export LIBASS_VERSION="${LIBASS_VERSION}" LIBASS_SHA256="${LIBASS_SHA256}" && /codecs/libass.sh
 
 # ============================================================================
 # Build FFmpeg with all codecs + NVENC/NVDEC (GPL due to x264/x265, Non-free due to fdk-aac)
