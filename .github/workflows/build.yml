@@ -124,6 +124,11 @@ jobs:
 
           echo "Versions loaded successfully"
 
+      # Install ccache for macOS native builds
+      - name: Install ccache (macOS)
+        if: ${{ !matrix.uses_docker }}
+        run: brew install ccache
+
       # Build the platform
       - name: Build ${{ matrix.platform }}
         run: |
