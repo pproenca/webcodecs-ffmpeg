@@ -38,7 +38,9 @@ require() {
     if [[ -z "${!var:-}" ]]; then
         die "Required variable not set: $var"
     fi
-    [[ "$DRY_RUN" == "1" ]] && log_cmd "$var=${!var}"
+    if [[ "$DRY_RUN" == "1" ]]; then
+        log_cmd "$var=${!var}"
+    fi
 }
 
 # Check if URL is reachable (used in dry-run mode)
