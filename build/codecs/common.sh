@@ -5,13 +5,23 @@
 #   source common.sh
 #   DRY_RUN=1 ./x264.sh  # dry-run mode
 #
-# Provides: log, die, run, require, download_verify
+# Provides: log, die, run, require, download_verify, is_macos, nproc_safe
+#
+# macOS-specific environment variables (set by macos.sh):
+#   EXTRA_CFLAGS      - Additional C compiler flags (e.g., "-arch arm64 -mmacosx-version-min=11.0")
+#   EXTRA_LDFLAGS     - Additional linker flags
+#   EXTRA_CMAKE_FLAGS - Additional CMake flags (e.g., "-DCMAKE_OSX_ARCHITECTURES=arm64")
+#   MACOS_ARCH        - Target architecture (x86_64 or arm64)
+#   MACOS_DEPLOYMENT_TARGET - Minimum macOS version (e.g., "11.0")
 
 DRY_RUN="${DRY_RUN:-0}"
 
 log()     { echo "==> $*"; }
 log_cmd() { echo "    $*"; }
 die()     { echo "ERROR: $*" >&2; exit 1; }
+
+# Detect if running on macOS
+is_macos() { [[ "$(uname -s)" == "Darwin" ]]; }
 
 # Run command or echo in dry-run mode
 run() {

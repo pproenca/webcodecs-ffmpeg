@@ -38,7 +38,9 @@ build_x264() {
         --disable-shared \
         --enable-pic \
         --disable-cli \
-        --disable-opencl
+        --disable-opencl \
+        --extra-cflags="${EXTRA_CFLAGS:-}" \
+        --extra-ldflags="${EXTRA_LDFLAGS:-}"
 
     run make -j"$(nproc_safe)"
     run make install

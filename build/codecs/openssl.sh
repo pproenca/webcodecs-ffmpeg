@@ -26,7 +26,19 @@ build_openssl() {
     log "Building OpenSSL ${OPENSSL_VERSION}"
 
     local work_dir="${WORK_DIR:-/tmp}/openssl-$$"
-    local target="${OPENSSL_TARGET:-linux-x86_64}"
+
+    # Auto-detect OpenSSL target if not set
+    local target="${OPENSSL_TARGET:-}"
+    if [[ -z "$target" ]]; then
+        if is_macos; then
+            local arch="${MACOS_ARCH:-$(uname -m)}"
+            target="darwin64-${arch}-cc"
+            log "Auto-detected macOS OpenSSL target: $target"
+        else
+            target="linux-x86_64"
+        fi
+    fi
+
     run mkdir -p "$work_dir"
     enter "$work_dir"
 

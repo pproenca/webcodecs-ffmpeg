@@ -41,6 +41,12 @@ build_libaom() {
         enable_nasm="OFF"
     fi
 
+    # Parse EXTRA_CMAKE_FLAGS into array
+    local extra_cmake_flags=()
+    if [[ -n "${EXTRA_CMAKE_FLAGS:-}" ]]; then
+        read -ra extra_cmake_flags <<< "$EXTRA_CMAKE_FLAGS"
+    fi
+
     run cmake -G "Unix Makefiles" \
         -DCMAKE_INSTALL_PREFIX="$PREFIX" \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
@@ -53,6 +59,7 @@ build_libaom() {
         -DENABLE_TESTS=OFF \
         -DCONFIG_AV1_ENCODER=1 \
         -DCONFIG_AV1_DECODER=1 \
+        ${extra_cmake_flags[@]+"${extra_cmake_flags[@]}"} \
         ../aom
 
     run make -j"$(nproc_safe)"

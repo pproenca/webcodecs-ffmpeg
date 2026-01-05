@@ -42,6 +42,19 @@ build_x265() {
     run mkdir -p build/linux
     enter build/linux
 
+    # Parse EXTRA_CMAKE_FLAGS into array
+    local extra_cmake_flags=()
+    if [[ -n "${EXTRA_CMAKE_FLAGS:-}" ]]; then
+        read -ra extra_cmake_flags <<< "$EXTRA_CMAKE_FLAGS"
+    fi
+
+    # Disable assembly on macOS ARM64 (Xcode 16+ NEON compatibility issue)
+    local asm_flag=""
+    if is_macos && [[ "${MACOS_ARCH:-$(uname -m)}" == "arm64" ]]; then
+        asm_flag="-DENABLE_ASSEMBLY=OFF"
+        log "Note: Disabling x265 assembly on macOS ARM64 (Xcode 16+ NEON compat)"
+    fi
+
     run cmake -G "Unix Makefiles" \
         -DCMAKE_INSTALL_PREFIX="$PREFIX" \
         -DLIB_INSTALL_DIR="$PREFIX/lib" \
@@ -51,6 +64,8 @@ build_x265() {
         -DENABLE_SHARED=OFF \
         -DENABLE_CLI=OFF \
         -DHIGH_BIT_DEPTH=ON \
+        $asm_flag \
+        ${extra_cmake_flags[@]+"${extra_cmake_flags[@]}"} \
         ../../source
 
     run make -j"$(nproc_safe)"

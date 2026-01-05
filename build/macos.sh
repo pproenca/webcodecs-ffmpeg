@@ -2,9 +2,9 @@
 #
 # macOS FFmpeg Build Script
 #
-# Builds FFmpeg and all codec dependencies natively on macOS. Supports both
-# Intel (x86_64) and Apple Silicon (arm64) architectures with cross-compilation
-# support.
+# Builds FFmpeg and all codec dependencies natively on macOS using modular
+# codec scripts from build/codecs/. Follows the official FFmpeg compilation
+# guide pattern: setup -> dependencies -> FFmpeg -> verify.
 #
 # Supported platforms:
 #   darwin-x64   - macOS Intel (x86_64)
@@ -14,15 +14,16 @@
 
 set -euo pipefail
 
-
 #######################################
-# Constants
+# Constants and Setup
 #######################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 readonly PROJECT_ROOT
+CODECS_DIR="$SCRIPT_DIR/codecs"
+readonly CODECS_DIR
 PLATFORM="${1:-}"
 
 #######################################
@@ -30,627 +31,277 @@ PLATFORM="${1:-}"
 #######################################
 
 if [[ -z "$PLATFORM" ]]; then
-  echo "ERROR: Platform argument required"
-  exit 1
+    echo "ERROR: Platform argument required"
+    exit 1
 fi
 
 case "$PLATFORM" in
-  darwin-x64)
-    ARCH="x86_64"
-    ;;
-  darwin-arm64)
-    ARCH="arm64"
-    ;;
-  *)
-    echo "ERROR: Invalid macOS platform '$PLATFORM'"
-    echo "Supported: darwin-x64, darwin-arm64"
-    exit 1
-    ;;
+    darwin-x64)
+        MACOS_ARCH="x86_64"
+        ;;
+    darwin-arm64)
+        MACOS_ARCH="arm64"
+        ;;
+    *)
+        echo "ERROR: Invalid macOS platform '$PLATFORM'"
+        echo "Supported: darwin-x64, darwin-arm64"
+        exit 1
+        ;;
 esac
-readonly ARCH
+export MACOS_ARCH
 
 echo "=========================================="
 echo "macOS Native Build: $PLATFORM"
 echo "=========================================="
-echo "Architecture: $ARCH"
-echo "Deployment Target: $MACOS_DEPLOYMENT_TARGET"
+echo "Architecture: $MACOS_ARCH"
+echo "Deployment Target: ${MACOS_DEPLOYMENT_TARGET:-11.0}"
 echo ""
 
-# Number of parallel jobs for make (defaults to CPU count).
-NUM_CPUS=$(sysctl -n hw.ncpu)
-readonly NUM_CPUS
-
-
 #######################################
-# Helper Functions
+# Build Environment
 #######################################
 
+export PREFIX="$PROJECT_ROOT/artifacts/$PLATFORM"
+export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig"
+export PATH="$PREFIX/bin:$PATH"
+export WORK_DIR="$PROJECT_ROOT/ffmpeg_sources"
+export PATCH_DIR="$SCRIPT_DIR/patches"
+
+# macOS-specific flags for codec scripts
+export MACOS_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET:-11.0}"
+export EXTRA_CFLAGS="-arch $MACOS_ARCH -mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET"
+export EXTRA_LDFLAGS="-arch $MACOS_ARCH -mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET"
+export EXTRA_CMAKE_FLAGS="-DCMAKE_OSX_ARCHITECTURES=$MACOS_ARCH -DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOS_DEPLOYMENT_TARGET"
+
+mkdir -p "$PREFIX"/{include,lib,bin}
+mkdir -p "$WORK_DIR"
+
 #######################################
-# Download, verify checksum, and extract tarball.
-# Arguments:
-#   $1 - Name of the package (for logging)
-#   $2 - URL to download
-#   $3 - Expected SHA256 checksum
-#   $4 - Archive filename
-#   $5 - Compression flag: "z" for .gz (default), "" for .xz
-# Outputs:
-#   Extracts archive to current directory
-# Returns:
-#   Exits 1 on failure
+# Setup ccache (optional)
 #######################################
-download_verify_extract() {
-  local name="$1" url="$2" sha256="$3" archive="$4" compression="${5:-z}"
-  echo ""
-  echo "=== Building $name ==="
-  curl -fSL --retry 3 "$url" -o "$archive" || {
-    echo "ERROR: Failed to download $name"
-    exit 1
-  }
-  echo "$sha256  $archive" | shasum -a 256 -c - || {
-    echo "ERROR: $name checksum verification failed!"
-    exit 1
-  }
-  echo "✓ $name checksum verified"
-  tar "x${compression}f" "$archive"
+
+setup_ccache() {
+    if command -v ccache &>/dev/null; then
+        export CCACHE_DIR="${CCACHE_DIR:-$HOME/.ccache}"
+        export CC="ccache clang"
+        export CXX="ccache clang++"
+        echo "Using ccache for incremental builds (cache dir: $CCACHE_DIR)"
+        echo "  First build: ~20-25 min, subsequent builds: ~2-5 min"
+        ccache -s 2>/dev/null || true
+    else
+        echo "ccache not found - builds will be from scratch (~20-25 min)"
+        echo "  Install ccache to speed up rebuilds: brew install ccache"
+    fi
+    echo ""
 }
 
-
 #######################################
-# Set up build environment
+# Install Homebrew Prerequisites
 #######################################
 
-export TARGET="$PROJECT_ROOT/artifacts/$PLATFORM"
-export PKG_CONFIG_PATH="$TARGET/lib/pkgconfig"
-export PATH="$TARGET/bin:$PATH"
-
-mkdir -p "$TARGET"/{include,lib,bin}
-mkdir -p "$PROJECT_ROOT/ffmpeg_sources"
-
-# Setup ccache for faster incremental builds (optional)
-if command -v ccache &> /dev/null; then
-  export CCACHE_DIR="${CCACHE_DIR:-$HOME/.ccache}"
-  export CC="ccache clang"
-  export CXX="ccache clang++"
-  echo "✓ Using ccache for incremental builds (cache dir: $CCACHE_DIR)"
-  echo "  First build: ~20-25 min, subsequent builds: ~2-5 min"
-  ccache -s 2>/dev/null || true
-else
-  echo "i ccache not found - builds will always be from scratch (~20-25 min)"
-  echo "  Install ccache to speed up rebuilds: brew install ccache"
-fi
-echo ""
-
-
-#######################################
-# Install Homebrew dependencies
-#######################################
-echo "Installing Homebrew dependencies..."
-brew install autoconf automake libtool cmake pkg-config || {
-  echo "WARNING: Homebrew install failed, assuming dependencies installed"
+install_prerequisites() {
+    echo "Installing Homebrew dependencies..."
+    brew install autoconf automake libtool cmake pkg-config meson ninja || {
+        echo "WARNING: brew install failed, assuming dependencies installed"
+    }
+    echo ""
 }
 
-cd "$PROJECT_ROOT/ffmpeg_sources"
+#######################################
+# Build a codec using its modular script
+#######################################
 
-# Clean previous builds
-rm -rf x264 x265_git libvpx aom aom_build opus-* lame-* nasm-* \
-  SVT-AV1 rav1e libtheora-* xvidcore speex-* flac-* \
-  fdk-aac freetype-* libass-*
+build_codec() {
+    local name="$1"
+    local script="$CODECS_DIR/${name}.sh"
 
+    if [[ ! -f "$script" ]]; then
+        echo "ERROR: Codec script not found: $script"
+        exit 1
+    fi
 
-#=============================================================================
-# Build NASM (assembler required for x264/x265)
-#=============================================================================
-echo ""
-echo "=== Building NASM ${NASM_VERSION} ==="
-NASM_URL="https://github.com/netwide-assembler/nasm/archive/refs/tags/nasm-${NASM_VERSION}.tar.gz"
-
-curl -fSL --retry 3 --retry-delay 5 "$NASM_URL" -o nasm.tar.gz || {
-  echo "ERROR: Failed to download NASM from $NASM_URL"
-  exit 1
+    echo ""
+    echo "=== Building $name ==="
+    bash "$script"
 }
 
-echo "${NASM_SHA256}  nasm.tar.gz" | shasum -a 256 -c - || {
-  echo "ERROR: NASM checksum verification failed!"
-  echo "Expected: ${NASM_SHA256}"
-  echo "Got:      $(shasum -a 256 nasm.tar.gz | cut -d' ' -f1)"
-  exit 1
-}
-echo "✓ NASM checksum verified"
-
-tar xzf nasm.tar.gz
-cd "nasm-nasm-${NASM_VERSION}"
-./autogen.sh
-./configure --prefix="$TARGET"
-make -j"$NUM_CPUS"
-install -c nasm ndisasm "$TARGET/bin/"
-cd ..
-
-#=============================================================================
-# Build x264 (H.264 encoder, GPL)
-#=============================================================================
-echo ""
-echo "=== Building x264 ${X264_VERSION} ==="
-git clone --depth 1 --branch "${X264_VERSION}" https://code.videolan.org/videolan/x264.git
-cd x264
-./configure \
-  --prefix="$TARGET" \
-  --enable-static \
-  --disable-shared \
-  --enable-pic \
-  --disable-cli \
-  --extra-cflags="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
-  --extra-ldflags="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$NUM_CPUS"
-make install
-cd ..
-
-#=============================================================================
-# Build x265 (H.265 encoder, GPL)
-#=============================================================================
-echo ""
-echo "=== Building x265 ${X265_VERSION} ==="
-git clone --depth 1 --branch "${X265_VERSION}" https://bitbucket.org/multicoreware/x265_git.git
-
-# Apply CMake 4.x compatibility patch
-echo "Applying CMake 4.x compatibility patch..."
-patch -p1 -d x265_git < "$SCRIPT_DIR/patches/x265-cmake4-compat.patch"
-
-mkdir -p x265_git/build/xcode && cd x265_git/build/xcode
-
-# Disable assembly on ARM64 to avoid Xcode 16+ NEON compatibility issues
-# x265 4.1's ARM64 NEON code uses intrinsics incompatible with newer Xcode
-if [[ "$ARCH" == "arm64" ]]; then
-  X265_ASM_FLAG="-DENABLE_ASSEMBLY=OFF"
-  echo "Note: Disabling x265 assembly on ARM64 due to Xcode 16+ compatibility"
-else
-  X265_ASM_FLAG=""
-fi
-
-cmake \
-  -DCMAKE_INSTALL_PREFIX="$TARGET" \
-  -DLIB_INSTALL_DIR="$TARGET/lib" \
-  -DENABLE_SHARED=OFF \
-  -DENABLE_CLI=OFF \
-  -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
-  -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}" \
-  $X265_ASM_FLAG \
-  ../../source
-make -j"$NUM_CPUS"
-make install
-
-# x265 doesn't generate pkg-config file, but we'll remove all .pc files later anyway
-cd ../../..
-
-#=============================================================================
-# Build libvpx (VP8/VP9, BSD)
-#=============================================================================
-echo ""
-echo "=== Building libvpx ${LIBVPX_VERSION} ==="
-git clone --depth 1 --branch "${LIBVPX_VERSION}" https://chromium.googlesource.com/webm/libvpx.git
-cd libvpx
-
-DARWIN_VERSION=$(uname -r | cut -d. -f1)
-VPX_TARGET="${ARCH}-darwin${DARWIN_VERSION}-gcc"
-echo "Using libvpx target: $VPX_TARGET"
-
-LDFLAGS="-mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
-./configure \
-  --prefix="$TARGET" \
-  --target="$VPX_TARGET" \
-  --enable-vp8 \
-  --enable-vp9 \
-  --disable-examples \
-  --disable-unit-tests \
-  --enable-vp9-highbitdepth \
-  --enable-static \
-  --disable-shared \
-  --extra-cflags="-mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$NUM_CPUS"
-make install
-cd ..
-
-#=============================================================================
-# Build libaom (AV1, BSD)
-#=============================================================================
-echo ""
-echo "=== Building libaom ${LIBAOM_VERSION} ==="
-# Clean up any previous build
-rm -rf aom aom_build
-
-git clone --depth 1 --branch "${LIBAOM_VERSION}" https://aomedia.googlesource.com/aom
-mkdir -p aom_build
-cd aom_build
-
-cmake \
-  -DCMAKE_INSTALL_PREFIX="$TARGET" \
-  -DBUILD_SHARED_LIBS=OFF \
-  -DENABLE_DOCS=OFF \
-  -DENABLE_EXAMPLES=OFF \
-  -DENABLE_TESTS=OFF \
-  -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
-  -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}" \
-  ../aom
-make -j"$NUM_CPUS"
-make install
-cd ..
-
-#=============================================================================
-# Build SVT-AV1 (Intel's AV1 encoder, BSD)
-#=============================================================================
-echo ""
-echo "=== Building SVT-AV1 ${SVTAV1_VERSION} ==="
-# Clean up any previous build
-rm -rf SVT-AV1
-
-git clone --depth 1 --branch "${SVTAV1_VERSION}" "${SVTAV1_GIT_URL}"
-cd SVT-AV1
-mkdir -p build
-cd build
-
-cmake \
-  -DCMAKE_INSTALL_PREFIX="$TARGET" \
-  -DBUILD_SHARED_LIBS=OFF \
-  -DBUILD_APPS=OFF \
-  -DBUILD_DEC=OFF \
-  -DBUILD_TESTING=OFF \
-  -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
-  -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}" \
-  ..
-make -j"$NUM_CPUS"
-make install
-cd ../..
-
-#=============================================================================
-# Build dav1d (Fast AV1 decoder, BSD)
-#=============================================================================
-echo ""
-echo "=== Building dav1d ${DAV1D_VERSION} ==="
-# Clean up any previous build
-rm -rf "dav1d-${DAV1D_VERSION}" dav1d_build
-
-# Download and extract dav1d
-curl -L "${DAV1D_URL}" -o "dav1d-${DAV1D_VERSION}.tar.xz"
-tar xf "dav1d-${DAV1D_VERSION}.tar.xz"
-cd "dav1d-${DAV1D_VERSION}"
-
-# dav1d uses meson/ninja build system
-# Check if meson is available
-if command -v meson &> /dev/null; then
-  meson setup build \
-    --prefix="$TARGET" \
-    --libdir=lib \
-    --default-library=static \
-    --buildtype=release \
-    -Denable_tools=false \
-    -Denable_tests=false \
-    -Denable_examples=false
-
-  ninja -C build
-  ninja -C build install
-  cd ..
-else
-  echo "WARNING: meson not found - trying fallback with cmake"
-  # Fallback: Some versions of dav1d support cmake
-  mkdir -p build
-  cd build
-  cmake \
-    -DCMAKE_INSTALL_PREFIX="$TARGET" \
-    -DBUILD_SHARED_LIBS=OFF \
-    -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
-    -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}" \
-    ..
-  make -j"$NUM_CPUS"
-  make install
-  cd ../..
-fi
-
-#=============================================================================
-# Build rav1e (Rust AV1 encoder, BSD)
-#=============================================================================
-echo ""
-echo "=== Building rav1e ${RAV1E_VERSION} ==="
-# rav1e requires Rust toolchain - check if cargo is available
-if command -v cargo &> /dev/null; then
-  git clone --depth 1 --branch "${RAV1E_VERSION}" "${RAV1E_GIT_URL}"
-  cd rav1e
-  cargo install --path . --root "$TARGET" \
-    --target-dir=target \
-    --features=asm,threading \
-    --no-default-features
-  # Build C API library
-  cargo cbuild --release --prefix "$TARGET" \
-    --target-dir=target \
-    --library-type=staticlib
-  cd ..
-else
-  echo "WARNING: Rust/Cargo not found - skipping rav1e"
-  echo "Install Rust from https://rustup.rs/ to enable rav1e support"
-fi
-
-#=============================================================================
-# Build Theora (Ogg video codec, BSD)
-#=============================================================================
-download_verify_extract "Theora ${THEORA_VERSION}" "${THEORA_URL}" "${THEORA_SHA256}" "theora.tar.gz"
-cd "libtheora-${THEORA_VERSION}"
-./configure \
-  --prefix="$TARGET" \
-  --disable-shared \
-  --enable-static \
-  --disable-examples \
-  CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
-  LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$NUM_CPUS"
-make install
-cd ..
-
-#=============================================================================
-# Build Xvid (MPEG-4 ASP codec, GPL)
-#=============================================================================
-download_verify_extract "Xvid ${XVID_VERSION}" "${XVID_URL}" "${XVID_SHA256}" "xvid.tar.gz"
-cd "xvidcore/build/generic"
-./configure \
-  --prefix="$TARGET" \
-  CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
-  LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$NUM_CPUS"
-make install
-cd ../../..
-
-#=============================================================================
-# Build Opus (audio codec, BSD)
-#=============================================================================
-download_verify_extract "Opus ${OPUS_VERSION}" "https://downloads.xiph.org/releases/opus/opus-${OPUS_VERSION}.tar.gz" "${OPUS_SHA256}" "opus.tar.gz"
-cd "opus-${OPUS_VERSION}"
-./configure \
-  --prefix="$TARGET" \
-  --disable-shared \
-  --enable-static \
-  CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
-  LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$NUM_CPUS"
-make install
-cd ..
-
-#=============================================================================
-# Build LAME (MP3 encoder, LGPL)
-#=============================================================================
-download_verify_extract "LAME ${LAME_VERSION}" "https://downloads.sourceforge.net/project/lame/lame/${LAME_VERSION}/lame-${LAME_VERSION}.tar.gz" "${LAME_SHA256}" "lame.tar.gz"
-cd "lame-${LAME_VERSION}"
-./configure \
-  --prefix="$TARGET" \
-  --disable-shared \
-  --enable-static \
-  --enable-nasm \
-  CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
-  LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$NUM_CPUS"
-make install
-
-# LAME doesn't generate pkg-config file, but we'll remove all .pc files later anyway
-cd ..
-
-#=============================================================================
-# Build fdk-aac (High-quality AAC encoder, Non-free)
-#=============================================================================
-echo ""
-echo "=== Building fdk-aac ${FDKAAC_VERSION} ==="
-git clone --depth 1 --branch "${FDKAAC_VERSION}" "${FDKAAC_GIT_URL}"
-cd fdk-aac
-./autogen.sh
-./configure \
-  --prefix="$TARGET" \
-  --disable-shared \
-  --enable-static \
-  CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
-  CXXFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
-  LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$NUM_CPUS"
-make install
-cd ..
-
-#=============================================================================
-# Build FLAC (Free Lossless Audio Codec, BSD)
-#=============================================================================
-download_verify_extract "FLAC ${FLAC_VERSION}" "${FLAC_URL}" "${FLAC_SHA256}" "flac.tar.xz" ""
-cd "flac-${FLAC_VERSION}"
-./configure \
-  --prefix="$TARGET" \
-  --disable-shared \
-  --enable-static \
-  --disable-examples \
-  --disable-cpplibs \
-  CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
-  CXXFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
-  LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$NUM_CPUS"
-make install
-cd ..
-
-#=============================================================================
-# Build Speex (Speech codec, BSD)
-#=============================================================================
-download_verify_extract "Speex ${SPEEX_VERSION}" "${SPEEX_URL}" "${SPEEX_SHA256}" "speex.tar.gz"
-cd "speex-${SPEEX_VERSION}"
-./configure \
-  --prefix="$TARGET" \
-  --disable-shared \
-  --enable-static \
-  CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
-  LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$NUM_CPUS"
-make install
-cd ..
-
-#=============================================================================
-# Build libfreetype (Font rendering, FreeType License)
-#=============================================================================
-download_verify_extract "libfreetype ${FREETYPE_VERSION}" "${FREETYPE_URL}" "${FREETYPE_SHA256}" "freetype.tar.xz" ""
-cd "freetype-${FREETYPE_VERSION}"
-./configure \
-  --prefix="$TARGET" \
-  --disable-shared \
-  --enable-static \
-  --without-harfbuzz \
-  --without-bzip2 \
-  --without-png \
-  CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
-  LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$NUM_CPUS"
-make install
-cd ..
-
-#=============================================================================
-# Build libass (Subtitle rendering, ISC)
-#=============================================================================
-download_verify_extract "libass ${LIBASS_VERSION}" "${LIBASS_URL}" "${LIBASS_SHA256}" "libass.tar.gz"
-cd "libass-${LIBASS_VERSION}"
-./configure \
-  --prefix="$TARGET" \
-  --disable-shared \
-  --enable-static \
-  --disable-require-system-font-provider \
-  CFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
-  LDFLAGS="-arch $ARCH -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}"
-make -j"$NUM_CPUS"
-make install
-cd ..
-
-#=============================================================================
-# Build OpenSSL (Network/TLS support)
-#=============================================================================
-echo ""
-echo "=== Building OpenSSL ${OPENSSL_VERSION} ==="
-# Clean up any previous build
-rm -rf "openssl-${OPENSSL_VERSION}"
-
-# Download and extract OpenSSL
-curl -L "${OPENSSL_URL}" -o "openssl-${OPENSSL_VERSION}.tar.gz"
-tar -xzf "openssl-${OPENSSL_VERSION}.tar.gz"
-cd "openssl-${OPENSSL_VERSION}"
-
-# Configure OpenSSL for macOS
-OPENSSL_TARGET="darwin64-${ARCH}-cc"
-
-./Configure \
-  $OPENSSL_TARGET \
-  --prefix="$TARGET" \
-  --openssldir="$TARGET/ssl" \
-  no-shared \
-  no-tests \
-  enable-static \
-  -mmacosx-version-min="${MACOS_DEPLOYMENT_TARGET}"
-
-make -j"$NUM_CPUS"
-make install_sw install_ssldirs
-cd ..
-
-#=============================================================================
+#######################################
 # Build FFmpeg
-#=============================================================================
-echo ""
-echo "=== Building FFmpeg ${FFMPEG_VERSION} ==="
+#######################################
 
-if [ ! -d ffmpeg ]; then
-  for i in 1 2 3; do
-    git clone --depth 1 --branch "${FFMPEG_VERSION}" https://github.com/FFmpeg/FFmpeg.git ffmpeg && break
-    echo "Clone attempt $i failed, retrying in 10s..."
-    sleep 10
-  done
-  if [ ! -d ffmpeg ]; then
-    echo "ERROR: Failed to clone FFmpeg after 3 attempts"
-    exit 1
-  fi
-fi
+build_ffmpeg() {
+    echo ""
+    echo "=== Building FFmpeg ${FFMPEG_VERSION} ==="
 
-cd ffmpeg
-make distclean 2>/dev/null || true
+    cd "$WORK_DIR"
 
-./configure \
-  --cc="clang -arch $ARCH" \
-  --prefix="$TARGET" \
-  --extra-cflags="-I$TARGET/include -fno-stack-check -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
-  --extra-ldflags="-L$TARGET/lib -mmacosx-version-min=${MACOS_DEPLOYMENT_TARGET}" \
-  --pkg-config-flags="--static" \
-  --enable-static \
-  --disable-shared \
-  --enable-gpl \
-  --enable-version3 \
-  --enable-nonfree \
-  --enable-pthreads \
-  --enable-runtime-cpudetect \
-  --disable-ffplay \
-  --disable-doc \
-  --disable-debug \
-  --enable-libx264 \
-  --enable-libx265 \
-  --enable-libvpx \
-  --enable-libaom \
-  --enable-libsvtav1 \
-  --enable-libtheora \
-  --enable-libxvid \
-  --enable-libopus \
-  --enable-libmp3lame \
-  --enable-libfdk-aac \
-  --enable-libspeex \
-  --enable-libfreetype \
-  --enable-libass \
-  --enable-videotoolbox
+    if [[ ! -d ffmpeg ]]; then
+        for i in 1 2 3; do
+            git clone --depth 1 --branch "${FFMPEG_VERSION}" \
+                https://github.com/FFmpeg/FFmpeg.git ffmpeg && break
+            echo "Clone attempt $i failed, retrying in 10s..."
+            sleep 10
+        done
+        if [[ ! -d ffmpeg ]]; then
+            echo "ERROR: Failed to clone FFmpeg after 3 attempts"
+            exit 1
+        fi
+    fi
 
-make -j"$NUM_CPUS"
-make install
-cd ..
+    cd ffmpeg
+    make distclean 2>/dev/null || true
 
-#=============================================================================
-# Clean up build artifacts not needed for distribution
-#=============================================================================
-echo ""
-echo "=== Cleaning up build artifacts ==="
+    ./configure \
+        --cc="clang -arch $MACOS_ARCH" \
+        --prefix="$PREFIX" \
+        --extra-cflags="-I$PREFIX/include -fno-stack-check -mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET" \
+        --extra-ldflags="-L$PREFIX/lib -mmacosx-version-min=$MACOS_DEPLOYMENT_TARGET" \
+        --pkg-config-flags="--static" \
+        --enable-static \
+        --disable-shared \
+        --enable-gpl \
+        --enable-version3 \
+        --enable-nonfree \
+        --enable-pthreads \
+        --enable-runtime-cpudetect \
+        --disable-ffplay \
+        --disable-doc \
+        --disable-debug \
+        --enable-libx264 \
+        --enable-libx265 \
+        --enable-libvpx \
+        --enable-libaom \
+        --enable-libsvtav1 \
+        --enable-libdav1d \
+        --enable-libtheora \
+        --enable-libxvid \
+        --enable-libvorbis \
+        --enable-libopus \
+        --enable-libmp3lame \
+        --enable-libfdk-aac \
+        --enable-libspeex \
+        --enable-libfreetype \
+        --enable-libass \
+        --enable-openssl \
+        --enable-videotoolbox
 
-# Remove pkgconfig files (not needed for static builds)
-if [[ -d "$TARGET/lib/pkgconfig" ]]; then
-  echo "Removing pkgconfig files..."
-  rm -rf "$TARGET/lib/pkgconfig"
-fi
+    local num_cpus
+    num_cpus=$(sysctl -n hw.ncpu)
+    make -j"$num_cpus"
+    make install
 
-# Remove libtool .la files (can cause issues with relocation)
-if find "$TARGET/lib" -name "*.la" -type f 2>/dev/null | grep -q .; then
-  echo "Removing libtool .la files..."
-  find "$TARGET/lib" -name "*.la" -type f -delete
-fi
+    cd "$WORK_DIR"
+}
 
-# Remove CMake files (not needed for distribution)
-if [[ -d "$TARGET/lib/cmake" ]]; then
-  echo "Removing CMake files..."
-  rm -rf "$TARGET/lib/cmake"
-fi
+#######################################
+# Cleanup build artifacts
+#######################################
 
-echo "✓ Build artifacts cleaned"
+cleanup_artifacts() {
+    echo ""
+    echo "=== Cleaning up build artifacts ==="
 
-#=============================================================================
+    # Remove pkgconfig files (not needed for static builds)
+    if [[ -d "$PREFIX/lib/pkgconfig" ]]; then
+        echo "Removing pkgconfig files..."
+        rm -rf "$PREFIX/lib/pkgconfig"
+    fi
+
+    # Remove libtool .la files (can cause issues with relocation)
+    if find "$PREFIX/lib" -name "*.la" -type f 2>/dev/null | grep -q .; then
+        echo "Removing libtool .la files..."
+        find "$PREFIX/lib" -name "*.la" -type f -delete
+    fi
+
+    # Remove CMake files (not needed for distribution)
+    if [[ -d "$PREFIX/lib/cmake" ]]; then
+        echo "Removing CMake files..."
+        rm -rf "$PREFIX/lib/cmake"
+    fi
+
+    echo "Build artifacts cleaned"
+}
+
+#######################################
 # Verify and strip binaries
-#=============================================================================
-echo ""
-echo "=== Verifying macOS binaries ==="
-otool -L "$TARGET/bin/ffmpeg"
-otool -L "$TARGET/bin/ffprobe"
+#######################################
 
-echo ""
-echo "=== Stripping debug symbols ==="
-strip "$TARGET/bin/ffmpeg"
-strip "$TARGET/bin/ffprobe"
+verify_build() {
+    echo ""
+    echo "=== Verifying macOS binaries ==="
+    otool -L "$PREFIX/bin/ffmpeg"
+    otool -L "$PREFIX/bin/ffprobe"
 
-echo ""
-echo "=========================================="
-echo "Build Complete: $PLATFORM"
-echo "=========================================="
-echo "Target: $TARGET"
-echo ""
-ls -lh "$TARGET"/bin/*
-echo ""
+    echo ""
+    echo "=== Stripping debug symbols ==="
+    strip "$PREFIX/bin/ffmpeg"
+    strip "$PREFIX/bin/ffprobe"
 
-# Run verification
-echo "Running verification..."
-"$SCRIPT_DIR/verify.sh" "$PLATFORM"
+    echo ""
+    echo "=========================================="
+    echo "Build Complete: $PLATFORM"
+    echo "=========================================="
+    echo "Target: $PREFIX"
+    echo ""
+    ls -lh "$PREFIX"/bin/*
+    echo ""
 
-echo ""
-echo "✓ macOS build succeeded: $PLATFORM"
+    # Run full verification
+    echo "Running verification..."
+    "$SCRIPT_DIR/verify.sh" "$PLATFORM"
+
+    echo ""
+    echo "macOS build succeeded: $PLATFORM"
+}
+
+#######################################
+# Main Build Sequence
+#######################################
+
+main() {
+    setup_ccache
+    install_prerequisites
+
+    # Clean previous builds
+    cd "$WORK_DIR"
+    rm -rf x264 x265_git libvpx aom aom_build opus-* lame-* nasm-* \
+        SVT-AV1 rav1e libtheora-* xvidcore speex-* flac-* \
+        fdk-aac freetype-* libass-* libogg-* libvorbis-* \
+        openssl-* dav1d-*
+
+    # === Build Tools ===
+    build_codec nasm
+
+    # === Video Codecs ===
+    build_codec x264
+    build_codec x265    # Auto-detects ARM64 and disables ASM
+    build_codec libvpx
+    build_codec libaom
+    build_codec dav1d
+    build_codec svt-av1
+    build_codec theora
+    build_codec xvid
+
+    # === Audio Codecs (ogg must come before vorbis) ===
+    build_codec ogg
+    build_codec vorbis
+    build_codec opus
+    build_codec lame
+    build_codec fdk-aac
+    build_codec flac
+    build_codec speex
+
+    # === Support Libraries ===
+    build_codec freetype
+    build_codec libass
+    build_codec openssl  # Auto-detects macOS target
+
+    # === Build FFmpeg ===
+    build_ffmpeg
+
+    # === Cleanup and Verify ===
+    cleanup_artifacts
+    verify_build
+}
+
+main "$@"

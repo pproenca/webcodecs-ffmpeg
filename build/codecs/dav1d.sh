@@ -33,14 +33,26 @@ build_dav1d() {
 
     enter "dav1d-${DAV1D_VERSION}"
 
-    run meson setup build \
-        --prefix="$PREFIX" \
-        --libdir=lib \
-        --default-library=static \
-        --buildtype=release \
-        -Denable_tools=false \
-        -Denable_tests=false \
+    # Build meson args
+    local meson_args=(
+        --prefix="$PREFIX"
+        --libdir=lib
+        --default-library=static
+        --buildtype=release
+        -Denable_tools=false
+        -Denable_tests=false
         -Denable_examples=false
+    )
+
+    # Pass macOS-specific flags via meson's c_args/c_link_args
+    if [[ -n "${EXTRA_CFLAGS:-}" ]]; then
+        meson_args+=("-Dc_args=${EXTRA_CFLAGS}")
+    fi
+    if [[ -n "${EXTRA_LDFLAGS:-}" ]]; then
+        meson_args+=("-Dc_link_args=${EXTRA_LDFLAGS}")
+    fi
+
+    run meson setup build "${meson_args[@]}"
 
     run ninja -C build
     run ninja -C build install

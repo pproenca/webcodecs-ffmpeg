@@ -33,6 +33,12 @@ build_svt_av1() {
     run mkdir SVT-AV1/build
     enter SVT-AV1/build
 
+    # Parse EXTRA_CMAKE_FLAGS into array
+    local extra_cmake_flags=()
+    if [[ -n "${EXTRA_CMAKE_FLAGS:-}" ]]; then
+        read -ra extra_cmake_flags <<< "$EXTRA_CMAKE_FLAGS"
+    fi
+
     run cmake -G "Unix Makefiles" \
         -DCMAKE_INSTALL_PREFIX="$PREFIX" \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
@@ -42,6 +48,7 @@ build_svt_av1() {
         -DBUILD_APPS=OFF \
         -DBUILD_DEC=OFF \
         -DBUILD_TESTING=OFF \
+        ${extra_cmake_flags[@]+"${extra_cmake_flags[@]}"} \
         ..
 
     run make -j"$(nproc_safe)"

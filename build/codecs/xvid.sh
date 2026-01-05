@@ -34,7 +34,8 @@ build_xvid() {
 
     run ./configure \
         --prefix="$PREFIX" \
-        CFLAGS="-fPIC"
+        CFLAGS="${EXTRA_CFLAGS:+$EXTRA_CFLAGS }-fPIC" \
+        LDFLAGS="${EXTRA_LDFLAGS:-}"
 
     run make -j"$(nproc_safe)"
     run make install

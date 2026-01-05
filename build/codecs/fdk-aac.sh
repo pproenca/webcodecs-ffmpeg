@@ -39,8 +39,9 @@ build_fdk_aac() {
         --disable-shared \
         --enable-static \
         --with-pic \
-        CFLAGS="-fPIC" \
-        CXXFLAGS="-fPIC"
+        CFLAGS="${EXTRA_CFLAGS:+$EXTRA_CFLAGS }-fPIC" \
+        CXXFLAGS="${EXTRA_CFLAGS:+$EXTRA_CFLAGS }-fPIC" \
+        LDFLAGS="${EXTRA_LDFLAGS:-}"
 
     run make -j"$(nproc_safe)"
     run make install

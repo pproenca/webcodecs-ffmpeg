@@ -39,8 +39,9 @@ build_flac() {
         --with-pic \
         --disable-examples \
         --disable-cpplibs \
-        CFLAGS="-fPIC" \
-        CXXFLAGS="-fPIC"
+        CFLAGS="${EXTRA_CFLAGS:+$EXTRA_CFLAGS }-fPIC" \
+        CXXFLAGS="${EXTRA_CFLAGS:+$EXTRA_CFLAGS }-fPIC" \
+        LDFLAGS="${EXTRA_LDFLAGS:-}"
 
     run make -j"$(nproc_safe)"
     run make install

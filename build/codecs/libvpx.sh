@@ -44,9 +44,22 @@ build_libvpx() {
         --enable-pic
     )
 
+    # Determine architecture
+    local arch="${MACOS_ARCH:-$(uname -m)}"
+
+    # macOS needs explicit target
+    if is_macos; then
+        local darwin_version
+        darwin_version="$(uname -r | cut -d. -f1)"
+        configure_args+=("--target=${arch}-darwin${darwin_version}-gcc")
+        # Pass deployment target via LDFLAGS
+        if [[ -n "${EXTRA_LDFLAGS:-}" ]]; then
+            configure_args+=("--extra-cflags=${EXTRA_CFLAGS:-}")
+            configure_args+=("--extra-ldflags=${EXTRA_LDFLAGS:-}")
+        fi
+    fi
+
     # YASM is x86-only, skip on ARM
-    local arch
-    arch=$(uname -m)
     if [[ "$arch" == "x86_64" || "$arch" == "i386" || "$arch" == "i686" ]]; then
         configure_args+=(--as=yasm)
     fi

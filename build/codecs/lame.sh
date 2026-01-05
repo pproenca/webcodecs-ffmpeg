@@ -48,7 +48,9 @@ build_lame() {
         configure_args+=(--enable-nasm)
     fi
 
-    run ./configure "${configure_args[@]}" CFLAGS="-fPIC"
+    run ./configure "${configure_args[@]}" \
+        CFLAGS="${EXTRA_CFLAGS:+$EXTRA_CFLAGS }-fPIC" \
+        LDFLAGS="${EXTRA_LDFLAGS:-}"
 
     run make -j"$(nproc_safe)"
     run make install

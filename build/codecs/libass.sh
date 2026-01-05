@@ -39,7 +39,8 @@ build_libass() {
         --enable-static \
         --with-pic \
         --disable-require-system-font-provider \
-        CFLAGS="-fPIC"
+        CFLAGS="${EXTRA_CFLAGS:+$EXTRA_CFLAGS }-fPIC" \
+        LDFLAGS="${EXTRA_LDFLAGS:-}"
 
     run make -j"$(nproc_safe)"
     run make install

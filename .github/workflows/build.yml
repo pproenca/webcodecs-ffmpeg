@@ -129,6 +129,25 @@ jobs:
         if: ${{ !matrix.uses_docker }}
         run: brew install ccache
 
+      # Cache ccache directory for faster macOS rebuilds
+      - name: Setup ccache cache (macOS)
+        if: ${{ !matrix.uses_docker }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ matrix.platform }}-${{ github.sha }}
+          restore-keys: |
+            ccache-${{ matrix.platform }}-
+
+      # Configure ccache (macOS)
+      - name: Configure ccache (macOS)
+        if: ${{ !matrix.uses_docker }}
+        run: |
+          ccache --set-config=cache_dir=~/.ccache
+          ccache --set-config=max_size=2G
+          ccache --set-config=compression=true
+          ccache -z  # Zero stats for this build
+
       # Build the platform
       - name: Build ${{ matrix.platform }}
         run: |
@@ -137,6 +156,13 @@ jobs:
         env:
           # Pass skip_cache flag for Docker builds
           SKIP_CACHE: ${{ inputs.skip_cache || 'false' }}
+
+      # Show ccache stats after build (macOS)
+      - name: Show ccache stats (macOS)
+        if: ${{ !matrix.uses_docker }}
+        run: |
+          echo "=== ccache statistics ==="
+          ccache -s
 
       # Package artifacts
       - name: Package artifacts
