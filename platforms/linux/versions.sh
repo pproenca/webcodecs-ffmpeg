@@ -45,7 +45,7 @@ LAME_SHA256=ddfe36cab873794038ae2c1210557ad34857a4b6bdc515785d1da9e175b1da1e
 
 VORBIS_VERSION=1.3.7
 VORBIS_URL=https://ftp.osuosl.org/pub/xiph/releases/vorbis/libvorbis-1.3.7.tar.gz
-VORBIS_SHA256=b33cc4934322bcbf6efcbacf49e3ca01aadbea4114ec9589d1b1e9d20f72954b
+VORBIS_SHA256=0e982409a9c3fc82ee06e08205b1355e5c6aa4c36bca58146ef399621b0ce5ab
 
 OGG_VERSION=1.3.6
 OGG_URL=https://ftp.osuosl.org/pub/xiph/releases/ogg/libogg-1.3.6.tar.gz
