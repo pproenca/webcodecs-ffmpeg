@@ -1,0 +1,31 @@
+# =============================================================================
+# libogg - Ogg Container Format (BSD-3-Clause)
+# =============================================================================
+# Required dependency for libvorbis.
+# Uses autoconf build system.
+# =============================================================================
+
+OGG_SRC := $(SOURCES_DIR)/ogg-$(patsubst v%,%,$(OGG_VERSION))
+
+ogg.stamp:
+	$(call log_info,Building libogg $(OGG_VERSION)...)
+	@mkdir -p $(SOURCES_DIR) $(STAMPS_DIR)
+	$(call download_and_extract,ogg,$(OGG_URL),$(SOURCES_DIR))
+	cd $(OGG_SRC) && \
+		./autogen.sh && \
+		./configure \
+			--prefix=$(PREFIX) \
+			--enable-static \
+			--disable-shared \
+			--with-pic \
+			CFLAGS="$(CFLAGS)" \
+			LDFLAGS="$(LDFLAGS)" && \
+		$(MAKE) -j$(NPROC) && \
+		$(MAKE) install
+	$(call verify_static_lib,libogg,$(PREFIX))
+	@touch $(STAMPS_DIR)/$@
+
+.PHONY: ogg-clean
+ogg-clean:
+	$(call clean_codec,ogg,$(SOURCES_DIR))
+	rm -f $(STAMPS_DIR)/ogg.stamp
