@@ -41,6 +41,7 @@ require() {
     if [[ "$DRY_RUN" == "1" ]]; then
         log_cmd "$var=${!var}"
     fi
+    return 0
 }
 
 # Check if URL is reachable (used in dry-run mode)
