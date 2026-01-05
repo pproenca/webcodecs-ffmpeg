@@ -31,10 +31,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Run dry-run validation
+      - name: Validate build scripts exist
         run: |
-          chmod +x build/dry-run.sh
-          ./build/dry-run.sh
+          echo "Validating platform build scripts..."
+          for script in \
+            platforms/darwin/arm64/build.sh \
+            platforms/darwin/x64/build.sh \
+            platforms/linux/glibc/x64/build.sh \
+            platforms/linux/glibc/arm64/build.sh \
+            platforms/linux/glibc/armv7/build.sh \
+            platforms/linux/musl/x64/build.sh \
+            platforms/linux/musl/arm64/build.sh \
+            platforms/windows/x64/build.sh; do
+            if [[ -f "$script" ]]; then
+              echo "✓ $script"
+            else
+              echo "✗ $script NOT FOUND"
+              exit 1
+            fi
+          done
+          echo "All build scripts validated"
 
   # ==========================================================================
   # Matrix Build - All Platforms in Parallel
@@ -53,27 +69,35 @@ jobs:
           - platform: linux-x64-glibc
             runner: ubuntu-24.04
             uses_docker: true
+            build_script: platforms/linux/glibc/x64/build.sh
           - platform: linux-x64-musl
             runner: ubuntu-24.04
             uses_docker: true
+            build_script: platforms/linux/musl/x64/build.sh
           - platform: linux-arm64-glibc
             runner: ubuntu-24.04
             uses_docker: true
+            build_script: platforms/linux/glibc/arm64/build.sh
           - platform: linux-arm64-musl
             runner: ubuntu-24.04
             uses_docker: true
+            build_script: platforms/linux/musl/arm64/build.sh
           - platform: linux-armv7-glibc
             runner: ubuntu-24.04
             uses_docker: true
+            build_script: platforms/linux/glibc/armv7/build.sh
           - platform: windows-x64
             runner: ubuntu-24.04
             uses_docker: true
+            build_script: platforms/windows/x64/build.sh
           - platform: darwin-x64
             runner: macos-15-intel
             uses_docker: false
+            build_script: platforms/darwin/x64/build.sh
           - platform: darwin-arm64
             runner: macos-15
             uses_docker: false
+            build_script: platforms/darwin/arm64/build.sh
 
     steps:
       - name: Checkout
@@ -91,38 +115,6 @@ jobs:
       - name: Set up Docker Buildx
         if: matrix.uses_docker
         uses: docker/setup-buildx-action@v3
-
-      # Load versions into environment
-      - name: Load versions from versions.properties
-        run: |
-          # Verify file exists
-          if [[ ! -f versions.properties ]]; then
-            echo "ERROR: versions.properties file not found!"
-            echo "The build requires versions.properties to define FFmpeg and codec versions."
-            exit 1
-          fi
-
-          # Check file is not empty
-          if [[ ! -s versions.properties ]]; then
-            echo "ERROR: versions.properties file is empty!"
-            exit 1
-          fi
-
-          echo "Loading versions from versions.properties..."
-
-          # Parse and load into environment
-          while IFS='=' read -r key value; do
-            # Skip comments and empty lines
-            [[ "$key" =~ ^#.*$ || -z "$key" ]] && continue
-            # Remove leading/trailing whitespace
-            key=$(echo "$key" | xargs)
-            value=$(echo "$value" | xargs)
-            # Export to GitHub environment
-            echo "$key=$value" >> "$GITHUB_ENV"
-            echo "  $key=$value"
-          done < versions.properties
-
-          echo "Versions loaded successfully"
 
       # Install ccache for macOS native builds
       - name: Install ccache (macOS)
@@ -151,11 +143,8 @@ jobs:
       # Build the platform
       - name: Build ${{ matrix.platform }}
         run: |
-          chmod +x build/orchestrator.sh
-          ./build/orchestrator.sh ${{ matrix.platform }}
-        env:
-          # Pass skip_cache flag for Docker builds
-          SKIP_CACHE: ${{ inputs.skip_cache || 'false' }}
+          chmod +x ${{ matrix.build_script }}
+          ./${{ matrix.build_script }}
 
       # Show ccache stats after build (macOS)
       - name: Show ccache stats (macOS)
@@ -219,8 +208,8 @@ jobs:
       # Create universal binary
       - name: Create universal binary
         run: |
-          chmod +x build/create-universal.sh
-          ./build/create-universal.sh
+          chmod +x platforms/darwin/create-universal.sh
+          ./platforms/darwin/create-universal.sh
 
       # Verify universal binary
       - name: Verify universal binary
