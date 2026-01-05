@@ -236,7 +236,7 @@ RUN cd ${SOURCES} && \
 # Build SVT-AV1 (Intel's AV1 encoder)
 RUN cd ${SOURCES} && \
     git clone --depth 1 --branch ${SVTAV1_VERSION} https://gitlab.com/AOMediaCodec/SVT-AV1.git && \
-    mkdir SVT-AV1/build && \
+    mkdir -p SVT-AV1/build && \
     cd SVT-AV1/build && \
     cmake -G "Unix Makefiles" \
         -DCMAKE_SYSTEM_NAME=Windows \

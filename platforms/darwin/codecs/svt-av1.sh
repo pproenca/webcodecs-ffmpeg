@@ -30,7 +30,7 @@ build_svt_av1() {
     fi
     run git clone --depth 1 --branch "${SVTAV1_VERSION}" "$git_url"
 
-    run mkdir SVT-AV1/build
+    run mkdir -p SVT-AV1/build
     enter SVT-AV1/build
 
     # Parse EXTRA_CMAKE_FLAGS into array
