@@ -1,0 +1,58 @@
+Clone following git repository using command line like this:
+
+{{{
+git clone https://github.com/microsoft/vcpkg
+cd vcpkg
+}}}
+
+Run {{{bootstrap-vcpkg.bat}}} on windows, {{{bootstrap-vcpkg.sh}}} on linux.
+
+Determine for which platform you want to build. To see existing platforms - check subfolder {{{triplets}}}.
+
+Detailed information can be found from here: https://vcpkg.readthedocs.io/en/latest/users/triplets/
+
+If you wish to build only windows release build, no debug - then copy {{{x64-windows.cmake}}} to {{{x64-windows-rel.cmake}}}, and add there following
+text:
+
+{{{
+set(VCPKG_TARGET_ARCHITECTURE x64)
+set(VCPKG_CRT_LINKAGE dynamic)
+set(VCPKG_LIBRARY_LINKAGE dynamic)
+set(VCPKG_BUILD_TYPE release)
+}}}
+
+ffmpeg package description can be found from {{{ports/ffmpeg/CONTROL}}} file - including what is build by default -
+see {{{Default-Features}}} tag, and feature list.
+
+Build ffmpeg using command line like this:
+
+{{{
+vcpkg install ffmpeg
+
+       - Builds debug and release versions
+
+vcpkg install ffmpeg:x64-windows-rel
+
+       - Builds release only version
+
+vcpkg install ffmpeg[core,ffmpeg,swresample,swscale,avdevice]:x64-windows-rel
+
+       - Using 'core' overrides features <Default-Features> list, after which you can list features which you want.
+
+         As feature list I have added ffmpeg with resize, scale / etc features - other features can be found from CONTROL file.
+
+         Please note that adding new feature reflects to for example ffmpeg compilation options, so better to figure out full feature
+         list right away - no need to rebuild same libraries later on.
+}}}
+
+You can use also {{{--dry-run}}} to determine that you're making right thing:
+
+{{{
+>vcpkg install ffmpeg[core,ffmpeg,swresample,swscale,avdevice]:x64-windows-rel --dry-run
+Computing installation plan...
+The following packages are already installed:
+    ffmpeg[avcodec,avdevice,avfilter,avformat,core,ffmpeg,swresample,swscale]:x64-windows-rel
+}}}
+
+
+Built binaries will be located in {{{installed\<platformname>}}}.

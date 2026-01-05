@@ -1,0 +1,95 @@
+This page provides some generic instructions for compiling a project starting from the source code package under Unix and derivatives. Note that the basic principles are shared by most Linux / Unix distributions and MinGW.
+
+Note that in this guide there is nothing strictly specific to FFmpeg.
+
+== Why to compile from source ==
+
+Binary packages are usually provided by third party packagers for many platforms, but in some cases they are not an option for several reasons:
+* The binary packages is outdated or contains critical bugs or is missing required features which are available in the later version of the software.
+* You need to customize the build, for example to support a particular installation layout, to get platform-specific optimizations or to link against particular libraries which are not supported in the binary package.
+* You want to customize the software by editing the source code.
+
+In all these cases building a package from source looks like the best solution.
+
+== Overview ==
+
+Most source packages installation assumes the following steps:
+* configuration (with a configure script)
+* compilation (with {{{make}}})
+* installation (with {{{make install}}})
+
+Configuration will allow creation of the necessary files required by the following compilation step, and is done through a configure script usually provided by the source package.
+During configuration it is possible to define the install prefix and the enabled components.
+
+Compilation usually consists of running make after the configuration step completes. In this phase the required libraries and binaries are generated.
+
+Installation will install binaries and libraries in the path specified during the configuration step. Note that this step is not really required since you can use the binaries compiled in the compilation path.
+
+For a vanilla compilation and install you will usually run the following commands:
+{{{
+./configure
+make
+make install
+}}}
+
+This will compile the project files in the source directory, and will install the libraries in {{{/usr/local}}}. The third step may require super-user rights (so it may need to be replaced by {{{sudo make install}}}), since {{{/usr/local}}} cannot be modified by regular users.
+
+== Install path ==
+
+A package consists of several related files which are installed in several directories. The configure step usually allows the user to specify the so-called install prefix, and is usually specified through the configure option {{{configure --prefix=PREFIX}}}, where PREFIX usually is by default {{{/usr/local}}}. The prefix specifies the common directory where all the components are installed.
+
+The following directories are usually involved in the installation:
+* `PREFIX/bin`: contains the generated binaries (e.g. {{{ffmpeg}}}, {{{ffplay}}}, {{{ffprobe}}} etc. in the case of FFmpeg)
+* `PREFIX/include`: contains the library headers (e.g. {{{libavutil/avstring.h}}}, {{{libavcodec/avcodec.h}}}, {{{libavformat/avformat.h}}} etc. in case of FFmpeg) required to compile applications linked against the package libraries
+* `PREFIX/lib`: contains the generated libraries (e.g. {{{libavutil}}}, {{{libavcodec}}}, {{{libavformat}}} etc. in the case of FFmpeg) 
+* `PREFIX/share`: contains various system-independent components; especially documentation files and examples
+
+By specifying the prefix it is possible to define the installation layout.
+
+By using a shared prefix like {{{/usr/local/}}}, different packages will be installed in the same directory, so in general it will be more difficult to revert the installation.
+
+Using a prefix like {{{/opt/PROJECT/}}}, the project will be installed in a dedicated directory, and to remove from the system you can simply remove the {{{/opt/PREFIX}}} path. On the other hand, such installation will require to edit all the environment variables to point to the custom path.
+
+
+== Environment variables ==
+
+Several variables defined in the environment affect your package install. In particular, depending on your installation prefix, you may need to update some of these variables in order to make sure that the installed components can be found by the system tools.
+
+The list of environment variables can be shown through the command {{{env}}}.
+
+A list of the affected variables follows:
+
+* `PATH`: defines the list of {{{:}}}-separated paths where the system looks for binaries. For example if you install your package in {{{/usr/local/}}}, you should update the PATH so that it will contain {{{/usr/local/bin}}}. This can be done for example through the command {{{export PATH=/usr/local/bin:$PATH}}}.
+* `LD_LIBRARY_PATH`: contains the {{{:}}}-separated paths where the system looks for libraries. For example if you install your package in {{{/usr/local/}}}, you should update the LD_LIBRARY_PATH so that it will contain {{{/usr/local/lib}}}. This can be done for example through the command {{{export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH}}}. This variable is sometimes deprecated in favor of the use of {{{ldconfig}}}.
+* `CFLAGS`: contains flags used by the C compiler, and usually includes preprocessing directives like {{{-IPREFIX/include}}} or compilation flags. Custom CFLAGS are usually prefixed to the source package compiler flags by the source package build system. Alternatively many build systems allow to specify the configure option {{{-extra-cflags}}}. 
+* `LDFLAGS`: these are directives used by the linker, and usually include linking directives like {{{-LPREFIX/lib}}} needed to find libraries installed in custom paths. Custom LDFLAGS are usually prefixed to the source package linker flags by the source package build system. Alternatively, many build systems allow to specify the configure option {{{-extra-ldflags}}}.
+* `PKG_CONFIG_PATH`: contains the {{{:}}}-separated paths used by {{{pkg-config}}} to detect the pkg-config files used by many build systems to detect the custom CFLAGS/LDFLAGS used by a specific library.
+
+In case you installed a package in a non standard path, you need to update these environment libraries so that system tools will be able to detect the package components. This is especially required when running a configure script for a package relying on other installed libraries/headers/tools. 
+
+Environment variables are usually defined in the profile file, for example {{{.profile}}} defined in the user directory for sh/bash users, and in {{{/etc/profile}}}. This file can be edited to permanently set the custom environment. Alternatively, the variables can be set in a script or in a particular shell session.
+
+Remember to export the variables to the child process, e.g. using the {{{export}}} command. Read the fine documentation of your shell for more detailed information.  
+
+== `LD_LIBRARY_PATH` and `ldconfig` ==
+
+When you link a library depending on other libraries the tools will look for the libraries to link in a list of standard paths (typically {{{/usr/lib}}}) and in other paths which are set in the system. Some systems rely on the {{{LD_LIBRARY_PATH}}} library. Alternatively, you may set the global path through the {{{ldconfig}}} utility, which is done editing the {{{/etc/ld.so.conf}}} system configuration file.
+
+Note that on some systems the {{{LD_LIBRARY_PATH}}} variable defined in the shell profile is reset for security reasons (e.g. see https://bugs.launchpad.net/ubuntu/+source/xorg/+bug/366728), so you may need to reset it per-session or per-script.
+
+== Configuration prerequisites and distribution packages ==
+
+When configuring a package, you may be required to check for the presence of some required libraries and headers. Many distribution will provide binary packages for the required libraries, so you may rely on these packages rather than compile and install from scratch.
+
+In general, for a library you will need the library package and the development package associated to that library. The library package contains only the library, the development package will contain also the headers and the other files which are required for compiling a package depending on those libraries. On Debian-based distribution systems, the development packages have the -dev suffix, on RedHat-based distribution systems, they have the -devel suffix. Some distributions, such as Arch Linux, do not separate their packages and the standard package will also contain the necessary development files.
+
+For example on Debian, if you want to configure FFmpeg with {{{--enable-libmp3lame}}}, you will need to install the libmp3lame development package named {{{libmp3lame-dev}}}.
+
+You should also make sure that the library version provided by the distribution is compatible with the one required by the configured source package. If the required package is more recent than the library version provided by your distribution, you may need to install from source.
+
+
+== Post-installation troubleshooting ==
+
+First of all verify that the binaries, headers and libraries have been installed in the supposed location (along the `PREFIX` path). To verify the binaries install you can simply run a command with the tool name, and verify the complete path with {{{which -a}}}, which will show all the tools with the given name available in the system.
+
+Extra care must be paid in case you have several installations of the same package in order to avoid conflicts.
