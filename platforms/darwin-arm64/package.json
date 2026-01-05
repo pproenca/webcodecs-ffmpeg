@@ -1,0 +1,29 @@
+{
+  "name": "@pproenca/ffmpeg-darwin-arm64",
+  "version": "7.1.0",
+  "description": "Prebuilt FFmpeg binaries for macOS 64-bit ARM",
+  "author": "Pedro Proença",
+  "homepage": "https://github.com/pproenca/ffmpeg-prebuilds",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pproenca/ffmpeg-prebuilds.git",
+    "directory": "platforms/darwin-arm64"
+  },
+  "license": "LGPL-3.0-or-later",
+  "preferUnplugged": true,
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "bin",
+    "lib",
+    "include",
+    "versions.json"
+  ],
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ]
+}
