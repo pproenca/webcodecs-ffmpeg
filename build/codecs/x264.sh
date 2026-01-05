@@ -9,11 +9,7 @@
 #   DRY_RUN=1      - Echo commands instead of running
 #   WORK_DIR       - Build directory (default: /tmp)
 
-# Debug: show we're starting
-echo "[DEBUG] x264.sh starting, shell=$0, bash=${BASH_VERSION:-not-bash}"
-echo "[DEBUG] PREFIX=${PREFIX:-unset} X264_VERSION=${X264_VERSION:-unset}"
-
-set -euo pipefail
+set -euxo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
