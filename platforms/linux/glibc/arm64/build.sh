@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+#
+# Linux arm64 glibc FFmpeg Build
+#
+# Uses toolchain-only Docker image with mounted build scripts.
+# Toolchain image is cached; rebuilds only when toolchain changes.
+#
+# Usage: ./platforms/linux/glibc/arm64/build.sh
+
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -7,24 +15,37 @@ LINUX_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 PLATFORM="linux-arm64-glibc"
 DOCKER_PLATFORM="linux/arm64"
-DOCKER_IMAGE="ffmpeg-builder:$PLATFORM"
+DOCKER_IMAGE="ffmpeg-toolchain:glibc"
+DOCKERFILE="$LINUX_DIR/toolchain/glibc.Dockerfile"
 
 echo "=========================================="
-echo "Docker Build: $PLATFORM"
+echo "Building: $PLATFORM"
 echo "=========================================="
 
+# Step 1: Build toolchain image (cached if unchanged)
+echo ">>> Building toolchain image (cached if Dockerfile unchanged)..."
 docker buildx build \
     --platform "$DOCKER_PLATFORM" \
     --tag "$DOCKER_IMAGE" \
-    --file "$SCRIPT_DIR/Dockerfile" \
+    --file "$DOCKERFILE" \
     --load \
-    "$LINUX_DIR"
+    "$LINUX_DIR/toolchain"
 
-CONTAINER_ID=$(docker create "$DOCKER_IMAGE")
+# Step 2: Run build with mounted source
+echo ">>> Running build inside container..."
 mkdir -p "$PROJECT_ROOT/artifacts/$PLATFORM"
-docker cp "$CONTAINER_ID:/build/bin" "$PROJECT_ROOT/artifacts/$PLATFORM/"
-docker cp "$CONTAINER_ID:/build/lib" "$PROJECT_ROOT/artifacts/$PLATFORM/"
-docker cp "$CONTAINER_ID:/build/include" "$PROJECT_ROOT/artifacts/$PLATFORM/"
-docker rm "$CONTAINER_ID"
 
-echo "Build Complete: $PROJECT_ROOT/artifacts/$PLATFORM"
+docker run --rm \
+    --platform "$DOCKER_PLATFORM" \
+    -e PLATFORM="$PLATFORM" \
+    -e OPENSSL_TARGET="linux-aarch64" \
+    -v "$LINUX_DIR:/src:ro" \
+    -v "$PROJECT_ROOT/artifacts/$PLATFORM:/build" \
+    "$DOCKER_IMAGE" \
+    /src/build-inside-container.sh
+
+echo ""
+echo "=========================================="
+echo "Build Complete: $PLATFORM"
+echo "=========================================="
+echo "Output: $PROJECT_ROOT/artifacts/$PLATFORM"

@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
 #
-# Linux x64 glibc FFmpeg Build (Docker)
+# Linux x64 glibc FFmpeg Build
+#
+# Uses toolchain-only Docker image with mounted build scripts.
+# Toolchain image is cached; rebuilds only when toolchain changes.
 #
 # Usage: ./platforms/linux/glibc/x64/build.sh
-#
 
 set -euo pipefail
 
@@ -13,27 +15,34 @@ LINUX_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 PLATFORM="linux-x64-glibc"
 DOCKER_PLATFORM="linux/amd64"
-DOCKER_IMAGE="ffmpeg-builder:$PLATFORM"
+DOCKER_IMAGE="ffmpeg-toolchain:glibc"
+DOCKERFILE="$LINUX_DIR/toolchain/glibc.Dockerfile"
 
 echo "=========================================="
-echo "Docker Build: $PLATFORM"
+echo "Building: $PLATFORM"
 echo "=========================================="
 
-# Build Docker image
+# Step 1: Build toolchain image (cached if unchanged)
+echo ">>> Building toolchain image (cached if Dockerfile unchanged)..."
 docker buildx build \
     --platform "$DOCKER_PLATFORM" \
     --tag "$DOCKER_IMAGE" \
-    --file "$SCRIPT_DIR/Dockerfile" \
+    --file "$DOCKERFILE" \
     --load \
-    "$LINUX_DIR"
+    "$LINUX_DIR/toolchain"
 
-# Extract artifacts
-CONTAINER_ID=$(docker create "$DOCKER_IMAGE")
+# Step 2: Run build with mounted source
+echo ">>> Running build inside container..."
 mkdir -p "$PROJECT_ROOT/artifacts/$PLATFORM"
-docker cp "$CONTAINER_ID:/build/bin" "$PROJECT_ROOT/artifacts/$PLATFORM/"
-docker cp "$CONTAINER_ID:/build/lib" "$PROJECT_ROOT/artifacts/$PLATFORM/"
-docker cp "$CONTAINER_ID:/build/include" "$PROJECT_ROOT/artifacts/$PLATFORM/"
-docker rm "$CONTAINER_ID"
+
+docker run --rm \
+    --platform "$DOCKER_PLATFORM" \
+    -e PLATFORM="$PLATFORM" \
+    -e OPENSSL_TARGET="linux-x86_64" \
+    -v "$LINUX_DIR:/src:ro" \
+    -v "$PROJECT_ROOT/artifacts/$PLATFORM:/build" \
+    "$DOCKER_IMAGE" \
+    /src/build-inside-container.sh
 
 echo ""
 echo "=========================================="
