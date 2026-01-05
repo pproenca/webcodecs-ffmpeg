@@ -196,6 +196,15 @@ echo "Applying CMake 4.x compatibility patch..."
 patch -p1 -d x265_git < "$SCRIPT_DIR/patches/x265-cmake4-compat.patch"
 
 mkdir -p x265_git/build/xcode && cd x265_git/build/xcode
+
+# Disable assembly on ARM64 to avoid Xcode 16+ NEON compatibility issues
+if [[ "$ARCH" == "arm64" ]]; then
+  X265_ASM_FLAG="-DENABLE_ASSEMBLY=OFF"
+  echo "Note: Disabling x265 assembly on ARM64 due to Xcode 16+ compatibility"
+else
+  X265_ASM_FLAG=""
+fi
+
 cmake \
   -DCMAKE_INSTALL_PREFIX="$TARGET" \
   -DLIB_INSTALL_DIR="$TARGET/lib" \
@@ -203,7 +212,7 @@ cmake \
   -DENABLE_CLI=OFF \
   -DCMAKE_OSX_ARCHITECTURES="$ARCH" \
   -DCMAKE_OSX_DEPLOYMENT_TARGET="${MACOS_DEPLOYMENT_TARGET}" \
-  -DCMAKE_CXX_FLAGS="-include cstdint" \
+  $X265_ASM_FLAG \
   ../../source
 make -j"$NUM_CPUS"
 make install
