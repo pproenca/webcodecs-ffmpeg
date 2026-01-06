@@ -12,6 +12,8 @@ CACHE_VERSION := 1
 # =============================================================================
 # FFmpeg
 # =============================================================================
+# Security: Consider upgrading to 7.1.3+ for CVE patches (CVE-2024-7055, etc.)
+# See: https://ffmpeg.org/security.html
 FFMPEG_VERSION := n7.1
 FFMPEG_URL := https://github.com/FFmpeg/FFmpeg/archive/refs/tags/$(FFMPEG_VERSION).tar.gz
 

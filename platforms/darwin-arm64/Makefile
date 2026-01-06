@@ -144,9 +144,10 @@ ffmpeg.stamp: dirs $(addsuffix .stamp,$(ACTIVE_CODECS))
 		PKG_CONFIG_PATH="$(PREFIX)/lib/pkgconfig" \
 		./configure \
 			$(FFMPEG_CONFIGURE_OPTS) \
+			--pkg-config-flags="--static" \
 			--extra-cflags="-I$(PREFIX)/include $(CFLAGS)" \
 			--extra-ldflags="-L$(PREFIX)/lib $(LDFLAGS)" \
-			--extra-libs="-lpthread -lm" && \
+			--extra-libs="-lpthread -lm -lc++" && \
 		$(MAKE) -j && \
 		$(MAKE) install
 	@touch $(STAMPS_DIR)/$@
@@ -189,6 +190,15 @@ verify: package
 	@echo "=== Binary Architecture ==="
 	@file $(ARTIFACTS_DIR)/bin/ffmpeg
 	@file $(ARTIFACTS_DIR)/bin/ffmpeg | grep -q "arm64" && echo "✓ ARM64 verified" || (echo "✗ Not ARM64!" && exit 1)
+	@echo ""
+	@echo "=== Dynamic Library Dependencies ==="
+	@otool -L $(ARTIFACTS_DIR)/bin/ffmpeg
+	@# Verify only expected system libs are dynamically linked (libSystem, libc++, libresolv)
+	@if otool -L $(ARTIFACTS_DIR)/bin/ffmpeg | tail -n +2 | grep -vE "^\s+/usr/lib/(libSystem|libc\+\+|libresolv)" | grep -q .; then \
+		echo "✗ WARNING: Unexpected dynamic libraries found"; \
+	else \
+		echo "✓ Static linkage verified (only system libs)"; \
+	fi
 	$(call log_info,Verification passed)
 
 # =============================================================================
