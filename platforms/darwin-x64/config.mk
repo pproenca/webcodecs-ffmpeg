@@ -45,9 +45,11 @@ endif
 # Build Tool Configuration
 # =============================================================================
 
-# pkg-config setup
+# pkg-config setup for cross-compilation
+# PKG_CONFIG_LIBDIR overrides default search paths (prevents finding host libs)
+# This is required for cross-compiling x86_64 from ARM64 host
 PKG_CONFIG := pkg-config
-PKG_CONFIG_PATH := $(PREFIX)/lib/pkgconfig
+PKG_CONFIG_LIBDIR := $(PREFIX)/lib/pkgconfig
 
 # CMake configuration for cmake-based codecs (x265, aom, svt-av1)
 # CMAKE_SYSTEM_PROCESSOR is required when cross-compiling from ARM64 runners
@@ -103,7 +105,7 @@ PATH := $(PREFIX)/bin:$(HOMEBREW_PREFIX)/bin:$(PATH)
 
 export CC CXX AR RANLIB
 export CFLAGS CXXFLAGS LDFLAGS
-export PKG_CONFIG PKG_CONFIG_PATH
+export PKG_CONFIG PKG_CONFIG_LIBDIR
 export MACOSX_DEPLOYMENT_TARGET
 export PATH
 ifdef SDKROOT

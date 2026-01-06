@@ -21,7 +21,7 @@ jobs:
         license: [bsd, lgpl, gpl]
 
     concurrency:
-      group: build-${{ matrix.platform }}-${{ github.ref }}
+      group: build-${{ matrix.platform }}-${{ matrix.license }}-${{ github.ref }}
       cancel-in-progress: true
 
     steps:
