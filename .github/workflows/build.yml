@@ -1,0 +1,61 @@
+name: Build
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform }} ${{ matrix.license }}
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [darwin-arm64, darwin-x64]
+        license: [bsd, lgpl, gpl]
+
+    concurrency:
+      group: build-${{ matrix.platform }}-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache sources
+        uses: actions/cache@v4
+        with:
+          path: build/${{ matrix.platform }}/sources
+          key: sources-${{ matrix.platform }}-${{ hashFiles('shared/versions.mk') }}
+          restore-keys: |
+            sources-${{ matrix.platform }}-
+
+      - name: Build FFmpeg
+        run: LICENSE=${{ matrix.license }} ./platforms/${{ matrix.platform }}/build.sh all
+
+      - name: Create tarball and checksum
+        run: |
+          tar -czvf ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz \
+            -C artifacts ${{ matrix.platform }}-${{ matrix.license }}
+          shasum -a 256 ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz > \
+            ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz.sha256
+
+      - name: Generate build attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz'
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-${{ matrix.platform }}-${{ matrix.license }}
+          path: |
+            ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz
+            ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz.sha256
+          retention-days: 90

@@ -1,0 +1,38 @@
+name: Lint
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint workflows
+        run: |
+          echo "::group::Install actionlint"
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          echo "::endgroup::"
+          ./actionlint -color
+
+      - name: Lint shell scripts
+        run: |
+          echo "::group::Install shellcheck"
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          echo "::endgroup::"
+          find . -name "*.sh" -type f -exec shellcheck {} +
+
+      - name: Lint Dockerfiles
+        run: |
+          echo "::group::Install hadolint"
+          curl -fsSL -o hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
+          chmod +x hadolint
+          echo "::endgroup::"
+          find . -name "Dockerfile*" -type f -exec ./hadolint {} +
