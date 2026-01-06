@@ -8,9 +8,6 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-# Default parallel job count (can be overridden)
-NPROC ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
-
 # Colors for output (only if terminal supports it)
 ifneq ($(TERM),)
     COLOR_GREEN := \033[0;32m
@@ -79,7 +76,7 @@ endef
 define autoconf_build
 	cd $(1) && \
 	./configure $(2) && \
-	$(MAKE) -j$(NPROC) && \
+	$(MAKE) -j && \
 	$(MAKE) install
 endef
 
@@ -89,7 +86,7 @@ define cmake_build
 	mkdir -p $(2) && \
 	cd $(2) && \
 	cmake $(1) $(3) && \
-	$(MAKE) -j$(NPROC) && \
+	$(MAKE) -j && \
 	$(MAKE) install
 endef
 

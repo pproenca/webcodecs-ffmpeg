@@ -108,7 +108,6 @@ install_dependencies() {
 
 run_build() {
   local target="${1:-all}"
-  local jobs="${JOBS:-$(sysctl -n hw.ncpu)}"
   local license="${LICENSE:-gpl}"
 
   if [[ ! "$license" =~ ^(bsd|lgpl|gpl)$ ]]; then
@@ -119,11 +118,10 @@ run_build() {
   log_step "Starting build..."
   log_info "Target: ${target}"
   log_info "License tier: ${license}"
-  log_info "Parallel jobs: ${jobs}"
 
   cd "${SCRIPT_DIR}"
 
-  make -j"${jobs}" LICENSE="${license}" "${target}"
+  make -j LICENSE="${license}" "${target}"
 }
 
 # =============================================================================
