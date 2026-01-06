@@ -29,8 +29,7 @@ vorbis.stamp: ogg.stamp
 			--with-ogg=$(PREFIX) \
 			--with-pic \
 			CFLAGS="$(CFLAGS) -I$(PREFIX)/include" \
-			LDFLAGS="$(LDFLAGS) -L$(PREFIX)/lib" \
-			PKG_CONFIG_PATH="$(PREFIX)/lib/pkgconfig" && \
+			LDFLAGS="$(LDFLAGS) -L$(PREFIX)/lib" && \
 		sed -i '' 's/-force_cpusubtype_ALL//g' libtool && \
 		$(MAKE) -j$(NPROC) && \
 		$(MAKE) install

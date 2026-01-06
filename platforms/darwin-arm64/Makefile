@@ -141,7 +141,7 @@ ffmpeg.stamp: dirs $(addsuffix .stamp,$(ACTIVE_CODECS))
 	$(call log_info,Building FFmpeg $(FFMPEG_VERSION) [$(LICENSE) tier]...)
 	$(call download_and_extract,ffmpeg,$(FFMPEG_URL),$(SOURCES_DIR))
 	cd $(FFMPEG_SRC) && \
-		PKG_CONFIG_PATH="$(PREFIX)/lib/pkgconfig" \
+		export PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" && \
 		./configure \
 			$(FFMPEG_CONFIGURE_OPTS) \
 			--pkg-config-flags="--static" \
