@@ -24,6 +24,7 @@ x265.stamp:
 		$(MAKE) -j$(NPROC) && \
 		$(MAKE) install
 	$(call verify_static_lib,libx265,$(PREFIX))
+	$(call verify_pkgconfig,x265,$(PREFIX))
 	@touch $(STAMPS_DIR)/$@
 
 .PHONY: x265-clean

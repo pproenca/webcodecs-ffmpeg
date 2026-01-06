@@ -22,6 +22,7 @@ ogg.stamp:
 		$(MAKE) -j$(NPROC) && \
 		$(MAKE) install
 	$(call verify_static_lib,libogg,$(PREFIX))
+	$(call verify_pkgconfig,ogg,$(PREFIX))
 	@touch $(STAMPS_DIR)/$@
 
 .PHONY: ogg-clean

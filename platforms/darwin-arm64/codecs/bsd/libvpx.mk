@@ -33,6 +33,7 @@ libvpx.stamp:
 		$(MAKE) -j$(NPROC) && \
 		$(MAKE) install
 	$(call verify_static_lib,libvpx,$(PREFIX))
+	$(call verify_pkgconfig,vpx,$(PREFIX))
 	@touch $(STAMPS_DIR)/$@
 
 .PHONY: libvpx-clean

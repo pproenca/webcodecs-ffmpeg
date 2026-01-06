@@ -26,6 +26,7 @@ aom.stamp:
 		$(MAKE) -j$(NPROC) && \
 		$(MAKE) install
 	$(call verify_static_lib,libaom,$(PREFIX))
+	$(call verify_pkgconfig,aom,$(PREFIX))
 	@touch $(STAMPS_DIR)/$@
 
 .PHONY: aom-clean

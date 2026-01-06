@@ -285,6 +285,21 @@ help:
 	@$(MAKE) -s LICENSE=$(LICENSE) codecs-info
 
 # =============================================================================
+# Debugging
+# =============================================================================
+
+.PHONY: pkg-config-debug
+pkg-config-debug:
+	@echo "=== PKG_CONFIG_LIBDIR ==="
+	@echo "$(PREFIX)/lib/pkgconfig"
+	@echo ""
+	@echo "=== Available .pc files ==="
+	@ls -la $(PREFIX)/lib/pkgconfig/ 2>/dev/null || echo "(directory not found)"
+	@echo ""
+	@echo "=== pkg-config --list-all ==="
+	@PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" pkg-config --list-all 2>/dev/null || echo "(pkg-config failed)"
+
+# =============================================================================
 # NPM Package
 # =============================================================================
 

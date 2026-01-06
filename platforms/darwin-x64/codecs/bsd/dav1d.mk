@@ -21,6 +21,7 @@ dav1d.stamp:
 		ninja -C $(DAV1D_BUILD) && \
 		ninja -C $(DAV1D_BUILD) install
 	$(call verify_static_lib,libdav1d,$(PREFIX))
+	$(call verify_pkgconfig,dav1d,$(PREFIX))
 	@touch $(STAMPS_DIR)/$@
 
 .PHONY: dav1d-clean

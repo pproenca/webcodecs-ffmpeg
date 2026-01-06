@@ -117,8 +117,10 @@ endef
 # Usage: $(call verify_pkgconfig,name,prefix)
 define verify_pkgconfig
 	@if [ ! -f "$(2)/lib/pkgconfig/$(1).pc" ]; then \
-		printf "$(COLOR_YELLOW)[WARN]$(COLOR_RESET) pkg-config file $(1).pc not found\n"; \
+		printf "$(COLOR_RED)[ERROR]$(COLOR_RESET) pkg-config file $(1).pc not found in $(2)/lib/pkgconfig\n"; \
+		exit 1; \
 	fi
+	@printf "$(COLOR_GREEN)[OK]$(COLOR_RESET) $(1).pc verified\n"
 endef
 
 # =============================================================================

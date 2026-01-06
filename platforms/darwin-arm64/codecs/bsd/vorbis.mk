@@ -35,6 +35,7 @@ vorbis.stamp: ogg.stamp
 		$(MAKE) install
 	$(call verify_static_lib,libvorbis,$(PREFIX))
 	$(call verify_static_lib,libvorbisenc,$(PREFIX))
+	$(call verify_pkgconfig,vorbis,$(PREFIX))
 	@touch $(STAMPS_DIR)/$@
 
 .PHONY: vorbis-clean

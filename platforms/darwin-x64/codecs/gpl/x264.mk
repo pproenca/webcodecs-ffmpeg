@@ -24,6 +24,7 @@ x264.stamp:
 		$(MAKE) -j$(NPROC) && \
 		$(MAKE) install
 	$(call verify_static_lib,libx264,$(PREFIX))
+	$(call verify_pkgconfig,x264,$(PREFIX))
 	@touch $(STAMPS_DIR)/$@
 
 .PHONY: x264-clean

@@ -24,6 +24,7 @@ svt-av1.stamp:
 		$(MAKE) -j$(NPROC) && \
 		$(MAKE) install
 	$(call verify_static_lib,libSvtAv1Enc,$(PREFIX))
+	$(call verify_pkgconfig,SvtAv1Enc,$(PREFIX))
 	@touch $(STAMPS_DIR)/$@
 
 .PHONY: svt-av1-clean
