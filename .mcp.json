@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "docfork": {
+      "type": "sse",
+      "url": "https://mcp.docfork.com/sse"
+    }
+  }
+}
