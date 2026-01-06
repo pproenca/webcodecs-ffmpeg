@@ -84,6 +84,6 @@ jobs:
 
       - name: Publish to npm
         working-directory: npm
-        run: npm publish --workspaces --access public
+        run: npm publish --workspaces --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

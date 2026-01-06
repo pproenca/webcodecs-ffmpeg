@@ -17,7 +17,7 @@ readonly PROJECT_ROOT
 readonly NPM_DIR="${PROJECT_ROOT}/npm"
 readonly ARTIFACTS_DIR="${PROJECT_ROOT}/artifacts"
 
-readonly FFMPEG_VERSION="${FFMPEG_VERSION:-7.1.0}"
+readonly FFMPEG_VERSION="${FFMPEG_VERSION:-0.1.0}"
 
 readonly TIERS=(bsd lgpl gpl)
 
@@ -38,7 +38,7 @@ declare -Ar LICENSE_MAP=(
 declare -Ar TIER_DESC=(
   ["bsd"]="BSD codecs (VP8/9, AV1, Opus, Vorbis)"
   ["lgpl"]="BSD + LGPL codecs (adds MP3)"
-  ["gpl"]="All codecs including x264/x265"
+  ["gpl"]="all codecs including x264/x265"
 )
 
 # =============================================================================
@@ -148,9 +148,10 @@ generate_platform_package_json() {
   local license="${LICENSE_MAP[$tier]}"
   local desc="${TIER_DESC[$tier]}"
 
+  # BSD is the default (no suffix) - safest license for users
   local pkg_name="@pproenca/ffmpeg-${platform}"
   local npm_subdir="${platform}"
-  if [[ "${tier}" != "gpl" ]]; then
+  if [[ "${tier}" != "bsd" ]]; then
     pkg_name="${pkg_name}-${tier}"
     npm_subdir="${platform}-${tier}"
   fi
@@ -210,8 +211,9 @@ populate_platform() {
   local tier="$2"
   local artifacts_src="${ARTIFACTS_DIR}/${platform}-${tier}"
 
+  # BSD is the default (no suffix) - safest license for users
   local npm_dir_name="${platform}"
-  if [[ "${tier}" != "gpl" ]]; then
+  if [[ "${tier}" != "bsd" ]]; then
     npm_dir_name="${platform}-${tier}"
   fi
   local npm_dest="${NPM_DIR}/${npm_dir_name}"
@@ -315,6 +317,192 @@ EOF
   log_info "  -> Populated dev package"
 }
 
+#######################################
+# Generate package.json for a meta package (platform selector).
+# Globals:
+#   LICENSE_MAP
+#   TIER_DESC
+#   FFMPEG_VERSION
+#   PLATFORM_MAP
+# Arguments:
+#   $1 - Directory where package.json will be created
+#   $2 - Tier (bsd, lgpl, gpl)
+# Outputs:
+#   Creates package.json at the specified path
+#######################################
+generate_meta_package_json() {
+  local dir="$1"
+  local tier="$2"
+  local license="${LICENSE_MAP[$tier]}"
+  local desc="${TIER_DESC[$tier]}"
+
+  # Meta package name: @pproenca/ffmpeg for BSD (default), @pproenca/ffmpeg-<tier> for others
+  local pkg_name="@pproenca/ffmpeg"
+  local npm_subdir="ffmpeg"
+  if [[ "${tier}" != "bsd" ]]; then
+    pkg_name="${pkg_name}-${tier}"
+    npm_subdir="ffmpeg-${tier}"
+  fi
+
+  # Build optionalDependencies for all platforms
+  local opt_deps=""
+  local first=true
+  local platform
+  for platform in "${!PLATFORM_MAP[@]}"; do
+    local dep_name="@pproenca/ffmpeg-${platform}"
+    if [[ "${tier}" != "bsd" ]]; then
+      dep_name="${dep_name}-${tier}"
+    fi
+    if [[ "${first}" == "true" ]]; then
+      first=false
+    else
+      opt_deps="${opt_deps},"
+    fi
+    opt_deps="${opt_deps}
+    \"${dep_name}\": \"${FFMPEG_VERSION}\""
+  done
+
+  cat >"${dir}/package.json" <<EOF
+{
+  "name": "${pkg_name}",
+  "version": "${FFMPEG_VERSION}",
+  "description": "Prebuilt FFmpeg with ${desc} - auto-selects platform",
+  "author": "Pedro Proenca",
+  "homepage": "https://github.com/pproenca/ffmpeg-prebuilds",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pproenca/ffmpeg-prebuilds.git",
+    "directory": "npm/${npm_subdir}"
+  },
+  "license": "${license}",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "optionalDependencies": {${opt_deps}
+  }
+}
+EOF
+}
+
+#######################################
+# Generate install.js fallback script for meta packages.
+# This script attempts to download the platform-specific package
+# if optionalDependencies failed (e.g., --no-optional flag).
+# Arguments:
+#   $1 - Directory where install.js will be created
+#   $2 - Tier (bsd, lgpl, gpl)
+# Outputs:
+#   Creates install.js at the specified path
+#######################################
+generate_meta_install_js() {
+  local dir="$1"
+  local tier="$2"
+
+  local tier_suffix=""
+  if [[ "${tier}" != "bsd" ]]; then
+    tier_suffix="-${tier}"
+  fi
+
+  cat >"${dir}/install.js" <<'INSTALLJS'
+#!/usr/bin/env node
+/**
+ * Fallback installer for when optionalDependencies are disabled.
+ * Attempts to locate the platform-specific package or provides guidance.
+ */
+
+const os = require('os');
+
+const TIER_SUFFIX = '${TIER_SUFFIX}';
+
+const PLATFORMS = {
+  'darwin-arm64': { os: 'darwin', cpu: 'arm64' },
+  'darwin-x64': { os: 'darwin', cpu: 'x64' },
+  'linux-x64': { os: 'linux', cpu: 'x64' },
+  'linux-arm64': { os: 'linux', cpu: 'arm64' },
+  'win32-x64': { os: 'win32', cpu: 'x64' },
+  'win32-arm64': { os: 'win32', cpu: 'arm64' },
+};
+
+function getPlatformKey() {
+  const platform = os.platform();
+  const arch = os.arch();
+  return `${platform}-${arch}`;
+}
+
+function getPackageName(platformKey) {
+  return `@pproenca/ffmpeg-${platformKey}${TIER_SUFFIX}`;
+}
+
+function checkInstalled(packageName) {
+  try {
+    require.resolve(packageName);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function main() {
+  const platformKey = getPlatformKey();
+
+  if (!PLATFORMS[platformKey]) {
+    console.warn(`[ffmpeg] Warning: Unsupported platform: ${platformKey}`);
+    console.warn('[ffmpeg] Prebuilt binaries may not be available for your system.');
+    process.exit(0);
+  }
+
+  const packageName = getPackageName(platformKey);
+
+  if (checkInstalled(packageName)) {
+    // Package was installed via optionalDependencies - all good
+    process.exit(0);
+  }
+
+  // Package not found - provide guidance
+  console.warn(`[ffmpeg] Warning: Platform package not found: ${packageName}`);
+  console.warn('[ffmpeg] This usually happens when --no-optional or --ignore-optional is used.');
+  console.warn(`[ffmpeg] To install manually: npm install ${packageName}`);
+  process.exit(0);
+}
+
+main();
+INSTALLJS
+
+  # Replace the placeholder with actual tier suffix
+  sed -i '' "s/\${TIER_SUFFIX}/${tier_suffix}/g" "${dir}/install.js" 2>/dev/null || \
+    sed -i "s/\${TIER_SUFFIX}/${tier_suffix}/g" "${dir}/install.js"
+}
+
+#######################################
+# Populate meta packages that auto-select platform binaries.
+# Globals:
+#   NPM_DIR
+#   TIERS
+# Returns:
+#   0 on success
+#######################################
+populate_meta_packages() {
+  log_info "Populating meta packages..."
+
+  local tier
+  for tier in "${TIERS[@]}"; do
+    local npm_subdir="ffmpeg"
+    if [[ "${tier}" != "bsd" ]]; then
+      npm_subdir="ffmpeg-${tier}"
+    fi
+    local meta_dir="${NPM_DIR}/${npm_subdir}"
+
+    mkdir -p "${meta_dir}"
+    generate_meta_package_json "${meta_dir}" "${tier}"
+    generate_meta_install_js "${meta_dir}" "${tier}"
+
+    log_info "  -> Created ${npm_subdir} meta package"
+  done
+}
+
 # =============================================================================
 # Main
 # =============================================================================
@@ -336,19 +524,23 @@ main() {
   log_info "  NPM dir:   ${NPM_DIR}"
   log_info "  Version:   ${FFMPEG_VERSION}"
 
-  if [[ ! -f "${NPM_DIR}/package.json" ]]; then
-    cat >"${NPM_DIR}/package.json" <<'EOF'
+  # Always regenerate workspaces to match current structure
+  # Meta packages: ffmpeg (BSD default), ffmpeg-lgpl, ffmpeg-gpl
+  # Platform packages: darwin-arm64 (BSD), darwin-arm64-lgpl, darwin-arm64-gpl
+  cat >"${NPM_DIR}/package.json" <<'EOF'
 {
   "private": true,
   "workspaces": [
     "dev",
+    "ffmpeg",
+    "ffmpeg-lgpl",
+    "ffmpeg-gpl",
     "darwin-arm64",
     "darwin-arm64-lgpl",
-    "darwin-arm64-bsd"
+    "darwin-arm64-gpl"
   ]
 }
 EOF
-  fi
 
   local platform
   local tier
@@ -359,6 +551,7 @@ EOF
   done
 
   populate_dev
+  populate_meta_packages
 
   log_info "Done!"
 }
