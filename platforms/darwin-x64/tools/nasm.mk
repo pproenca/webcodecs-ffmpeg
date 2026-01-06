@@ -15,6 +15,7 @@ nasm.stamp: dirs
 	$(call log_info,Building NASM $(NASM_VERSION) for x86_64...)
 	@mkdir -p $(SOURCES_DIR) $(STAMPS_DIR)
 	$(call download_and_extract,nasm,$(NASM_URL),$(SOURCES_DIR))
+	@[ -f "$(NASM_SRC)/configure" ] || ($(call log_error,NASM source extraction failed) && exit 1)
 	cd $(NASM_SRC) && \
 		./configure \
 			--prefix=$(PREFIX) \
@@ -24,9 +25,9 @@ nasm.stamp: dirs
 		$(MAKE) -j$(NPROC) && \
 		$(MAKE) install
 	@# Verify NASM binary is x86_64 architecture
-	@file $(PREFIX)/bin/nasm | grep -q "x86_64" && \
-		$(call log_info,NASM x86_64 binary verified: $$($(PREFIX)/bin/nasm --version | head -1)) || \
-		(echo "[ERROR] NASM is not x86_64 architecture!" && exit 1)
+	@[ -f "$(PREFIX)/bin/nasm" ] || ($(call log_error,NASM binary not found - installation may have failed) && exit 1)
+	@file $(PREFIX)/bin/nasm | grep -q "x86_64" || ($(call log_error,NASM is not x86_64 architecture) && exit 1)
+	$(call log_info,NASM x86_64 binary verified: $$($(PREFIX)/bin/nasm --version | head -1))
 	@touch $(STAMPS_DIR)/$@
 
 .PHONY: nasm-clean

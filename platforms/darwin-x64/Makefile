@@ -95,7 +95,8 @@ dirs:
 # Build Tool Dependencies
 # =============================================================================
 # CMake-based codecs (aom, svt-av1, x265) require NASM for x86 assembly.
-# The built NASM (x86_64 binary) takes precedence over Homebrew's ARM64 NASM.
+# The built NASM (x86_64 binary) takes precedence over Homebrew's ARM64 NASM
+# because $(PREFIX)/bin is prepended to PATH in config.mk.
 
 aom.stamp svt-av1.stamp: nasm.stamp
 ifeq ($(LICENSE),gpl)
