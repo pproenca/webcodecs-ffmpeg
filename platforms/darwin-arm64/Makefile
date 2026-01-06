@@ -85,7 +85,6 @@ include $(ROOT_DIR)/codecs/x265.mk
 all: package verify
 	$(call log_info,Build complete: $(ARTIFACTS_DIR))
 
-# Create necessary directories
 dirs:
 	@mkdir -p $(BUILD_DIR) $(PREFIX) $(SOURCES_DIR) $(STAMPS_DIR) $(ARTIFACTS_DIR)
 

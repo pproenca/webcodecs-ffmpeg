@@ -14,16 +14,12 @@
 # Codec Categories (by license)
 # =============================================================================
 
-# BSD-licensed codecs (most permissive)
 BSD_CODECS := libvpx aom dav1d svt-av1 opus ogg vorbis
 
-# LGPL-licensed codecs
 LGPL_CODECS := lame
 
-# GPL-licensed codecs (strong copyleft)
 GPL_CODECS := x264 x265
 
-# All codecs
 ALL_CODECS := $(BSD_CODECS) $(LGPL_CODECS) $(GPL_CODECS)
 
 # =============================================================================
@@ -32,7 +28,6 @@ ALL_CODECS := $(BSD_CODECS) $(LGPL_CODECS) $(GPL_CODECS)
 # Most codecs have no inter-dependencies and can build in parallel.
 # Exception: vorbis depends on ogg
 
-# Codecs with no dependencies (parallel group)
 PARALLEL_CODECS := libvpx aom dav1d svt-av1 opus ogg lame x264 x265
 
 # Codecs with dependencies (must wait)
@@ -42,14 +37,12 @@ PARALLEL_CODECS := libvpx aom dav1d svt-av1 opus ogg lame x264 x265
 # Common Configure Arguments
 # =============================================================================
 
-# Standard autoconf args for static builds
 AUTOCONF_STATIC_ARGS := \
     --prefix=$(PREFIX) \
     --enable-static \
     --disable-shared \
     --with-pic
 
-# Add extra flags for cross-compilation awareness
 AUTOCONF_DARWIN_ARGS := $(AUTOCONF_STATIC_ARGS)
 
 # =============================================================================
@@ -58,15 +51,12 @@ AUTOCONF_DARWIN_ARGS := $(AUTOCONF_STATIC_ARGS)
 
 .PHONY: codecs codecs-clean codecs-info
 
-# Build all codecs
 codecs: $(addsuffix .stamp,$(ALL_CODECS))
 
-# Clean all codec builds
 codecs-clean:
 	rm -rf $(SOURCES_DIR)
 	rm -f $(STAMPS_DIR)/*.stamp
 
-# Show codec build status
 codecs-info:
 	@echo "=== Codec Build Status ==="
 	@for codec in $(ALL_CODECS); do \

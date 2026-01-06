@@ -8,7 +8,6 @@
 
 VORBIS_SRC := $(SOURCES_DIR)/vorbis-$(patsubst v%,%,$(VORBIS_VERSION))
 
-# Explicit dependency on ogg
 vorbis.stamp: ogg.stamp
 	$(call log_info,Building libvorbis $(VORBIS_VERSION)...)
 	@mkdir -p $(SOURCES_DIR) $(STAMPS_DIR)
