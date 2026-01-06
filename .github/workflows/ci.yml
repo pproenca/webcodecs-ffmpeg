@@ -38,7 +38,7 @@ jobs:
           echo "::group::Install shellcheck"
           sudo apt-get update && sudo apt-get install -y shellcheck
           echo "::endgroup::"
-          find . -name "*.sh" -type f | xargs shellcheck
+          find . -name "*.sh" -type f -exec shellcheck {} +
 
       - name: Lint Dockerfiles
         run: |
@@ -46,7 +46,7 @@ jobs:
           curl -fsSL -o hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
           chmod +x hadolint
           echo "::endgroup::"
-          find . -name "Dockerfile*" -type f | xargs -r ./hadolint || true
+          find . -name "Dockerfile*" -type f -exec ./hadolint {} + || true
 
   # ============================================================================
   # RELEASE-BLOCKING: Full build + publish (only on release)
