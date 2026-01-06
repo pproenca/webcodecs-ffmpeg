@@ -31,19 +31,12 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Fetch pr-review-toolkit plugin
-        run: |
-          git clone --depth 1 --filter=blob:none --sparse \
-            https://github.com/anthropics/claude-plugins-official.git \
-            /tmp/claude-plugins
-          cd /tmp/claude-plugins
-          git sparse-checkout set plugins/pr-review-toolkit
-
       - name: Run Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          plugins: "pr-review-toolkit@claude-plugins-official"
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
@@ -57,6 +50,5 @@ jobs:
           claude_args: |
             --model opus
             --max-turns 15
-            --plugin-dir /tmp/claude-plugins/plugins/pr-review-toolkit
             --dangerously-skip-permissions
 
