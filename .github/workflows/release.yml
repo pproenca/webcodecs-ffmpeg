@@ -129,6 +129,14 @@ jobs:
         with:
           ref: ${{ needs.find-artifacts.outputs.commit }}
 
+      - name: Cache sources
+        uses: actions/cache@v4
+        with:
+          path: build/${{ matrix.platform }}/sources
+          key: sources-${{ matrix.platform }}-${{ hashFiles('shared/versions.mk') }}
+          restore-keys: |
+            sources-${{ matrix.platform }}-
+
       - name: Build FFmpeg
         run: LICENSE=${{ matrix.license }} ./platforms/${{ matrix.platform }}/build.sh all
 
@@ -136,7 +144,7 @@ jobs:
         run: |
           tar -czvf ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz \
             -C artifacts ${{ matrix.platform }}-${{ matrix.license }}
-          sha256sum ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz > \
+          shasum -a 256 ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz > \
             ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz.sha256
 
       - name: Generate build attestation
@@ -196,7 +204,13 @@ jobs:
       - name: Verify checksums
         run: |
           cd artifacts-download
-          for f in *.sha256; do
+          shopt -s nullglob
+          files=(*.sha256)
+          if [[ ${#files[@]} -eq 0 ]]; then
+            echo "::error::No checksum files found"
+            exit 1
+          fi
+          for f in "${files[@]}"; do
             echo "Verifying $f..."
             sha256sum --check "$f"
           done
@@ -233,7 +247,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release upload "${{ needs.find-artifacts.outputs.tag }}" \
-            artifacts-download/*.tar.gz --clobber
+            artifacts-download/*.tar.gz \
+            artifacts-download/*.sha256 --clobber
 
       - name: Publish to npm
         working-directory: npm
