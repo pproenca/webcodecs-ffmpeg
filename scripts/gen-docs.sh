@@ -124,6 +124,7 @@ extract_autoconf_help() {
         "${src_dir}/configure" --help >> "${output_file}" 2>&1 || true
     elif [[ -f "${src_dir}/configure.ac" ]] || [[ -f "${src_dir}/configure.in" ]]; then
         log_warn "${name}: Running autoreconf..."
+        # shellcheck disable=SC2015  # Intentional: always succeed regardless of cd or autoreconf result
         (cd "${src_dir}" && autoreconf -fi 2>/dev/null || true)
         if [[ -x "${src_dir}/configure" ]]; then
             "${src_dir}/configure" --help >> "${output_file}" 2>&1 || true
@@ -156,6 +157,7 @@ extract_cmake_help() {
     } > "${output_file}"
 
     # Run cmake -LAH to list all cache variables with help strings
+    # shellcheck disable=SC2015  # Intentional: always succeed regardless of cd or cmake result
     (cd "${build_dir}" && cmake -LAH "${src_dir}" 2>/dev/null || true) >> "${output_file}"
 
     rm -rf "${build_dir}"
