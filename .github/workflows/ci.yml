@@ -1,0 +1,133 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [master]
+  release:
+    types: [published]
+
+# Land-blocking (PR): Quick validation only
+# Release-blocking: Full build + publish (single event, no redundant builds)
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  # ============================================================================
+  # LAND-BLOCKING: Fast PR validation (must pass to merge)
+  # ============================================================================
+  lint:
+    name: Lint
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Lint workflows
+        run: |
+          echo "::group::Install actionlint"
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
+          echo "::endgroup::"
+          ./actionlint -color
+
+      - name: Lint shell scripts
+        run: |
+          echo "::group::Install shellcheck"
+          sudo apt-get update && sudo apt-get install -y shellcheck
+          echo "::endgroup::"
+          find . -name "*.sh" -type f -exec shellcheck {} +
+
+      - name: Lint Dockerfiles
+        run: |
+          echo "::group::Install hadolint"
+          curl -fsSL -o hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
+          chmod +x hadolint
+          echo "::endgroup::"
+          find . -name "Dockerfile*" -type f -exec ./hadolint {} + || true
+
+  # ============================================================================
+  # RELEASE-BLOCKING: Full build + publish (only on release)
+  # ============================================================================
+  build:
+    name: Build ${{ matrix.platform }} ${{ matrix.license }}
+    if: github.event_name == 'release'
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [darwin-arm64, darwin-x64]
+        license: [bsd, lgpl, gpl]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build FFmpeg
+        run: LICENSE=${{ matrix.license }} ./platforms/${{ matrix.platform }}/build.sh all
+
+      - name: Create tarball
+        run: |
+          tar -czvf ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz \
+            -C artifacts ${{ matrix.platform }}-${{ matrix.license }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-${{ matrix.platform }}-${{ matrix.license }}
+          path: ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz
+          retention-days: 90
+
+  publish:
+    name: Publish
+    needs: build
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts-download
+          merge-multiple: true
+
+      - name: Extract artifacts
+        run: |
+          mkdir -p artifacts
+          for tarball in artifacts-download/*.tar.gz; do
+            tar -xzvf "$tarball" -C artifacts
+          done
+          ls -la artifacts/
+
+      - name: Generate artifact attestations
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'artifacts-download/*.tar.gz'
+
+      - name: Populate npm packages
+        env:
+          FFMPEG_VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          # Strip 'v' prefix from tag (v0.1.0 -> 0.1.0)
+          export FFMPEG_VERSION="${FFMPEG_VERSION#v}"
+          ./scripts/populate-npm.sh
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" artifacts-download/*.tar.gz --clobber
+
+      - name: Publish to npm
+        working-directory: npm
+        run: npm publish --workspaces --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

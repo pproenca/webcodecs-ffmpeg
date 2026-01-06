@@ -1,0 +1,177 @@
+[[PageOutline(1-100, Contents)]]
+
+There are a few ways to get FFmpeg on macOS:
+
+1. Use a package manager like [https://brew.sh/ Homebrew] or [https://www.macports.org/ MacPorts] to install `ffmpeg`. These will automatically keep your FFmpeg installation up-to-date. See [#ffmpegthroughHomebrew the Homebrew section] and [#ffmpegthroughMacPorts the MacPorts section] below for more info.
+
+2. Download a [https://ffmpeg.org/download.html static build for macOS]. This is as easy as extracting and running the downloaded binary. One disadvantage with static builds is that updates have to be performed manually. Also, they may not contain all encoders or filters you want.
+
+3. Build it yourself. Compiling on macOS is as easy as on any other *nix machine. Download the source, then run {{{./configure}}} with the needed flags, {{{make}}} and {{{make install}}}. However, the configuration options have to be set manually, and you will need to install third-party libraries yourself. See [#CompilingFFmpegyourself the compilation section] below for more info.
+
+== ffmpeg through !MacPorts ==
+
+[https://www.macports.org] is a command-line package manager, which is similar to `apt-get` on popular Linux distributions. In order to use it, you need to install `port` first, if you haven't already. For the installation follow the [https://guide.macports.org MacPorts documentation].
+
+Installation will take a few minutes. Then, run:
+
+{{{
+sudo port install ffmpeg
+}}}
+
+For an overview of the FFmpeg variants available through !MacPorts look [https://ports.macports.org/port/ffmpeg/details here].
+
+== ffmpeg through Homebrew ==
+
+[http://brew.sh/ Homebrew] is a command-line package manager, which is similar to `apt-get` on popular Linux distributions. In order to use it, you need to install `brew` first, if you haven't already:
+
+{{{
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+}}}
+
+Follow the on-screen instructions. This will take a few minutes while it's installing the necessary developer tools for macOS. Then, run:
+
+{{{
+brew install ffmpeg
+}}} 
+
+to get the latest released version with minimal configuration (and library dependency) options. These versions are packaged as Homebrew formulas and will take care of all the dependencies and the installation itself. To get the latest Git master version, run:
+
+{{{
+brew install ffmpeg --HEAD
+}}}
+
+=== Additional options ===
+
+Since v2.0, Homebrew does not offer options for its core formulae anymore. Users who want to build ffmpeg with additional libraries (including non-free ones) need to use so-called taps from third party repositories. These repositories are not maintained by Homebrew.
+
+The following repositories for ffmpeg are available – refer to the README for additional information about the included options:
+
+* [https://github.com/homebrew-ffmpeg/homebrew-ffmpeg homebrew-ffmpeg]
+
+ffmpeg can be installed from the repository using its full formula name after tapping, for example:
+
+{{{
+brew tap homebrew-ffmpeg/ffmpeg
+brew install homebrew-ffmpeg/ffmpeg/ffmpeg
+}}}
+
+Options are available with `brew options homebrew-ffmpeg/ffmpeg/ffmpeg`.
+
+=== Updating ffmpeg ===
+
+To later upgrade your `ffmpeg` version to the latest released, simply run:
+
+{{{
+brew update && brew upgrade ffmpeg
+}}}
+
+If you have installed the HEAD, then you can upgrade by running:
+
+{{{
+brew upgrade --fetch-HEAD ffmpeg
+}}}
+
+-----
+
+== Compiling FFmpeg yourself ==
+
+=== Xcode ===
+
+Xcode is required to compile software on your Mac. Install Xcode by [https://developer.apple.com/xcode/ downloading it from the website] or using the Mac App Store.
+
+After installing Xcode, install the ''Command Line Tools'' from ''Preferences > Downloads > Components''. You can also install the tools via your shell:
+{{{
+xcode-select --install
+}}}
+
+
+=== Installing dependencies with Homebrew ===
+
+To get some dependencies for ffmpeg, you can install [http://brew.sh/ Homebrew].
+
+{{{
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install.sh)"
+}}}
+
+Then:
+
+{{{
+brew install automake fdk-aac git lame libass libtool libvorbis libvpx \
+opus sdl shtool texi2html theora wget x264 x265 xvid nasm
+}}}
+
+{{{
+#!div style="border: 1px solid #c7e5c7; margin: 1em; background-color: #ddffdd;"
+'''Tip:''' If you don't want to use Homebrew to get the dependencies, see the section below. Using Homebrew will however save you time in setting up all the needed tools.
+}}}
+
+=== Manual install of the dependencies without Homebrew ===
+
+==== Pkg-config & GLib  ====
+
+Pkg-config is necessary for detecting some of the libraries you can compile into FFmpeg, and it requires GLib, which is not included in macOS (but almost every other *nix distribution). You may either download pkg-config 0.23, or download the large tarball from [http://ftp.gnome.org/pub/GNOME/sources/glib/ Gnome.org] and compile it. Pkg-config is available from [http://pkgconfig.freedesktop.org/releases/ Freedesktop.org]. 
+
+To compile GLib, you must also download `gettext` from [ftp://ftp.gnu.org/gnu/gettext/ GNU.org] and edit the file `stpncpy.c` to add `#undef stpncpy` just before `#ifndef weak_alias`. Mac OS X Lion has its own (incompatible) version of the `stpncpy` function, which overlaps in `gettext`. Compile `gettext` as usual. Compile GLib with
+
+{{{
+LIBFFI_CFLAGS=-I/usr/include/ffi LIBFFI_LIBS=-lffi ./configure;make && sudo make install
+}}} 
+
+To compile pkg-config, run
+
+{{{
+GLIB_CFLAGS="-I/usr/local/include/glib-2.0 -I/usr/local/lib/glib-2.0/include" GLIB_LIBS="-lglib-2.0 -lgio-2.0" ./configure --with-pc-path="/usr/X11/lib/pkgconfig:/usr/X11/share/pkgconfig:/usr/lib/pkgconfig:/usr/local/lib/pkgconfig"
+}}}
+
+
+==== Nasm ====
+
+Nasm is an assembler required for x264. The latest version is available at [[http://nasm.us|nasm.us]].
+
+==== Additional libraries ====
+
+These are just some examples. Run {{{./configure --help}}} for all available options.
+
+* [http://www.videolan.org/developers/x264.html x264] encodes H.264 video. Use `--enable-gpl --enable-libx264`.
+* [http://sourceforge.net/projects/opencore-amr/files/fdk-aac/ fdk-aac] encodes AAC audio. Use `--enable-libfdk-aac`.
+* [https://code.google.com/p/webm/downloads/list libvpx] is a VP8 and VP9 encoder. Use `--enable-libvpx`.
+* [http://downloads.xiph.org/releases/vorbis/ libvorbis] encodes Vorbis audio . Requires [http://downloads.xiph.org/releases/ogg/ libogg]. Use `--enable-libvorbis`.
+* [http://www.opus-codec.org/downloads/ libopus] encodes Opus audio.
+* [http://sourceforge.net/projects/lame/files/lame/ LAME] encodes MP3 audio. Use `--enable-libmp3lame`.
+* [https://github.com/libass/libass libass] is a subtitle renderer. Use `--enable-libass`.
+
+=== Freetype ===
+
+macOS already comes with freetype installed (older versions may need X11 selected during installation), but in an atypical location: `/opt/X11/`.
+
+Running `freetype-config` in Terminal can give the locations of the individual folders, like headers, and libraries, so be prepared to add lines like
+
+{{{
+CFLAGS=`freetype-config --cflags`
+LDFLAGS=`freetype-config --libs` PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:/opt/X11/lib/pkgconfig
+}}}
+
+in your `./configure` command.
+
+=== Compiling ===
+
+Once you have compiled all of the codecs/libraries you want, you can now download the FFmpeg source either with Git or the from release tarball links on the website. 
+
+For general instructions on how to compile software, consult the [[CompilationGuide/Generic|Generic compilation guide]]. The information there is applicable to the macOS environment as well.
+
+Run {{{./configure --help}}}, and study its output to learn what options are available. Make sure you've enabled all the features you want. Note that `--enable-nonfree` and `--enable-gpl` will be necessary for some of the dependencies above. 
+
+A sample compilation command is:
+
+
+{{{
+git clone https://git.ffmpeg.org/ffmpeg.git ffmpeg
+cd ffmpeg
+./configure  --prefix=/usr/local --enable-gpl --enable-nonfree --enable-libass \
+--enable-libfdk-aac --enable-libfreetype --enable-libmp3lame \
+--enable-libtheora --enable-libvorbis --enable-libvpx --enable-libx264 --enable-libx265 --enable-libopus --enable-libxvid \
+--samples=fate-suite/
+make
+}}}
+
+After successful compilation, running `sudo make install` will install the ffmpeg binaries with superuser rights. You can also set a prefix during configuration, e.g. `--prefix="$HOME/bin`, where no root rights are needed  for `make install`.

@@ -1,0 +1,12 @@
+{
+  "private": true,
+  "workspaces": [
+    "dev",
+    "ffmpeg",
+    "ffmpeg-lgpl",
+    "ffmpeg-gpl",
+    "darwin-arm64",
+    "darwin-arm64-lgpl",
+    "darwin-arm64-gpl"
+  ]
+}

@@ -1,0 +1,32 @@
+# Build artifacts
+build/
+artifacts/
+ffmpeg_sources/
+npm-dist/
+
+# Dependencies
+node_modules/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temporary files
+*.swp
+*.tmp
+.cache/
+
+# IDE
+.vscode/
+.idea/
+*.sublime-*
+
+# CI
+.github/workflows/*.log
+
+# Planning and design documents
+docs/plans/
+*.draft.md
