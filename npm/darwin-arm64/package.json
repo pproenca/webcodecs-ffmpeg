@@ -1,0 +1,35 @@
+{
+  "name": "@pproenca/ffmpeg-darwin-arm64",
+  "version": "7.1.0",
+  "description": "Prebuilt FFmpeg with All codecs including x264/x265 for darwin-arm64",
+  "author": "Pedro Proenca",
+  "homepage": "https://github.com/pproenca/ffmpeg-prebuilds",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pproenca/ffmpeg-prebuilds.git",
+    "directory": "npm/darwin-arm64"
+  },
+  "license": "GPL-2.0-or-later",
+  "preferUnplugged": true,
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "lib",
+    "include",
+    "versions.json"
+  ],
+  "type": "commonjs",
+  "exports": {
+    "./lib": "./lib/index.js",
+    "./include": "./include/index.js",
+    "./package": "./package.json",
+    "./versions": "./versions.json"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "arm64"
+  ]
+}

@@ -57,3 +57,11 @@ run = "act --dryrun"
 [tasks."act:graph"]
 description = "Show workflow execution graph"
 run = "act --graph"
+
+# =============================================================================
+# Documentation tasks
+# =============================================================================
+
+[tasks."gen:docs"]
+description = "Extract configure help output for FFmpeg and codecs"
+run = "./scripts/gen-docs.sh"

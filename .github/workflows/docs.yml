@@ -1,0 +1,45 @@
+name: Update Documentation
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  configure-help:
+    name: Extract Configure Help
+    runs-on: macos-15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Build Tools
+        run: brew install meson ninja nasm cmake
+
+      - name: Extract Configure Help
+        run: ./scripts/gen-docs.sh
+
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: docs/configure-help
+          title: 'docs: update configure help output'
+          body: |
+            Auto-generated update of configure help documentation.
+
+            ## Changes
+            - FFmpeg `./configure --help` output
+            - Codec configure options (Autoconf, CMake, Meson)
+
+            ## Source Versions
+            See `shared/versions.mk` for version details.
+          commit-message: 'docs: update configure help output'
+          delete-branch: true
+          labels: documentation,automated
