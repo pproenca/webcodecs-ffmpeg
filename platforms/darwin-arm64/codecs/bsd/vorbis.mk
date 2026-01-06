@@ -5,8 +5,10 @@
 # Depends on libogg.
 # Uses autoconf build system.
 #
-# Note: libvorbis 1.3.7's bundled libtool adds -force_cpusubtype_ALL which
-# modern macOS ARM64 linkers don't support. We patch libtool after configure.
+# Note: libvorbis 1.3.7 hardcodes -force_cpusubtype_ALL for darwin targets
+# in both the configure script (CFLAGS) and libtool. This flag is PowerPC-only
+# and rejected by Xcode 15+ linkers. We patch both before/after configure.
+# See: https://github.com/xiph/vorbis/issues/107
 # =============================================================================
 
 VORBIS_SRC := $(SOURCES_DIR)/libvorbis-$(patsubst v%,%,$(VORBIS_VERSION))
@@ -16,6 +18,7 @@ vorbis.stamp: ogg.stamp
 	@mkdir -p $(SOURCES_DIR) $(STAMPS_DIR)
 	$(call download_and_extract,vorbis,$(VORBIS_URL),$(SOURCES_DIR))
 	cd $(VORBIS_SRC) && \
+		sed -i '' 's/-force_cpusubtype_ALL//g' configure && \
 		./configure \
 			--prefix=$(PREFIX) \
 			--enable-static \
