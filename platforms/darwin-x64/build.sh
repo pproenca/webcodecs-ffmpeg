@@ -187,8 +187,8 @@ verify_binary_arch() {
   local expected_arch="$2"
 
   if [[ ! -f "$binary" ]]; then
-    log_warn "Binary not found for architecture verification: $binary"
-    return 0
+    log_error "Binary not found for architecture verification: $binary"
+    exit 1
   fi
 
   log_step "Verifying binary architecture..."

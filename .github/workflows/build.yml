@@ -44,6 +44,11 @@ jobs:
           EXPECTED_ARCH="${{ matrix.platform == 'darwin-arm64' && 'arm64' || 'x86_64' }}"
           FFMPEG_BIN="artifacts/${{ matrix.platform }}-${{ matrix.license }}/bin/ffmpeg"
 
+          if [[ ! -f "$FFMPEG_BIN" ]]; then
+            echo "::error::Binary not found: $FFMPEG_BIN"
+            exit 1
+          fi
+
           echo "Verifying $FFMPEG_BIN is $EXPECTED_ARCH..."
           file "$FFMPEG_BIN"
 
