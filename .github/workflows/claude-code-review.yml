@@ -58,4 +58,5 @@ jobs:
             --model opus
             --max-turns 15
             --plugin-dir /tmp/claude-plugins/plugins/pr-review-toolkit
+            --dangerously-skip-permissions
 
