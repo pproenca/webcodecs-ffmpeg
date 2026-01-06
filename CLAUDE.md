@@ -58,6 +58,52 @@ mise run act:validate      # Dry-run workflows
 mise run act               # Run workflows locally
 ```
 
+## CI/CD Workflows
+
+The repository uses a three-workflow architecture for continuous integration and release:
+
+### Workflow Structure
+
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `lint.yml` | PR to master | Land-blocking validation (actionlint, shellcheck, hadolint) |
+| `build.yml` | Push to master | Continuous builds, stores artifacts for 90 days |
+| `release.yml` | Release published | Downloads artifacts, publishes to npm/GitHub |
+
+### Build Workflow (`build.yml`)
+
+- **Trigger:** Push to master, manual dispatch
+- **Matrix:** 2 platforms × 3 licenses = 6 parallel jobs
+- **Concurrency:** Per-platform groups with cancel-in-progress
+- **Artifacts:** Tarballs + SHA256 checksums, 90-day retention
+- **Attestations:** SLSA build provenance generated per artifact
+
+### Release Workflow (`release.yml`)
+
+- **Trigger:** `release.published` event or `workflow_dispatch`
+- **Artifact lookup:** Searches for build artifacts by commit SHA
+- **Fallback:** If artifacts missing/expired, triggers full rebuild
+- **Publishing:** npm workspaces with provenance, GitHub release assets
+
+### Manual Release
+
+```bash
+# Create release via GitHub UI or:
+gh release create v0.2.0 --generate-notes
+
+# Force rebuild (ignores cached artifacts):
+gh workflow run release.yml -f tag=v0.2.0 -f force_build=true
+```
+
+### Artifact Naming Convention
+
+```
+ffmpeg-{platform}-{license}.tar.gz
+ffmpeg-{platform}-{license}.tar.gz.sha256
+```
+
+Example: `ffmpeg-darwin-arm64-gpl.tar.gz`
+
 ## Architecture
 
 ### Directory Structure
