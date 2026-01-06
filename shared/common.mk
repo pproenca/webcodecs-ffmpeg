@@ -4,11 +4,11 @@
 # Shared utilities for all platform builds
 # =============================================================================
 
-# Ensure bash with strict mode
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-# Colors for output (only if terminal supports it)
+NPROC ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+
 ifneq ($(TERM),)
     COLOR_GREEN := \033[0;32m
     COLOR_YELLOW := \033[1;33m
@@ -76,7 +76,7 @@ endef
 define autoconf_build
 	cd $(1) && \
 	./configure $(2) && \
-	$(MAKE) -j && \
+	$(MAKE) -j$(NPROC) && \
 	$(MAKE) install
 endef
 
@@ -86,7 +86,7 @@ define cmake_build
 	mkdir -p $(2) && \
 	cd $(2) && \
 	cmake $(1) $(3) && \
-	$(MAKE) -j && \
+	$(MAKE) -j$(NPROC) && \
 	$(MAKE) install
 endef
 
