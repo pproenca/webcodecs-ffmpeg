@@ -166,7 +166,12 @@ ffmpeg.stamp: dirs $(addsuffix .stamp,$(ACTIVE_CODECS))
 	@echo 'export PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig"' >> $(BUILD_DIR)/pkg-config-cross
 	@echo 'exec pkg-config "$$@"' >> $(BUILD_DIR)/pkg-config-cross
 	@chmod +x $(BUILD_DIR)/pkg-config-cross
+	@# Verify pkg-config can find our built codecs before FFmpeg configure
+	@echo "=== Verifying pkg-config setup ==="
+	@PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" pkg-config --list-all 2>/dev/null | grep -iE "(svtav1|aom|vpx|dav1d|opus|vorbis)" || \
+		(echo "WARNING: Some codec .pc files not found" && ls -la $(PREFIX)/lib/pkgconfig/ 2>/dev/null || true)
 	cd $(FFMPEG_SRC) && \
+		export PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" && \
 		./configure \
 			--pkg-config=$(BUILD_DIR)/pkg-config-cross \
 			$(FFMPEG_CONFIGURE_OPTS) \
