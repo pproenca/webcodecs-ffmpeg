@@ -5,7 +5,7 @@
 # Uses CMake build system.
 # =============================================================================
 
-SVTAV1_SRC := $(SOURCES_DIR)/SVT-AV1-$(patsubst v%,%,$(SVTAV1_VERSION))
+SVTAV1_SRC := $(SOURCES_DIR)/SVT-AV1-$(SVTAV1_VERSION)
 SVTAV1_BUILD := $(SVTAV1_SRC)/build
 
 svt-av1.stamp:

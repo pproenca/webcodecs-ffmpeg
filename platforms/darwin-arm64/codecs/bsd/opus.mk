@@ -12,7 +12,6 @@ opus.stamp:
 	@mkdir -p $(SOURCES_DIR) $(STAMPS_DIR)
 	$(call download_and_extract,opus,$(OPUS_URL),$(SOURCES_DIR))
 	cd $(OPUS_SRC) && \
-		./autogen.sh && \
 		./configure \
 			--prefix=$(PREFIX) \
 			--enable-static \

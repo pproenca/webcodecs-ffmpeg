@@ -126,3 +126,26 @@ All versions, URLs, and SHA256 checksums are in `shared/versions.mk`. Bump `CACH
 ## FFmpeg Skill
 
 Use `/dev-ffmpeg` skill for guidance on FFmpeg compilation decisions including license compliance, codec selection, and platform-specific configuration. Reference docs in `.claude/skills/dev-ffmpeg/references/`.
+
+## Researching FFmpeg Build Issues
+
+When encountering build problems or validating configuration decisions, consult official FFmpeg sources:
+
+**Primary Sources (in order of priority):**
+1. `https://ffmpeg.org/pipermail/ffmpeg-devel/` - Developer mailing list archives (search by year/month)
+2. `https://trac.ffmpeg.org/` - Bug tracker and wiki
+3. `https://ffmpeg.org/general.html` - External library requirements
+4. `https://ffmpeg.org/platform.html` - Platform-specific notes
+5. `https://ffmpeg.org/security.html` - CVE patches and security updates
+
+**Research Process:**
+1. Search ffmpeg-devel archives for the specific issue (e.g., "x265 static linking")
+2. Check trac.ffmpeg.org for related tickets
+3. Verify configure flags against general.html documentation
+4. Document findings and sources in commit messages
+
+**Common Gotchas (FFmpeg 7+):**
+- x265 static linking requires `--extra-libs=-lc++` (broken .pc file)
+- Use `--pkg-config-flags="--static"` for static builds
+- NASM required for x86 assembly (YASM deprecated)
+- Channel layout API changed - old bitmask API removed

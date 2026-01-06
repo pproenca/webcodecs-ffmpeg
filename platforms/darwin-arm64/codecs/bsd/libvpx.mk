@@ -25,9 +25,7 @@ libvpx.stamp:
 			--disable-examples \
 			--disable-tools \
 			--disable-docs \
-			--disable-unit-tests \
-			--extra-cflags="$(CFLAGS)" \
-			--extra-cxxflags="$(CXXFLAGS)" && \
+			--disable-unit-tests && \
 		$(MAKE) -j$(NPROC) && \
 		$(MAKE) install
 	$(call verify_static_lib,libvpx,$(PREFIX))

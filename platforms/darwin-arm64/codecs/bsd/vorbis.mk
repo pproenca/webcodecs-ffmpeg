@@ -6,14 +6,13 @@
 # Uses autoconf build system.
 # =============================================================================
 
-VORBIS_SRC := $(SOURCES_DIR)/vorbis-$(patsubst v%,%,$(VORBIS_VERSION))
+VORBIS_SRC := $(SOURCES_DIR)/libvorbis-$(patsubst v%,%,$(VORBIS_VERSION))
 
 vorbis.stamp: ogg.stamp
 	$(call log_info,Building libvorbis $(VORBIS_VERSION)...)
 	@mkdir -p $(SOURCES_DIR) $(STAMPS_DIR)
 	$(call download_and_extract,vorbis,$(VORBIS_URL),$(SOURCES_DIR))
 	cd $(VORBIS_SRC) && \
-		./autogen.sh && \
 		./configure \
 			--prefix=$(PREFIX) \
 			--enable-static \

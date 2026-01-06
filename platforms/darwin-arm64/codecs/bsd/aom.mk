@@ -5,7 +5,7 @@
 # Uses CMake build system.
 # =============================================================================
 
-AOM_SRC := $(SOURCES_DIR)/libaom-$(AOM_VERSION)
+AOM_SRC := $(SOURCES_DIR)/libaom-$(patsubst v%,%,$(AOM_VERSION))
 AOM_BUILD := $(AOM_SRC)/build
 
 aom.stamp:

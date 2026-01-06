@@ -25,7 +25,7 @@ LIBVPX_VERSION := v1.15.0
 LIBVPX_URL := https://github.com/webmproject/libvpx/archive/refs/tags/$(LIBVPX_VERSION).tar.gz
 
 AOM_VERSION := v3.12.0
-AOM_URL := https://storage.googleapis.com/aom-releases/libaom-$(AOM_VERSION).tar.gz
+AOM_URL := https://storage.googleapis.com/aom-releases/libaom-$(patsubst v%,%,$(AOM_VERSION)).tar.gz
 
 DAV1D_VERSION := 1.5.0
 DAV1D_URL := https://code.videolan.org/videolan/dav1d/-/archive/$(DAV1D_VERSION)/dav1d-$(DAV1D_VERSION).tar.gz
@@ -34,13 +34,13 @@ SVTAV1_VERSION := v2.3.0
 SVTAV1_URL := https://gitlab.com/AOMediaCodec/SVT-AV1/-/archive/$(SVTAV1_VERSION)/SVT-AV1-$(SVTAV1_VERSION).tar.gz
 
 OPUS_VERSION := v1.5.2
-OPUS_URL := https://github.com/xiph/opus/archive/refs/tags/$(OPUS_VERSION).tar.gz
+OPUS_URL := https://downloads.xiph.org/releases/opus/opus-$(patsubst v%,%,$(OPUS_VERSION)).tar.gz
 
 OGG_VERSION := v1.3.5
-OGG_URL := https://github.com/xiph/ogg/archive/refs/tags/$(OGG_VERSION).tar.gz
+OGG_URL := https://downloads.xiph.org/releases/ogg/libogg-$(patsubst v%,%,$(OGG_VERSION)).tar.gz
 
 VORBIS_VERSION := v1.3.7
-VORBIS_URL := https://github.com/xiph/vorbis/archive/refs/tags/$(VORBIS_VERSION).tar.gz
+VORBIS_URL := https://downloads.xiph.org/releases/vorbis/libvorbis-$(patsubst v%,%,$(VORBIS_VERSION)).tar.gz
 
 # =============================================================================
 # LGPL-Licensed Codecs

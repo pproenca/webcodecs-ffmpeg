@@ -5,14 +5,13 @@
 # Uses autoconf build system.
 # =============================================================================
 
-OGG_SRC := $(SOURCES_DIR)/ogg-$(patsubst v%,%,$(OGG_VERSION))
+OGG_SRC := $(SOURCES_DIR)/libogg-$(patsubst v%,%,$(OGG_VERSION))
 
 ogg.stamp:
 	$(call log_info,Building libogg $(OGG_VERSION)...)
 	@mkdir -p $(SOURCES_DIR) $(STAMPS_DIR)
 	$(call download_and_extract,ogg,$(OGG_URL),$(SOURCES_DIR))
 	cd $(OGG_SRC) && \
-		./autogen.sh && \
 		./configure \
 			--prefix=$(PREFIX) \
 			--enable-static \
