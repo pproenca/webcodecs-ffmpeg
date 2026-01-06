@@ -31,6 +31,14 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Fetch pr-review-toolkit plugin
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse \
+            https://github.com/anthropics/claude-plugins-official.git \
+            /tmp/claude-plugins
+          cd /tmp/claude-plugins
+          git sparse-checkout set plugins/pr-review-toolkit
+
       - name: Run Claude Code Review
         id: claude-review
         uses: anthropics/claude-code-action@v1
@@ -48,7 +56,6 @@ jobs:
           # or https://code.claude.com/docs/en/cli-reference for available options
           claude_args: |
             --model opus
-            --mcp-config .mcp.json
-            --max-turns 10
-            --allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"
+            --max-turns 15
+            --plugin-dir /tmp/claude-plugins/plugins/pr-review-toolkit
 
