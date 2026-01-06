@@ -52,30 +52,31 @@ jobs:
   # RELEASE-BLOCKING: Full build + publish (only on release)
   # ============================================================================
   build:
-    name: Build ${{ matrix.license }}
+    name: Build ${{ matrix.platform }} ${{ matrix.license }}
     if: github.event_name == 'release'
     runs-on: macos-15
     strategy:
       fail-fast: false
       matrix:
+        platform: [darwin-arm64, darwin-x64]
         license: [bsd, lgpl, gpl]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Build FFmpeg
-        run: LICENSE=${{ matrix.license }} ./platforms/darwin-arm64/build.sh all
+        run: LICENSE=${{ matrix.license }} ./platforms/${{ matrix.platform }}/build.sh all
 
       - name: Create tarball
         run: |
-          tar -czvf ffmpeg-darwin-arm64-${{ matrix.license }}.tar.gz \
-            -C artifacts darwin-arm64-${{ matrix.license }}
+          tar -czvf ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz \
+            -C artifacts ${{ matrix.platform }}-${{ matrix.license }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ffmpeg-darwin-arm64-${{ matrix.license }}
-          path: ffmpeg-darwin-arm64-${{ matrix.license }}.tar.gz
+          name: ffmpeg-${{ matrix.platform }}-${{ matrix.license }}
+          path: ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz
           retention-days: 90
 
   publish:
