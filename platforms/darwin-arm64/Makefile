@@ -242,3 +242,13 @@ help:
 	@echo ""
 	@echo "Status:"
 	@$(MAKE) -s LICENSE=$(LICENSE) codecs-info
+
+# =============================================================================
+# NPM Package
+# =============================================================================
+
+.PHONY: npm
+
+npm: package
+	$(call log_info,Populating npm package...)
+	$(PROJECT_ROOT)/scripts/populate-npm.sh

@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "workspaces": [
+    "dev",
+    "darwin-arm64",
+    "darwin-arm64-lgpl",
+    "darwin-arm64-bsd"
+  ]
+}
