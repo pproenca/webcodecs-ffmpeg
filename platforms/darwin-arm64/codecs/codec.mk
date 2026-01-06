@@ -19,10 +19,8 @@
 #   LICENSE=gpl   - All codecs including x264/x265 (default)
 # =============================================================================
 
-# Default to GPL (full build) for backward compatibility
 LICENSE ?= gpl
 
-# Validate LICENSE value
 ifeq ($(filter $(LICENSE),bsd lgpl gpl),)
     $(error Invalid LICENSE=$(LICENSE). Must be one of: bsd, lgpl, gpl)
 endif
@@ -50,7 +48,6 @@ else ifeq ($(LICENSE),lgpl)
     ACTIVE_CODECS := $(BSD_CODECS) $(LGPL_CODECS)
     LICENSE_LABEL := LGPL-2.0+
 else
-    # gpl (default) - all codecs
     ACTIVE_CODECS := $(ALL_CODECS)
     LICENSE_LABEL := GPL-2.0+
 endif

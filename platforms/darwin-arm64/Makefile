@@ -42,23 +42,15 @@ ARTIFACTS_DIR := $(PROJECT_ROOT)/artifacts/$(PLATFORM)-$(LICENSE)
 # Include Configurations
 # =============================================================================
 
-# Shared version definitions
 include $(PROJECT_ROOT)/shared/versions.mk
-
-# Shared utility functions
 include $(PROJECT_ROOT)/shared/common.mk
-
-# Platform-specific configuration
 include $(ROOT_DIR)/config.mk
-
-# Common codec patterns
 include $(ROOT_DIR)/codecs/codec.mk
 
 # =============================================================================
 # Include Individual Codec Build Rules
 # =============================================================================
 
-# BSD-licensed codecs (always included)
 include $(ROOT_DIR)/codecs/bsd/libvpx.mk
 include $(ROOT_DIR)/codecs/bsd/aom.mk
 include $(ROOT_DIR)/codecs/bsd/dav1d.mk
@@ -67,12 +59,10 @@ include $(ROOT_DIR)/codecs/bsd/opus.mk
 include $(ROOT_DIR)/codecs/bsd/ogg.mk
 include $(ROOT_DIR)/codecs/bsd/vorbis.mk
 
-# LGPL-licensed codecs (lgpl and gpl tiers)
 ifneq ($(LICENSE),bsd)
 include $(ROOT_DIR)/codecs/lgpl/lame.mk
 endif
 
-# GPL-licensed codecs (gpl tier only)
 ifeq ($(LICENSE),gpl)
 include $(ROOT_DIR)/codecs/gpl/x264.mk
 include $(ROOT_DIR)/codecs/gpl/x265.mk
@@ -102,7 +92,6 @@ FFMPEG_SRC := $(SOURCES_DIR)/FFmpeg-$(patsubst n%,%,$(FFMPEG_VERSION))
 # FFmpeg Configure Options (by license tier)
 # -----------------------------------------------------------------------------
 
-# Base options (always included)
 FFMPEG_BASE_OPTS := \
 	--prefix=$(PREFIX) \
 	--arch=arm64 \
@@ -120,7 +109,6 @@ FFMPEG_BASE_OPTS := \
 	--disable-podpages \
 	--disable-txtpages
 
-# BSD codec enable flags
 FFMPEG_BSD_OPTS := \
 	--enable-libvpx \
 	--enable-libaom \
@@ -129,23 +117,19 @@ FFMPEG_BSD_OPTS := \
 	--enable-libopus \
 	--enable-libvorbis
 
-# LGPL codec enable flags
 FFMPEG_LGPL_OPTS := \
 	--enable-libmp3lame
 
-# GPL codec enable flags (requires --enable-gpl)
 FFMPEG_GPL_OPTS := \
 	--enable-gpl \
 	--enable-libx264 \
 	--enable-libx265
 
-# Assemble configure options based on LICENSE tier
 ifeq ($(LICENSE),bsd)
     FFMPEG_LICENSE_OPTS := $(FFMPEG_BSD_OPTS)
 else ifeq ($(LICENSE),lgpl)
     FFMPEG_LICENSE_OPTS := $(FFMPEG_BSD_OPTS) $(FFMPEG_LGPL_OPTS)
 else
-    # gpl (default)
     FFMPEG_LICENSE_OPTS := $(FFMPEG_BSD_OPTS) $(FFMPEG_LGPL_OPTS) $(FFMPEG_GPL_OPTS)
 endif
 
