@@ -68,9 +68,9 @@ install_dependencies() {
     exit 1
   fi
 
+  # Homebrew tools (excludes cmake - installed via pip for version control)
   local tools=(
     nasm       # Assembler for x264 and others
-    cmake@3    # Build system for x265, aom, svt-av1 (CMake 4.x incompatible)
     meson      # Build system for dav1d
     ninja      # Build tool for meson
     pkg-config # Library configuration
@@ -94,10 +94,9 @@ install_dependencies() {
     log_info "All build tools are installed"
   fi
 
-  # Ensure cmake@3 is in PATH before system cmake (CMake 4.x breaks codec builds)
-  if [[ -d "$(brew --prefix cmake@3)/bin" ]]; then
-    export PATH="$(brew --prefix cmake@3)/bin:$PATH"
-  fi
+  # Install CMake 3.x via pip (CMake 4.x breaks x265, libaom, svt-av1 builds)
+  # Homebrew only provides CMake 4.x, so we use pip for version control
+  install_cmake
 
   # Show tool versions
   log_info "Tool versions:"
@@ -105,6 +104,18 @@ install_dependencies() {
   echo "  cmake:    $(cmake --version | head -1) ($(which cmake))"
   echo "  meson:    $(meson --version)"
   echo "  ninja:    $(ninja --version)"
+}
+
+# Install CMake 3.x via pip (upstream codecs incompatible with CMake 4.x)
+install_cmake() {
+  local cmake_version
+  cmake_version="$(cmake --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "0.0.0")"
+  local cmake_major="${cmake_version%%.*}"
+
+  if [[ "$cmake_major" -ge 4 ]] || ! command -v cmake &>/dev/null; then
+    log_info "Installing CMake 3.x via pip (CMake 4.x incompatible with codec builds)..."
+    pip3 install --quiet --break-system-packages 'cmake>=3.20,<4'
+  fi
 }
 
 # =============================================================================
