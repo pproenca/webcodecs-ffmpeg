@@ -49,6 +49,6 @@ jobs:
           # or https://code.claude.com/docs/en/cli-reference for available options
           claude_args: |
             --model opus
-            --max-turns 15
+            --max-turns 25
             --dangerously-skip-permissions
 
