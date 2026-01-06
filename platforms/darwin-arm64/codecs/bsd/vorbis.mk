@@ -4,6 +4,9 @@
 # Audio codec for WebM format.
 # Depends on libogg.
 # Uses autoconf build system.
+#
+# Note: libvorbis 1.3.7's bundled libtool adds -force_cpusubtype_ALL which
+# modern macOS ARM64 linkers don't support. We patch libtool after configure.
 # =============================================================================
 
 VORBIS_SRC := $(SOURCES_DIR)/libvorbis-$(patsubst v%,%,$(VORBIS_VERSION))
@@ -25,6 +28,7 @@ vorbis.stamp: ogg.stamp
 			CFLAGS="$(CFLAGS) -I$(PREFIX)/include" \
 			LDFLAGS="$(LDFLAGS) -L$(PREFIX)/lib" \
 			PKG_CONFIG_PATH="$(PREFIX)/lib/pkgconfig" && \
+		sed -i '' 's/-force_cpusubtype_ALL//g' libtool && \
 		$(MAKE) -j$(NPROC) && \
 		$(MAKE) install
 	$(call verify_static_lib,libvorbis,$(PREFIX))
