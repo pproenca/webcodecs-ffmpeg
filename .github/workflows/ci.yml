@@ -3,9 +3,10 @@ name: CI
 on:
   push:
     branches: [master]
-    tags: ['v*']
   pull_request:
     branches: [master]
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -37,12 +38,12 @@ jobs:
         with:
           name: ffmpeg-darwin-arm64-${{ matrix.license }}
           path: ffmpeg-darwin-arm64-${{ matrix.license }}.tar.gz
-          retention-days: ${{ startsWith(github.ref, 'refs/tags/') && 90 || 1 }}
+          retention-days: ${{ github.event_name == 'release' && 90 || 1 }}
 
   publish:
     name: Publish
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'release'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -74,13 +75,17 @@ jobs:
           subject-path: 'artifacts-download/*.tar.gz'
 
       - name: Populate npm packages
-        run: ./scripts/populate-npm.sh
+        env:
+          FFMPEG_VERSION: ${{ github.event.release.tag_name }}
+        run: |
+          # Strip 'v' prefix from tag (v0.1.0 -> 0.1.0)
+          export FFMPEG_VERSION="${FFMPEG_VERSION#v}"
+          ./scripts/populate-npm.sh
 
-      - name: Create GitHub Release
-        uses: ncipollo/release-action@v1
-        with:
-          artifacts: 'artifacts-download/*.tar.gz'
-          generateReleaseNotes: true
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" artifacts-download/*.tar.gz --clobber
 
       - name: Publish to npm
         working-directory: npm
