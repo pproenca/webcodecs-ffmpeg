@@ -29,7 +29,7 @@ jobs:
       - name: Lint workflows
         run: |
           echo "::group::Install actionlint"
-          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-bash.sh)
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
           echo "::endgroup::"
           ./actionlint -color
 
