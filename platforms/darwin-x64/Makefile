@@ -112,10 +112,16 @@ FFMPEG_SRC := $(SOURCES_DIR)/FFmpeg-$(FFMPEG_VERSION)
 # -----------------------------------------------------------------------------
 # FFmpeg Configure Options (by license tier)
 # -----------------------------------------------------------------------------
+# Cross-compile mode (--enable-cross-compile, --target-os) is REQUIRED when
+# building x86_64 on ARM64 runners. Without it, FFmpeg's configure tries to
+# RUN test programs to detect libraries like LAME (which doesn't use pkg-config),
+# and the x86_64 test binaries fail to execute on the ARM64 host.
 
 FFMPEG_BASE_OPTS := \
 	--prefix=$(PREFIX) \
 	--arch=x86_64 \
+	--target-os=darwin \
+	--enable-cross-compile \
 	--enable-version3 \
 	--enable-static \
 	--disable-shared \
