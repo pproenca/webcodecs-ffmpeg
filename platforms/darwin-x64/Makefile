@@ -161,9 +161,14 @@ FFMPEG_CONFIGURE_OPTS := $(FFMPEG_BASE_OPTS) $(FFMPEG_LICENSE_OPTS)
 ffmpeg.stamp: dirs $(addsuffix .stamp,$(ACTIVE_CODECS))
 	$(call log_info,Building FFmpeg $(FFMPEG_VERSION) [$(LICENSE) tier]...)
 	$(call download_and_extract,ffmpeg,$(FFMPEG_URL),$(SOURCES_DIR))
+	@# Create pkg-config wrapper to ensure cross-compilation uses only our built libs
+	@echo '#!/bin/sh' > $(BUILD_DIR)/pkg-config-cross
+	@echo 'export PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig"' >> $(BUILD_DIR)/pkg-config-cross
+	@echo 'exec pkg-config "$$@"' >> $(BUILD_DIR)/pkg-config-cross
+	@chmod +x $(BUILD_DIR)/pkg-config-cross
 	cd $(FFMPEG_SRC) && \
-		PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" \
 		./configure \
+			--pkg-config=$(BUILD_DIR)/pkg-config-cross \
 			$(FFMPEG_CONFIGURE_OPTS) \
 			--pkg-config-flags="--static" \
 			--extra-cflags="-I$(PREFIX)/include $(CFLAGS)" \
