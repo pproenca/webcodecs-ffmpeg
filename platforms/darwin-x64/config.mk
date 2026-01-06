@@ -60,7 +60,11 @@ CMAKE_OPTS := \
     -DCMAKE_CXX_COMPILER=$(CXX)
 
 # Meson configuration for meson-based codecs (dav1d)
+# Cross-file required when building x86_64 on ARM64 runners - ensures Meson
+# detects x86_64 as host_machine.cpu_family() for correct assembly selection
+MESON_CROSS_FILE := $(CURDIR)/x86_64-darwin.ini
 MESON_OPTS := \
+    --cross-file=$(MESON_CROSS_FILE) \
     --prefix=$(PREFIX) \
     --libdir=lib \
     --buildtype=release \
