@@ -111,15 +111,23 @@ install_dependencies() {
 run_build() {
     local target="${1:-all}"
     local jobs="${JOBS:-$(sysctl -n hw.ncpu)}"
+    local license="${LICENSE:-gpl}"
+
+    # Validate LICENSE
+    if [[ ! "$license" =~ ^(bsd|lgpl|gpl)$ ]]; then
+        log_error "Invalid LICENSE=$license. Must be: bsd, lgpl, gpl"
+        exit 1
+    fi
 
     log_step "Starting build..."
     log_info "Target: ${target}"
+    log_info "License tier: ${license}"
     log_info "Parallel jobs: ${jobs}"
 
     cd "${SCRIPT_DIR}"
 
-    # Run make with the specified target
-    make -j"${jobs}" "${target}"
+    # Run make with the specified target and license
+    make -j"${jobs}" LICENSE="${license}" "${target}"
 }
 
 # =============================================================================
@@ -128,17 +136,19 @@ run_build() {
 
 main() {
     local target="${1:-all}"
+    local license="${LICENSE:-gpl}"
 
     echo ""
     echo "=========================================="
     echo " FFmpeg Build for darwin-arm64"
+    echo " License tier: ${license}"
     echo "=========================================="
     echo ""
 
     # Handle help specially
     if [[ "$target" == "help" ]] || [[ "$target" == "-h" ]] || [[ "$target" == "--help" ]]; then
         cd "${SCRIPT_DIR}"
-        make help
+        make LICENSE="${license}" help
         exit 0
     fi
 
@@ -151,9 +161,10 @@ main() {
 
     # Show artifacts location if we built everything
     if [[ "$target" == "all" ]] || [[ "$target" == "package" ]]; then
+        local artifacts_dir="${PROJECT_ROOT}/artifacts/darwin-arm64-${license}"
         echo ""
-        log_info "Artifacts location: ${PROJECT_ROOT}/artifacts/darwin-arm64/"
-        ls -la "${PROJECT_ROOT}/artifacts/darwin-arm64/bin/" 2>/dev/null || true
+        log_info "Artifacts location: ${artifacts_dir}/"
+        ls -la "${artifacts_dir}/bin/" 2>/dev/null || true
     fi
 }
 

@@ -1,0 +1,128 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Project Overview
+
+FFmpeg prebuilds - a modular build system for creating statically-linked FFmpeg binaries with codec dependencies for multiple platforms. Currently implements macOS ARM64 (darwin-arm64) with architecture designed for multi-platform expansion.
+
+## Build Commands
+
+### macOS ARM64 (darwin-arm64)
+
+```bash
+# Full build (codecs + FFmpeg + package)
+cd platforms/darwin-arm64
+./build.sh all
+
+# Or directly with Make
+make -j$(nproc) all
+```
+
+### Build Targets
+
+```bash
+make codecs        # Build all codec libraries
+make ffmpeg        # Build FFmpeg (requires codecs)
+make package       # Create distribution package
+make verify        # Verify build (ffmpeg -version, architecture check)
+make codecs-info   # Show codec build status
+```
+
+### Individual Codec Build
+
+```bash
+make x264.stamp    # Build specific codec (creates .stamp file on success)
+```
+
+### Clean
+
+```bash
+make clean         # Remove build directory
+make distclean     # Remove build + artifacts
+make codecs-clean  # Remove codec sources only
+```
+
+### Linting
+
+```bash
+mise run lint              # All linters
+mise run lint:workflows    # GitHub Actions (actionlint)
+mise run lint:docker       # Dockerfiles (hadolint)
+```
+
+### Local CI Testing
+
+```bash
+mise run act:validate      # Dry-run workflows
+mise run act               # Run workflows locally
+```
+
+## Architecture
+
+### Directory Structure
+
+```
+platforms/<os>-<arch>/     # Platform-specific builds
+├── Makefile               # Build orchestrator
+├── build.sh               # CI entry point
+├── config.mk              # Compiler/SDK configuration
+└── codecs/                # Individual codec recipes
+    ├── codec.mk           # Common patterns
+    └── <codec>.mk         # Per-codec build recipe
+
+shared/                    # Cross-platform utilities
+├── common.mk              # Reusable Make functions
+└── versions.mk            # Centralized dependency versions
+```
+
+### Makefile Hierarchy
+
+1. `platforms/<platform>/Makefile` - Main entry, defines targets
+2. `shared/versions.mk` - Single source of truth for versions/URLs
+3. `platforms/<platform>/config.mk` - Compiler flags, SDK paths
+4. `codecs/codec.mk` - Common codec patterns
+5. `codecs/<name>.mk` - Per-codec build recipe
+
+### Build Patterns
+
+**Stamp files**: Each codec creates a `.stamp` file on success for incremental builds.
+
+**Build systems supported**:
+- Autoconf: `$(call autoconf_build,...)` - opus, vorbis, ogg, lame, x264, libvpx
+- CMake: `$(call cmake_build,...)` - aom, x265, svt-av1
+- Meson: `$(call meson_build,...)` - dav1d
+
+**Common functions** (from `shared/common.mk`):
+- `download_and_extract` - Fetch and cache tarballs
+- `git_clone` - Clone repos at specific versions
+- `verify_static_lib` / `verify_pkgconfig` - Build verification
+
+### Codec License Categories
+
+| License | Codecs | FFmpeg Flag |
+|---------|--------|-------------|
+| BSD | libvpx, aom, dav1d, svt-av1, opus, ogg, vorbis | (default) |
+| LGPL | lame | (default) |
+| GPL | x264, x265 | `--enable-gpl` |
+
+### Version Management
+
+All versions, URLs, and SHA256 checksums are in `shared/versions.mk`. Bump `CACHE_VERSION` to invalidate CI cache.
+
+## Adding a New Codec
+
+1. Create `platforms/<platform>/codecs/<codec>.mk`
+2. Add version/URL/SHA256 to `shared/versions.mk`
+3. Add to `CODEC_STAMPS` in platform `Makefile`
+4. Add `--enable-lib<codec>` to FFmpeg configure
+
+## Adding a New Platform
+
+1. Create `platforms/<os>-<arch>/` directory
+2. Copy and adapt `Makefile`, `config.mk`, `build.sh` from existing platform
+3. Adjust compiler flags, SDK paths, and codec build recipes for platform specifics
+
+## FFmpeg Skill
+
+Use `/dev-ffmpeg` skill for guidance on FFmpeg compilation decisions including license compliance, codec selection, and platform-specific configuration. Reference docs in `.claude/skills/dev-ffmpeg/references/`.

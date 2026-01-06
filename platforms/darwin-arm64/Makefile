@@ -35,8 +35,8 @@ PREFIX := $(BUILD_DIR)/prefix
 SOURCES_DIR := $(BUILD_DIR)/sources
 STAMPS_DIR := $(BUILD_DIR)/stamps
 
-# Output directories
-ARTIFACTS_DIR := $(PROJECT_ROOT)/artifacts/$(PLATFORM)
+# Output directories (includes license tier for separate packages)
+ARTIFACTS_DIR := $(PROJECT_ROOT)/artifacts/$(PLATFORM)-$(LICENSE)
 
 # =============================================================================
 # Include Configurations
@@ -58,21 +58,25 @@ include $(ROOT_DIR)/codecs/codec.mk
 # Include Individual Codec Build Rules
 # =============================================================================
 
-# BSD-licensed codecs
-include $(ROOT_DIR)/codecs/libvpx.mk
-include $(ROOT_DIR)/codecs/aom.mk
-include $(ROOT_DIR)/codecs/dav1d.mk
-include $(ROOT_DIR)/codecs/svt-av1.mk
-include $(ROOT_DIR)/codecs/opus.mk
-include $(ROOT_DIR)/codecs/ogg.mk
-include $(ROOT_DIR)/codecs/vorbis.mk
+# BSD-licensed codecs (always included)
+include $(ROOT_DIR)/codecs/bsd/libvpx.mk
+include $(ROOT_DIR)/codecs/bsd/aom.mk
+include $(ROOT_DIR)/codecs/bsd/dav1d.mk
+include $(ROOT_DIR)/codecs/bsd/svt-av1.mk
+include $(ROOT_DIR)/codecs/bsd/opus.mk
+include $(ROOT_DIR)/codecs/bsd/ogg.mk
+include $(ROOT_DIR)/codecs/bsd/vorbis.mk
 
-# LGPL-licensed codecs
-include $(ROOT_DIR)/codecs/lame.mk
+# LGPL-licensed codecs (lgpl and gpl tiers)
+ifneq ($(LICENSE),bsd)
+include $(ROOT_DIR)/codecs/lgpl/lame.mk
+endif
 
-# GPL-licensed codecs
-include $(ROOT_DIR)/codecs/x264.mk
-include $(ROOT_DIR)/codecs/x265.mk
+# GPL-licensed codecs (gpl tier only)
+ifeq ($(LICENSE),gpl)
+include $(ROOT_DIR)/codecs/gpl/x264.mk
+include $(ROOT_DIR)/codecs/gpl/x265.mk
+endif
 
 # =============================================================================
 # Main Targets
@@ -94,37 +98,68 @@ dirs:
 
 FFMPEG_SRC := $(SOURCES_DIR)/FFmpeg-$(patsubst n%,%,$(FFMPEG_VERSION))
 
-ffmpeg.stamp: dirs $(addsuffix .stamp,$(ALL_CODECS))
-	$(call log_info,Building FFmpeg $(FFMPEG_VERSION)...)
+# -----------------------------------------------------------------------------
+# FFmpeg Configure Options (by license tier)
+# -----------------------------------------------------------------------------
+
+# Base options (always included)
+FFMPEG_BASE_OPTS := \
+	--prefix=$(PREFIX) \
+	--arch=arm64 \
+	--enable-version3 \
+	--enable-static \
+	--disable-shared \
+	--enable-pic \
+	--enable-pthreads \
+	--enable-videotoolbox \
+	--enable-audiotoolbox \
+	--disable-debug \
+	--disable-doc \
+	--disable-htmlpages \
+	--disable-manpages \
+	--disable-podpages \
+	--disable-txtpages
+
+# BSD codec enable flags
+FFMPEG_BSD_OPTS := \
+	--enable-libvpx \
+	--enable-libaom \
+	--enable-libsvtav1 \
+	--enable-libdav1d \
+	--enable-libopus \
+	--enable-libvorbis
+
+# LGPL codec enable flags
+FFMPEG_LGPL_OPTS := \
+	--enable-libmp3lame
+
+# GPL codec enable flags (requires --enable-gpl)
+FFMPEG_GPL_OPTS := \
+	--enable-gpl \
+	--enable-libx264 \
+	--enable-libx265
+
+# Assemble configure options based on LICENSE tier
+ifeq ($(LICENSE),bsd)
+    FFMPEG_LICENSE_OPTS := $(FFMPEG_BSD_OPTS)
+else ifeq ($(LICENSE),lgpl)
+    FFMPEG_LICENSE_OPTS := $(FFMPEG_BSD_OPTS) $(FFMPEG_LGPL_OPTS)
+else
+    # gpl (default)
+    FFMPEG_LICENSE_OPTS := $(FFMPEG_BSD_OPTS) $(FFMPEG_LGPL_OPTS) $(FFMPEG_GPL_OPTS)
+endif
+
+FFMPEG_CONFIGURE_OPTS := $(FFMPEG_BASE_OPTS) $(FFMPEG_LICENSE_OPTS)
+
+# -----------------------------------------------------------------------------
+
+ffmpeg.stamp: dirs $(addsuffix .stamp,$(ACTIVE_CODECS))
+	$(call log_info,Building FFmpeg $(FFMPEG_VERSION) [$(LICENSE) tier]...)
 	$(call download_and_extract,ffmpeg,$(FFMPEG_URL),$(SOURCES_DIR))
 	cd $(FFMPEG_SRC) && \
 		PKG_CONFIG_PATH="$(PREFIX)/lib/pkgconfig" \
 		./configure \
-			--prefix=$(PREFIX) \
-			--arch=arm64 \
-			--enable-gpl \
-			--enable-version3 \
-			--enable-static \
-			--disable-shared \
-			--enable-pic \
-			--enable-pthreads \
-			--enable-videotoolbox \
-			--enable-audiotoolbox \
-			--enable-libx264 \
-			--enable-libx265 \
-			--enable-libvpx \
-			--enable-libaom \
-			--enable-libsvtav1 \
-			--enable-libdav1d \
-			--enable-libopus \
-			--enable-libvorbis \
-			--enable-libmp3lame \
-			--disable-debug \
-			--disable-doc \
-			--disable-htmlpages \
-			--disable-manpages \
-			--disable-podpages \
-			--disable-txtpages \
+			$(FFMPEG_CONFIGURE_OPTS) \
 			--extra-cflags="-I$(PREFIX)/include $(CFLAGS)" \
 			--extra-ldflags="-L$(PREFIX)/lib $(LDFLAGS)" \
 			--extra-libs="-lpthread -lm" && \
@@ -139,7 +174,7 @@ ffmpeg: ffmpeg.stamp
 # =============================================================================
 
 package: ffmpeg.stamp
-	$(call log_info,Packaging artifacts to $(ARTIFACTS_DIR)...)
+	$(call log_info,Packaging $(LICENSE) tier artifacts to $(ARTIFACTS_DIR)...)
 	@mkdir -p $(ARTIFACTS_DIR)/bin $(ARTIFACTS_DIR)/lib $(ARTIFACTS_DIR)/include
 	@# Copy binaries
 	@cp -a $(PREFIX)/bin/ffmpeg $(ARTIFACTS_DIR)/bin/
@@ -148,8 +183,8 @@ package: ffmpeg.stamp
 	@cp -a $(PREFIX)/lib/*.a $(ARTIFACTS_DIR)/lib/ 2>/dev/null || true
 	@# Copy headers
 	@cp -a $(PREFIX)/include/* $(ARTIFACTS_DIR)/include/
-	@# Generate version info
-	@echo '{"ffmpeg": "$(FFMPEG_VERSION)", "platform": "$(PLATFORM)", "license": "GPL-2.0+"}' > $(ARTIFACTS_DIR)/versions.json
+	@# Generate version info with license metadata
+	@echo '{"ffmpeg": "$(FFMPEG_VERSION)", "platform": "$(PLATFORM)", "license": "$(LICENSE_LABEL)", "tier": "$(LICENSE)", "codecs": "$(ACTIVE_CODECS)"}' > $(ARTIFACTS_DIR)/versions.json
 	$(call log_info,Artifacts packaged successfully)
 
 # =============================================================================
@@ -191,9 +226,19 @@ distclean: clean
 help:
 	@echo "FFmpeg Build System for $(PLATFORM)"
 	@echo ""
+	@echo "Usage:"
+	@echo "  make                    - Build with default (gpl) license"
+	@echo "  make LICENSE=bsd        - Build BSD-only (VP8/9, AV1, Opus, Vorbis)"
+	@echo "  make LICENSE=lgpl       - Build BSD + LGPL (adds MP3)"
+	@echo "  make LICENSE=gpl        - Build all codecs (default)"
+	@echo ""
+	@echo "Current settings:"
+	@echo "  LICENSE    = $(LICENSE)"
+	@echo "  CODECS     = $(ACTIVE_CODECS)"
+	@echo ""
 	@echo "Main targets:"
 	@echo "  all        - Build everything (default)"
-	@echo "  codecs     - Build all codec dependencies"
+	@echo "  codecs     - Build codec dependencies for current tier"
 	@echo "  ffmpeg     - Build FFmpeg"
 	@echo "  package    - Package artifacts for distribution"
 	@echo "  verify     - Verify the build"
@@ -201,10 +246,10 @@ help:
 	@echo "  distclean  - Remove build and artifacts"
 	@echo "  help       - Show this help"
 	@echo ""
-	@echo "Codec targets (by license):"
-	@echo "  BSD:  libvpx aom dav1d svt-av1 opus ogg vorbis"
-	@echo "  LGPL: lame"
-	@echo "  GPL:  x264 x265"
+	@echo "Codec tiers (cumulative):"
+	@echo "  bsd:  $(BSD_CODECS)"
+	@echo "  lgpl: + $(LGPL_CODECS)"
+	@echo "  gpl:  + $(GPL_CODECS)"
 	@echo ""
 	@echo "Directories:"
 	@echo "  PREFIX     = $(PREFIX)"
@@ -212,4 +257,4 @@ help:
 	@echo "  ARTIFACTS  = $(ARTIFACTS_DIR)"
 	@echo ""
 	@echo "Status:"
-	@$(MAKE) -s codecs-info
+	@$(MAKE) -s LICENSE=$(LICENSE) codecs-info
