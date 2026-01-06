@@ -44,9 +44,11 @@ endif
 # Build Tool Configuration
 # =============================================================================
 
-# pkg-config setup
+# pkg-config setup for consistent cross-compilation support
+# PKG_CONFIG_LIBDIR replaces default search paths (prevents finding wrong-arch libs)
+# Using LIBDIR instead of PATH for parity with darwin-x64 cross-compilation setup
 PKG_CONFIG := pkg-config
-PKG_CONFIG_PATH := $(PREFIX)/lib/pkgconfig
+PKG_CONFIG_LIBDIR := $(PREFIX)/lib/pkgconfig
 
 # CMake configuration for cmake-based codecs (x265, aom, svt-av1)
 CMAKE_OPTS := \
@@ -92,7 +94,7 @@ PATH := $(HOMEBREW_PREFIX)/bin:$(PATH)
 
 export CC CXX AR RANLIB
 export CFLAGS CXXFLAGS LDFLAGS
-export PKG_CONFIG PKG_CONFIG_PATH
+export PKG_CONFIG PKG_CONFIG_LIBDIR
 export MACOSX_DEPLOYMENT_TARGET
 export PATH
 ifdef SDKROOT

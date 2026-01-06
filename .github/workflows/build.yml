@@ -39,6 +39,26 @@ jobs:
       - name: Build FFmpeg
         run: LICENSE=${{ matrix.license }} ./platforms/${{ matrix.platform }}/build.sh all
 
+      - name: Verify binary architecture
+        run: |
+          EXPECTED_ARCH="${{ matrix.platform == 'darwin-arm64' && 'arm64' || 'x86_64' }}"
+          FFMPEG_BIN="artifacts/${{ matrix.platform }}-${{ matrix.license }}/bin/ffmpeg"
+
+          if [[ ! -f "$FFMPEG_BIN" ]]; then
+            echo "::error::Binary not found: $FFMPEG_BIN"
+            exit 1
+          fi
+
+          echo "Verifying $FFMPEG_BIN is $EXPECTED_ARCH..."
+          file "$FFMPEG_BIN"
+
+          if ! file "$FFMPEG_BIN" | grep -q "$EXPECTED_ARCH"; then
+            echo "::error::Architecture mismatch! Expected $EXPECTED_ARCH"
+            exit 1
+          fi
+
+          echo "✓ Architecture verified: $EXPECTED_ARCH"
+
       - name: Create tarball and checksum
         run: |
           tar -czvf ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz \

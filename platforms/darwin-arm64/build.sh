@@ -173,7 +173,40 @@ main() {
     echo ""
     log_info "Artifacts location: ${artifacts_dir}/"
     ls -la "${artifacts_dir}/bin/" 2>/dev/null || true
+
+    # Verify binary architecture matches target
+    verify_binary_arch "${artifacts_dir}/bin/ffmpeg" "arm64"
   fi
+}
+
+# =============================================================================
+# Binary Architecture Verification
+# =============================================================================
+# Ensures built binaries match the target architecture.
+# Catches cross-compilation failures where host arch leaks into output.
+
+verify_binary_arch() {
+  local binary="$1"
+  local expected_arch="$2"
+
+  if [[ ! -f "$binary" ]]; then
+    log_error "Binary not found for architecture verification: $binary"
+    exit 1
+  fi
+
+  log_step "Verifying binary architecture..."
+
+  local file_output
+  file_output="$(file "$binary")"
+
+  if ! echo "$file_output" | grep -q "$expected_arch"; then
+    log_error "Architecture mismatch detected!"
+    log_error "Expected: $expected_arch"
+    log_error "Got: $file_output"
+    exit 1
+  fi
+
+  log_info "Architecture verified: $expected_arch"
 }
 
 main "$@"
