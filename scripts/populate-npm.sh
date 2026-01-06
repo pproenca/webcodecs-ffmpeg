@@ -11,15 +11,17 @@ set -euo pipefail
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
-NPM_DIR="${PROJECT_ROOT}/npm"
-ARTIFACTS_DIR="${PROJECT_ROOT}/artifacts"
+readonly PROJECT_ROOT
+readonly NPM_DIR="${PROJECT_ROOT}/npm"
+readonly ARTIFACTS_DIR="${PROJECT_ROOT}/artifacts"
 
-FFMPEG_VERSION="${FFMPEG_VERSION:-7.1.0}"
+readonly FFMPEG_VERSION="${FFMPEG_VERSION:-7.1.0}"
 
-TIERS=(bsd lgpl gpl)
+readonly TIERS=(bsd lgpl gpl)
 
-declare -A PLATFORM_MAP=(
+declare -Ar PLATFORM_MAP=(
   ["darwin-arm64"]="darwin-arm64"
   # Future platforms:
   # ["darwin-x64"]="darwin-x64"
@@ -27,15 +29,13 @@ declare -A PLATFORM_MAP=(
   # ["linux-arm64"]="linux-arm64"
 )
 
-# Tier to license mapping
-declare -A LICENSE_MAP=(
+declare -Ar LICENSE_MAP=(
   ["bsd"]="BSD-3-Clause"
   ["lgpl"]="LGPL-2.1-or-later"
   ["gpl"]="GPL-2.0-or-later"
 )
 
-# Tier descriptions
-declare -A TIER_DESC=(
+declare -Ar TIER_DESC=(
   ["bsd"]="BSD codecs (VP8/9, AV1, Opus, Vorbis)"
   ["lgpl"]="BSD + LGPL codecs (adds MP3)"
   ["gpl"]="All codecs including x264/x265"
@@ -45,18 +45,46 @@ declare -A TIER_DESC=(
 # Functions
 # =============================================================================
 
+#######################################
+# Log an informational message.
+# Arguments:
+#   $1 - Message to display
+# Outputs:
+#   Writes green-prefixed message to stdout
+#######################################
 log_info() {
   printf "\033[0;32m[INFO]\033[0m %s\n" "$1"
 }
 
+#######################################
+# Log a warning message.
+# Arguments:
+#   $1 - Message to display
+# Outputs:
+#   Writes yellow-prefixed message to stdout
+#######################################
 log_warn() {
   printf "\033[1;33m[WARN]\033[0m %s\n" "$1"
 }
 
+#######################################
+# Log an error message.
+# Arguments:
+#   $1 - Message to display
+# Outputs:
+#   Writes red-prefixed message to stdout
+#######################################
 log_error() {
   printf "\033[0;31m[ERROR]\033[0m %s\n" "$1"
 }
 
+#######################################
+# Generate an index.js that exports the directory path.
+# Arguments:
+#   $1 - Directory path where index.js will be created
+# Outputs:
+#   Creates index.js file in the specified directory
+#######################################
 generate_index_js() {
   local dir="$1"
   mkdir -p "${dir}"
@@ -65,6 +93,18 @@ module.exports = __dirname;
 EOF
 }
 
+#######################################
+# Generate versions.json from artifacts or create a default one.
+# Globals:
+#   ARTIFACTS_DIR
+#   FFMPEG_VERSION
+# Arguments:
+#   $1 - Output file path
+#   $2 - Platform identifier (e.g., darwin-arm64)
+#   $3 - Tier (bsd, lgpl, gpl)
+# Outputs:
+#   Creates versions.json at the specified path
+#######################################
 generate_versions_json() {
   local output_file="$1"
   local platform="$2"
@@ -85,6 +125,19 @@ EOF
   fi
 }
 
+#######################################
+# Generate package.json for a platform-specific npm package.
+# Globals:
+#   LICENSE_MAP
+#   TIER_DESC
+#   FFMPEG_VERSION
+# Arguments:
+#   $1 - Directory where package.json will be created
+#   $2 - Platform identifier (e.g., darwin-arm64)
+#   $3 - Tier (bsd, lgpl, gpl)
+# Outputs:
+#   Creates package.json at the specified path
+#######################################
 generate_platform_package_json() {
   local dir="$1"
   local platform="$2"
@@ -141,6 +194,17 @@ generate_platform_package_json() {
 EOF
 }
 
+#######################################
+# Populate a platform-specific npm package from build artifacts.
+# Globals:
+#   ARTIFACTS_DIR
+#   NPM_DIR
+# Arguments:
+#   $1 - Platform identifier (e.g., darwin-arm64)
+#   $2 - Tier (bsd, lgpl, gpl)
+# Returns:
+#   0 on success or if artifacts not found (skipped)
+#######################################
 populate_platform() {
   local platform="$1"
   local tier="$2"
@@ -159,7 +223,7 @@ populate_platform() {
 
   log_info "Populating ${npm_dir_name} from ${artifacts_src}"
 
-  rm -rf "${npm_dest}/lib" "${npm_dest}/include"
+  rm -rf "${npm_dest:?}/lib" "${npm_dest:?}/include"
   mkdir -p "${npm_dest}/lib" "${npm_dest}/include"
 
   if [[ -d "${artifacts_src}/lib" ]]; then
@@ -180,13 +244,27 @@ populate_platform() {
   log_info "  -> Populated ${npm_dir_name}"
 }
 
+#######################################
+# Populate the dev npm package with FFmpeg headers.
+# Searches for headers in any available tier's artifacts.
+# Globals:
+#   NPM_DIR
+#   ARTIFACTS_DIR
+#   PLATFORM_MAP
+#   FFMPEG_VERSION
+# Returns:
+#   0 on success or if no headers found (skipped)
+#######################################
 populate_dev() {
   local dev_dir="${NPM_DIR}/dev"
   local header_src=""
 
+  local tier
+  local platform
+  local src
   for tier in gpl lgpl bsd; do
     for platform in "${!PLATFORM_MAP[@]}"; do
-      local src="${ARTIFACTS_DIR}/${platform}-${tier}/include"
+      src="${ARTIFACTS_DIR}/${platform}-${tier}/include"
       if [[ -d "${src}" ]]; then
         header_src="${src}"
         break 2
@@ -201,7 +279,7 @@ populate_dev() {
 
   log_info "Populating dev package from ${header_src}"
 
-  rm -rf "${dev_dir}/include"
+  rm -rf "${dev_dir:?}/include"
   mkdir -p "${dev_dir}/include"
 
   cp -a "${header_src}/"* "${dev_dir}/include/" 2>/dev/null || true
@@ -241,6 +319,17 @@ EOF
 # Main
 # =============================================================================
 
+#######################################
+# Main entry point.
+# Populates all npm packages from build artifacts for each
+# platform and tier combination.
+# Globals:
+#   ARTIFACTS_DIR
+#   NPM_DIR
+#   FFMPEG_VERSION
+#   PLATFORM_MAP
+#   TIERS
+#######################################
 main() {
   log_info "Populating npm packages..."
   log_info "  Artifacts: ${ARTIFACTS_DIR}"
@@ -261,6 +350,8 @@ main() {
 EOF
   fi
 
+  local platform
+  local tier
   for platform in "${!PLATFORM_MAP[@]}"; do
     for tier in "${TIERS[@]}"; do
       populate_platform "${platform}" "${tier}"
