@@ -211,8 +211,8 @@ main() {
     log_info "Processing FFmpeg ${FFMPEG_VERSION}..."
     FFMPEG_URL="https://github.com/FFmpeg/FFmpeg/archive/refs/tags/${FFMPEG_VERSION}.tar.gz"
     download_extract "ffmpeg" "${FFMPEG_URL}" "${WORK_DIR}"
-    # FFmpeg extracts to FFmpeg-7.1 (without the 'n' prefix)
-    FFMPEG_SRC="${WORK_DIR}/FFmpeg-${FFMPEG_VERSION#n}"
+    # FFmpeg extracts to FFmpeg-n7.1 (keeps the tag name)
+    FFMPEG_SRC="${WORK_DIR}/FFmpeg-${FFMPEG_VERSION}"
     extract_autoconf_help "FFmpeg" "${FFMPEG_SRC}" "${OUTPUT_DIR}/ffmpeg.txt"
 
     # -------------------------------------------------------------------------
