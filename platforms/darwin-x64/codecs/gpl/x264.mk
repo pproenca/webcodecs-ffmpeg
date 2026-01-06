@@ -13,6 +13,7 @@ x264.stamp:
 	$(call git_clone,x264,$(X264_REPO),$(X264_VERSION),$(SOURCES_DIR))
 	cd $(X264_SRC) && \
 		./configure \
+			--host=x86_64-apple-darwin \
 			--prefix=$(PREFIX) \
 			--enable-static \
 			--enable-pic \

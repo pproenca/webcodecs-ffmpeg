@@ -49,6 +49,14 @@ include $(ROOT_DIR)/config.mk
 include $(ROOT_DIR)/codecs/codec.mk
 
 # =============================================================================
+# Include Build Tools
+# =============================================================================
+# NASM is built from source to get an x86_64 binary that can run on ARM64
+# hosts via Rosetta 2. Homebrew's ARM64 NASM fails libaom's multipass test.
+
+include $(ROOT_DIR)/tools/nasm.mk
+
+# =============================================================================
 # Include Individual Codec Build Rules
 # =============================================================================
 
@@ -82,6 +90,18 @@ all: package verify
 
 dirs:
 	@mkdir -p $(BUILD_DIR) $(PREFIX) $(SOURCES_DIR) $(STAMPS_DIR) $(ARTIFACTS_DIR)
+
+# =============================================================================
+# Build Tool Dependencies
+# =============================================================================
+# CMake-based codecs (aom, svt-av1, x265) require NASM for x86 assembly.
+# The built NASM (x86_64 binary) takes precedence over Homebrew's ARM64 NASM
+# because $(PREFIX)/bin is prepended to PATH in config.mk.
+
+aom.stamp svt-av1.stamp: nasm.stamp
+ifeq ($(LICENSE),gpl)
+x265.stamp: nasm.stamp
+endif
 
 # =============================================================================
 # FFmpeg Build

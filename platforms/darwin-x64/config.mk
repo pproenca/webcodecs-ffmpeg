@@ -92,8 +92,10 @@ endif
 # Detect Homebrew prefix (different on Intel vs ARM)
 HOMEBREW_PREFIX := $(shell brew --prefix 2>/dev/null || echo "/opt/homebrew")
 
-# Add Homebrew paths for build tools
-PATH := $(HOMEBREW_PREFIX)/bin:$(PATH)
+# Add tool paths for build tools
+# PREFIX/bin comes first so our built tools (x86_64 NASM) take precedence
+# over Homebrew's ARM64 tools when cross-compiling
+PATH := $(PREFIX)/bin:$(HOMEBREW_PREFIX)/bin:$(PATH)
 
 # =============================================================================
 # Export Variables
