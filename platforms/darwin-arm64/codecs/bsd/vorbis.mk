@@ -18,6 +18,8 @@ vorbis.stamp: ogg.stamp
 			--enable-static \
 			--disable-shared \
 			--disable-oggtest \
+			--disable-examples \
+			--disable-docs \
 			--with-ogg=$(PREFIX) \
 			--with-pic \
 			CFLAGS="$(CFLAGS) -I$(PREFIX)/include" \
