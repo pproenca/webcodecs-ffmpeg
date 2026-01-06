@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    tags: ['v*']
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.license }}
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        license: [bsd, lgpl, gpl]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build FFmpeg
+        run: LICENSE=${{ matrix.license }} ./platforms/darwin-arm64/build.sh all
+
+      - name: Create tarball
+        run: |
+          tar -czvf ffmpeg-darwin-arm64-${{ matrix.license }}.tar.gz \
+            -C artifacts darwin-arm64-${{ matrix.license }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-darwin-arm64-${{ matrix.license }}
+          path: ffmpeg-darwin-arm64-${{ matrix.license }}.tar.gz
+          retention-days: ${{ startsWith(github.ref, 'refs/tags/') && 90 || 1 }}
+
+  publish:
+    name: Publish
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts-download
+          merge-multiple: true
+
+      - name: Extract artifacts
+        run: |
+          mkdir -p artifacts
+          for tarball in artifacts-download/*.tar.gz; do
+            tar -xzvf "$tarball" -C artifacts
+          done
+          ls -la artifacts/
+
+      - name: Generate artifact attestations
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'artifacts-download/*.tar.gz'
+
+      - name: Populate npm packages
+        run: ./scripts/populate-npm.sh
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: 'artifacts-download/*.tar.gz'
+          generateReleaseNotes: true
+
+      - name: Publish to npm
+        run: npm publish --workspaces --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -4,140 +4,148 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FFmpeg Prebuilds is a build and distribution system for static FFmpeg binaries packaged as npm modules. It builds FFmpeg with comprehensive codec support across multiple platforms and distributes them as:
-- Runtime packages (`@pproenca/ffmpeg-*`) - FFmpeg/ffprobe binaries
-- Development packages (`@pproenca/ffmpeg-dev-*`) - Static libraries + headers
-- Main meta-package (`@pproenca/ffmpeg`) - Auto-detects platform
+FFmpeg prebuilds - a modular build system for creating statically-linked FFmpeg binaries with codec dependencies for multiple platforms. Currently implements macOS ARM64 (darwin-arm64) with architecture designed for multi-platform expansion.
 
-## Commands
+## Build Commands
 
-### Build Commands
+### macOS ARM64 (darwin-arm64)
+
 ```bash
-# Build for a specific platform
-./build/orchestrator.sh darwin-arm64   # macOS Apple Silicon
-./build/orchestrator.sh darwin-x64     # macOS Intel
-./build/orchestrator.sh linux-x64-glibc  # Linux (via Docker)
-./build/orchestrator.sh linux-x64-musl   # Linux musl (via Docker)
-./build/orchestrator.sh windows-x64      # Windows (via Docker)
+# Full build (codecs + FFmpeg + package)
+cd platforms/darwin-arm64
+./build.sh all
 
-# Create macOS universal binary (after building both darwin-x64 and darwin-arm64)
-./build/create-universal.sh
-
-# Verify build artifacts
-./build/verify.sh darwin-arm64
+# Or directly with Make
+make -j$(nproc) all
 ```
 
-### NPM Scripts
+### Build Targets
+
 ```bash
-npm install                    # Install dev dependencies
-npm test                       # Run TypeScript tests (Node.js test runner)
-npm run package                # Create npm packages from artifacts/
-npm run verify                 # Verify build artifacts
-npm run gen                    # Generate docs tables and build-config.json
-npm run gen:docs               # Regenerate auto-generated doc sections
-npm run check:docs             # Validate documentation consistency
-npm run versions               # Check for dependency updates (dry-run)
-npm run versions:write         # Apply version updates to versions.properties
+make codecs        # Build all codec libraries
+make ffmpeg        # Build FFmpeg (requires codecs)
+make package       # Create distribution package
+make verify        # Verify build (ffmpeg -version, architecture check)
+make codecs-info   # Show codec build status
 ```
 
-### Testing
+### Individual Codec Build
+
 ```bash
-# Full test suite (requires built artifacts)
-./tests/run-all-tests.sh
-
-# Test specific platform
-./tests/run-all-tests.sh --platform linux-x64-glibc
-
-# Regenerate test fixtures
-./tests/run-all-tests.sh --fixtures
+make x264.stamp    # Build specific codec (creates .stamp file on success)
 ```
 
-### Linting (via mise)
+### Clean
+
 ```bash
-mise run lint-workflows     # Lint GitHub Actions with actionlint
-mise run lint-dockerfiles   # Lint Dockerfiles with hadolint
+make clean         # Remove build directory
+make distclean     # Remove build + artifacts
+make codecs-clean  # Remove codec sources only
+```
+
+### Linting
+
+```bash
+mise run lint              # All linters
+mise run lint:workflows    # GitHub Actions (actionlint)
+mise run lint:docker       # Dockerfiles (hadolint)
+```
+
+### Local CI Testing
+
+```bash
+mise run act:validate      # Dry-run workflows
+mise run act               # Run workflows locally
 ```
 
 ## Architecture
 
-### Build Flow
-```
-orchestrator.sh (entry point)
-├── Loads versions.properties (all dependency versions)
-├── Routes to platform builder:
-│   ├── macos.sh → Native Xcode build
-│   ├── linux.sh → Docker build
-│   └── windows.sh → Docker cross-compile (MinGW)
-└── Outputs to artifacts/<platform>/{bin,lib,include}
-```
-
-### Key Files
-- `versions.properties` - **Single source of truth** for all codec/library versions. Edit here to update dependencies; bump `CACHE_VERSION` to invalidate CI caches.
-- `scripts/lib/platforms.ts` - Platform definitions (os, cpu, libc, hwAccel)
-- `scripts/lib/dependencies.ts` - Dependency metadata registry
-- `build-config.json` - Default full build configuration
-- `presets/*.json` - Build presets (minimal, streaming, full)
-
-### Platform Support
-| Platform | Build Method | Notes |
-|----------|--------------|-------|
-| darwin-x64/arm64 | Native (Xcode) | Combined into universal binary |
-| linux-*-glibc | Docker (Ubuntu 24.04) | glibc 2.35+ |
-| linux-*-musl | Docker (Alpine 3.21) | Fully static |
-| windows-x64 | Docker (MinGW) | Cross-compiled from Linux |
-
-### Hardware Acceleration Variants
-- `linux-x64-glibc-vaapi` - Intel/AMD GPU
-- `linux-x64-glibc-nvenc` - NVIDIA GPU
-- `windows-x64-dxva2` - Windows GPU decode
-- macOS includes VideoToolbox by default
-
-## Code Organization
+### Directory Structure
 
 ```
-build/               # Shell scripts for building FFmpeg
-  orchestrator.sh    # Main entry point
-  macos.sh           # macOS native builds
-  linux.sh           # Docker-based Linux builds
-  windows.sh         # Windows cross-compile
-  verify.sh          # ABI/binary validation
-  patches/           # Patches for codec compatibility (x265 ARM64)
-platforms/           # Dockerfiles for each platform
-scripts/             # TypeScript utilities
-  package-npm.ts     # Creates npm packages from artifacts
-  generate-docs.ts   # Auto-generates README tables
-  lib/platforms.ts   # Platform definitions
-  lib/dependencies.ts # Dependency metadata
-tests/               # Functional test suite
-  run-all-tests.sh   # Test runner
-  encode-tests.sh    # Codec encoding validation
-  decode-tests.sh    # Format support tests
-  performance-tests.sh # Benchmarks
-artifacts/           # Build outputs (gitignored)
-npm-dist/            # Generated npm packages (gitignored)
+platforms/<os>-<arch>/     # Platform-specific builds
+├── Makefile               # Build orchestrator
+├── build.sh               # CI entry point
+├── config.mk              # Compiler/SDK configuration
+└── codecs/                # Individual codec recipes
+    ├── codec.mk           # Common patterns
+    └── <codec>.mk         # Per-codec build recipe
+
+shared/                    # Cross-platform utilities
+├── common.mk              # Reusable Make functions
+└── versions.mk            # Centralized dependency versions
 ```
 
-## Version Updates
+### Makefile Hierarchy
 
-1. Run `npm run versions` to check for updates
-2. Edit `versions.properties` (or use `npm run versions:write`)
-3. Increment `CACHE_VERSION` in `versions.properties`
-4. Test locally: `./build/orchestrator.sh <platform>`
-5. Tag and push to trigger CI build
+1. `platforms/<platform>/Makefile` - Main entry, defines targets
+2. `shared/versions.mk` - Single source of truth for versions/URLs
+3. `platforms/<platform>/config.mk` - Compiler flags, SDK paths
+4. `codecs/codec.mk` - Common codec patterns
+5. `codecs/<name>.mk` - Per-codec build recipe
 
-## CI/CD
+### Build Patterns
 
-- `build.yml` - Matrix builds all platforms in parallel (~30min)
-- `release.yml` - Triggered by `v*` tags; publishes to npm with OIDC provenance
+**Stamp files**: Each codec creates a `.stamp` file on success for incremental builds.
 
-## Conventions
+**Build systems supported**:
+- Autoconf: `$(call autoconf_build,...)` - opus, vorbis, ogg, lame, x264, libvpx
+- CMake: `$(call cmake_build,...)` - aom, x265, svt-av1
+- Meson: `$(call meson_build,...)` - dav1d
 
-- All builds are static-linked (no external dependencies)
-- Shell scripts follow ShellCheck conventions
-- TypeScript uses ESM (`"type": "module"`)
-- Auto-generated doc sections are marked with `<!-- AUTO-GENERATED:section:START/END -->`
-- Commit messages follow Conventional Commits (`feat:`, `fix:`, `chore:`, etc.)
+**Common functions** (from `shared/common.mk`):
+- `download_and_extract` - Fetch and cache tarballs
+- `git_clone` - Clone repos at specific versions
+- `verify_static_lib` / `verify_pkgconfig` - Build verification
 
-## License
+### Codec License Categories
 
-GPL-2.0-or-later (due to x264/x265 dependencies)
+| License | Codecs | FFmpeg Flag |
+|---------|--------|-------------|
+| BSD | libvpx, aom, dav1d, svt-av1, opus, ogg, vorbis | (default) |
+| LGPL | lame | (default) |
+| GPL | x264, x265 | `--enable-gpl` |
+
+### Version Management
+
+All versions, URLs, and SHA256 checksums are in `shared/versions.mk`. Bump `CACHE_VERSION` to invalidate CI cache.
+
+## Adding a New Codec
+
+1. Create `platforms/<platform>/codecs/<codec>.mk`
+2. Add version/URL/SHA256 to `shared/versions.mk`
+3. Add to `CODEC_STAMPS` in platform `Makefile`
+4. Add `--enable-lib<codec>` to FFmpeg configure
+
+## Adding a New Platform
+
+1. Create `platforms/<os>-<arch>/` directory
+2. Copy and adapt `Makefile`, `config.mk`, `build.sh` from existing platform
+3. Adjust compiler flags, SDK paths, and codec build recipes for platform specifics
+
+## FFmpeg Skill
+
+Use `/dev-ffmpeg` skill for guidance on FFmpeg compilation decisions including license compliance, codec selection, and platform-specific configuration. Reference docs in `.claude/skills/dev-ffmpeg/references/`.
+
+## Researching FFmpeg Build Issues
+
+When encountering build problems or validating configuration decisions, consult official FFmpeg sources:
+
+**Primary Sources (in order of priority):**
+1. `https://ffmpeg.org/pipermail/ffmpeg-devel/` - Developer mailing list archives (search by year/month)
+2. `https://trac.ffmpeg.org/` - Bug tracker and wiki
+3. `https://ffmpeg.org/general.html` - External library requirements
+4. `https://ffmpeg.org/platform.html` - Platform-specific notes
+5. `https://ffmpeg.org/security.html` - CVE patches and security updates
+
+**Research Process:**
+1. Search ffmpeg-devel archives for the specific issue (e.g., "x265 static linking")
+2. Check trac.ffmpeg.org for related tickets
+3. Verify configure flags against general.html documentation
+4. Document findings and sources in commit messages
+
+**Common Gotchas (FFmpeg 7+):**
+- x265 static linking requires `--extra-libs=-lc++` (broken .pc file)
+- Use `--pkg-config-flags="--static"` for static builds
+- NASM required for x86 assembly (YASM deprecated)
+- Channel layout API changed - old bitmask API removed
