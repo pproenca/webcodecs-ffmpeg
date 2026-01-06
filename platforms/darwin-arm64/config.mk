@@ -33,15 +33,12 @@ COMMON_FLAGS := $(ARCH_FLAGS) -O3 -fPIC
 ifdef SDKROOT
     COMMON_FLAGS += -isysroot $(SDKROOT)
 endif
-COMMON_FLAGS += -mmacosx-version-min=$(MACOSX_DEPLOYMENT_TARGET)
-
 CFLAGS := $(COMMON_FLAGS)
 CXXFLAGS := $(COMMON_FLAGS)
 LDFLAGS := $(ARCH_FLAGS)
 ifdef SDKROOT
     LDFLAGS += -isysroot $(SDKROOT)
 endif
-LDFLAGS += -mmacosx-version-min=$(MACOSX_DEPLOYMENT_TARGET)
 
 # =============================================================================
 # Build Tool Configuration
