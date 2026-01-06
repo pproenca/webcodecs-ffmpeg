@@ -70,7 +70,7 @@ install_dependencies() {
 
   local tools=(
     nasm       # Assembler for x264 and others
-    cmake      # Build system for x265, aom, svt-av1
+    cmake@3    # Build system for x265, aom, svt-av1 (CMake 4.x incompatible)
     meson      # Build system for dav1d
     ninja      # Build tool for meson
     pkg-config # Library configuration
@@ -94,10 +94,15 @@ install_dependencies() {
     log_info "All build tools are installed"
   fi
 
+  # Ensure cmake@3 is in PATH before system cmake (CMake 4.x breaks codec builds)
+  if [[ -d "$(brew --prefix cmake@3)/bin" ]]; then
+    export PATH="$(brew --prefix cmake@3)/bin:$PATH"
+  fi
+
   # Show tool versions
   log_info "Tool versions:"
   echo "  nasm:     $(nasm --version | head -1)"
-  echo "  cmake:    $(cmake --version | head -1)"
+  echo "  cmake:    $(cmake --version | head -1) ($(which cmake))"
   echo "  meson:    $(meson --version)"
   echo "  ninja:    $(ninja --version)"
 }
