@@ -15,13 +15,10 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 NPM_DIR="${PROJECT_ROOT}/npm"
 ARTIFACTS_DIR="${PROJECT_ROOT}/artifacts"
 
-# Default version from versions.mk
 FFMPEG_VERSION="${FFMPEG_VERSION:-7.1.0}"
 
-# License tiers
 TIERS=(bsd lgpl gpl)
 
-# Platform mappings: artifact-name -> npm-suffix
 declare -A PLATFORM_MAP=(
   ["darwin-arm64"]="darwin-arm64"
   # Future platforms:
@@ -60,16 +57,14 @@ log_error() {
   printf "\033[0;31m[ERROR]\033[0m %s\n" "$1"
 }
 
-# Generate index.js that exports directory path
 generate_index_js() {
   local dir="$1"
   mkdir -p "${dir}"
-  cat > "${dir}/index.js" << 'EOF'
+  cat >"${dir}/index.js" <<'EOF'
 module.exports = __dirname;
 EOF
 }
 
-# Generate versions.json with build metadata
 generate_versions_json() {
   local output_file="$1"
   local platform="$2"
@@ -79,7 +74,7 @@ generate_versions_json() {
   if [[ -f "${artifacts_json}" ]]; then
     cp "${artifacts_json}" "${output_file}"
   else
-    cat > "${output_file}" << EOF
+    cat >"${output_file}" <<EOF
 {
   "ffmpeg": "${FFMPEG_VERSION}",
   "platform": "${platform}",
@@ -90,18 +85,16 @@ EOF
   fi
 }
 
-# Generate platform package.json
 generate_platform_package_json() {
   local dir="$1"
   local platform="$2"
   local tier="$3"
 
-  local os="${platform%%-*}"          # darwin
-  local cpu="${platform##*-}"         # arm64
+  local os="${platform%%-*}"  # darwin
+  local cpu="${platform##*-}" # arm64
   local license="${LICENSE_MAP[$tier]}"
   local desc="${TIER_DESC[$tier]}"
 
-  # Package name: default tier (gpl) has no suffix
   local pkg_name="@pproenca/ffmpeg-${platform}"
   local npm_subdir="${platform}"
   if [[ "${tier}" != "gpl" ]]; then
@@ -109,7 +102,7 @@ generate_platform_package_json() {
     npm_subdir="${platform}-${tier}"
   fi
 
-  cat > "${dir}/package.json" << EOF
+  cat >"${dir}/package.json" <<EOF
 {
   "name": "${pkg_name}",
   "version": "${FFMPEG_VERSION}",
@@ -148,13 +141,11 @@ generate_platform_package_json() {
 EOF
 }
 
-# Populate a platform package from artifacts
 populate_platform() {
   local platform="$1"
   local tier="$2"
   local artifacts_src="${ARTIFACTS_DIR}/${platform}-${tier}"
 
-  # Determine npm directory name
   local npm_dir_name="${platform}"
   if [[ "${tier}" != "gpl" ]]; then
     npm_dir_name="${platform}-${tier}"
@@ -168,39 +159,31 @@ populate_platform() {
 
   log_info "Populating ${npm_dir_name} from ${artifacts_src}"
 
-  # Clean existing
   rm -rf "${npm_dest}/lib" "${npm_dest}/include"
   mkdir -p "${npm_dest}/lib" "${npm_dest}/include"
 
-  # Copy static libraries
   if [[ -d "${artifacts_src}/lib" ]]; then
     cp -a "${artifacts_src}/lib/"*.a "${npm_dest}/lib/" 2>/dev/null || true
   fi
 
-  # Copy headers
   if [[ -d "${artifacts_src}/include" ]]; then
     cp -a "${artifacts_src}/include/"* "${npm_dest}/include/" 2>/dev/null || true
   fi
 
-  # Generate index.js files
   generate_index_js "${npm_dest}/lib"
   generate_index_js "${npm_dest}/include"
 
-  # Generate versions.json
   generate_versions_json "${npm_dest}/versions.json" "${platform}" "${tier}"
 
-  # Generate package.json
   generate_platform_package_json "${npm_dest}" "${platform}" "${tier}"
 
   log_info "  -> Populated ${npm_dir_name}"
 }
 
-# Populate dev package with headers only
 populate_dev() {
   local dev_dir="${NPM_DIR}/dev"
   local header_src=""
 
-  # Find first available artifact with headers (prefer gpl)
   for tier in gpl lgpl bsd; do
     for platform in "${!PLATFORM_MAP[@]}"; do
       local src="${ARTIFACTS_DIR}/${platform}-${tier}/include"
@@ -224,8 +207,7 @@ populate_dev() {
   cp -a "${header_src}/"* "${dev_dir}/include/" 2>/dev/null || true
   generate_index_js "${dev_dir}/include"
 
-  # Generate dev package.json
-  cat > "${dev_dir}/package.json" << EOF
+  cat >"${dev_dir}/package.json" <<EOF
 {
   "name": "@pproenca/ffmpeg-dev",
   "version": "${FFMPEG_VERSION}",
@@ -265,9 +247,8 @@ main() {
   log_info "  NPM dir:   ${NPM_DIR}"
   log_info "  Version:   ${FFMPEG_VERSION}"
 
-  # Create workspace package.json if needed
   if [[ ! -f "${NPM_DIR}/package.json" ]]; then
-    cat > "${NPM_DIR}/package.json" << 'EOF'
+    cat >"${NPM_DIR}/package.json" <<'EOF'
 {
   "private": true,
   "workspaces": [
@@ -280,14 +261,12 @@ main() {
 EOF
   fi
 
-  # Populate platform packages
   for platform in "${!PLATFORM_MAP[@]}"; do
     for tier in "${TIERS[@]}"; do
       populate_platform "${platform}" "${tier}"
     done
   done
 
-  # Populate dev package
   populate_dev
 
   log_info "Done!"
