@@ -16,6 +16,7 @@ aom.stamp:
 	cd $(AOM_BUILD) && \
 		cmake $(AOM_SRC) \
 			$(CMAKE_OPTS) \
+			-DAOM_TARGET_CPU=x86_64 \
 			-DBUILD_SHARED_LIBS=OFF \
 			-DENABLE_DOCS=OFF \
 			-DENABLE_EXAMPLES=OFF \
