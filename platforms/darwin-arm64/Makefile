@@ -86,7 +86,7 @@ dirs:
 # FFmpeg Build
 # =============================================================================
 
-FFMPEG_SRC := $(SOURCES_DIR)/FFmpeg-$(patsubst n%,%,$(FFMPEG_VERSION))
+FFMPEG_SRC := $(SOURCES_DIR)/FFmpeg-$(FFMPEG_VERSION)
 
 # -----------------------------------------------------------------------------
 # FFmpeg Configure Options (by license tier)
