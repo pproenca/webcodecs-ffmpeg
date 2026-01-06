@@ -2,6 +2,10 @@
 # libvpx - VP8/VP9 Encoder/Decoder (BSD-3-Clause)
 # =============================================================================
 # Google's VP8/VP9 codec for WebM format.
+#
+# Note: The target must be arm64-darwin23-gcc (not arm64-darwin-gcc).
+# The generic arm64-darwin-gcc target builds for iOS, which causes linking
+# failures when used with macOS builds. darwin23 = macOS Sonoma (14.x).
 # =============================================================================
 
 LIBVPX_SRC := $(SOURCES_DIR)/libvpx-$(patsubst v%,%,$(LIBVPX_VERSION))
@@ -13,7 +17,7 @@ libvpx.stamp:
 	cd $(LIBVPX_SRC) && \
 		./configure \
 			--prefix=$(PREFIX) \
-			--target=arm64-darwin-gcc \
+			--target=arm64-darwin23-gcc \
 			--enable-static \
 			--disable-shared \
 			--enable-pic \
