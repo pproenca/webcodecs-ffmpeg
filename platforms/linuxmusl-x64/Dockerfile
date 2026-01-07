@@ -8,6 +8,7 @@
 FROM alpine:3.15
 
 # Install build dependencies
+# hadolint ignore=DL3018
 RUN apk add --no-cache \
     autoconf \
     automake \

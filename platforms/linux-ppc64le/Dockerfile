@@ -12,6 +12,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install build dependencies
 # Note: NASM is x86-only, ppc64le uses Altivec/VSX intrinsics
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     autoconf \
     automake \

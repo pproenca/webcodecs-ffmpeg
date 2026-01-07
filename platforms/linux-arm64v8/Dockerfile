@@ -12,6 +12,7 @@ LABEL maintainer="Pedro Proenca"
 LABEL description="FFmpeg build environment for linux-arm64v8 (glibc)"
 
 # Install build dependencies from Amazon Linux 2 repos
+# hadolint ignore=DL3033
 RUN yum update -y && \
     yum install -y \
         gcc \
@@ -45,6 +46,7 @@ RUN curl -fSL "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSI
     cmake --version
 
 # Install Python pip and then Meson/Ninja (required for dav1d)
+# hadolint ignore=DL3013
 RUN curl -fSL "https://bootstrap.pypa.io/pip/3.7/get-pip.py" -o get-pip.py && \
     python3 get-pip.py && \
     rm get-pip.py && \

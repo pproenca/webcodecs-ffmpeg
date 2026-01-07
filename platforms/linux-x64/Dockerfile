@@ -11,6 +11,7 @@ LABEL maintainer="Pedro Proenca"
 LABEL description="FFmpeg build environment for linux-x64 (glibc)"
 
 # Install build dependencies from Amazon Linux 2 repos
+# hadolint ignore=DL3033
 RUN yum update -y && \
     yum install -y \
         gcc \
@@ -35,6 +36,7 @@ RUN yum update -y && \
 # Install NASM (required for x264/x265 assembly optimizations)
 # Amazon Linux 2 has outdated NASM, install from source
 ARG NASM_VERSION=2.16.03
+# hadolint ignore=DL3003
 RUN curl -fSL "https://www.nasm.us/pub/nasm/releasebuilds/${NASM_VERSION}/nasm-${NASM_VERSION}.tar.gz" -o nasm.tar.gz && \
     tar xzf nasm.tar.gz && \
     cd nasm-${NASM_VERSION} && \
@@ -54,6 +56,7 @@ RUN curl -fSL "https://github.com/Kitware/CMake/releases/download/v${CMAKE_VERSI
 
 # Install Python pip and then Meson/Ninja (required for dav1d)
 # Amazon Linux 2 has Python 3.7, need to use compatible pip
+# hadolint ignore=DL3013
 RUN curl -fSL "https://bootstrap.pypa.io/pip/3.7/get-pip.py" -o get-pip.py && \
     python3 get-pip.py && \
     rm get-pip.py && \

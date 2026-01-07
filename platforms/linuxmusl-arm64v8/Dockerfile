@@ -9,6 +9,7 @@ FROM arm64v8/alpine:3.15
 
 # Install build dependencies
 # Note: NASM is x86-only, ARM64 uses built-in NEON intrinsics
+# hadolint ignore=DL3018
 RUN apk add --no-cache \
     autoconf \
     automake \

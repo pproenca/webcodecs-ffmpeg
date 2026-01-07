@@ -11,6 +11,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install build dependencies
 # Note: NASM is x86-only, s390x uses z/Architecture vector instructions
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends \
     autoconf \
     automake \
