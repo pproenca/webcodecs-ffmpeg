@@ -21,12 +21,178 @@ permissions:
 jobs:
   build:
     name: build-${{ matrix.platform }}-${{ matrix.license }}
-    runs-on: ${{ matrix.platform == 'darwin-arm64' && 'macos-15' || 'macos-15-intel' }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        platform: [darwin-arm64, darwin-x64]
-        license: [bsd, lgpl, gpl]
+        include:
+          # macOS platforms (native builds)
+          - platform: darwin-arm64
+            runner: macos-15
+            license: bsd
+            arch: arm64
+            arch-verify: "arm64"
+          - platform: darwin-arm64
+            runner: macos-15
+            license: lgpl
+            arch: arm64
+            arch-verify: "arm64"
+          - platform: darwin-arm64
+            runner: macos-15
+            license: gpl
+            arch: arm64
+            arch-verify: "arm64"
+          - platform: darwin-x64
+            runner: macos-15-intel
+            license: bsd
+            arch: x86_64
+            arch-verify: "x86_64"
+          - platform: darwin-x64
+            runner: macos-15-intel
+            license: lgpl
+            arch: x86_64
+            arch-verify: "x86_64"
+          - platform: darwin-x64
+            runner: macos-15-intel
+            license: gpl
+            arch: x86_64
+            arch-verify: "x86_64"
+
+          # Linux glibc x64 (native builds)
+          - platform: linux-x64
+            runner: ubuntu-latest
+            license: bsd
+            arch: x86_64
+            arch-verify: "x86-64"
+          - platform: linux-x64
+            runner: ubuntu-latest
+            license: lgpl
+            arch: x86_64
+            arch-verify: "x86-64"
+          - platform: linux-x64
+            runner: ubuntu-latest
+            license: gpl
+            arch: x86_64
+            arch-verify: "x86-64"
+
+          # Linux glibc ARM64 (Docker with QEMU)
+          - platform: linux-arm64v8
+            runner: ubuntu-latest
+            license: bsd
+            arch: aarch64
+            arch-verify: "aarch64"
+          - platform: linux-arm64v8
+            runner: ubuntu-latest
+            license: lgpl
+            arch: aarch64
+            arch-verify: "aarch64"
+          - platform: linux-arm64v8
+            runner: ubuntu-latest
+            license: gpl
+            arch: aarch64
+            arch-verify: "aarch64"
+
+          # Linux musl x64 (Docker builds)
+          - platform: linuxmusl-x64
+            runner: ubuntu-latest
+            license: bsd
+            arch: x86_64
+            arch-verify: "x86-64"
+          - platform: linuxmusl-x64
+            runner: ubuntu-latest
+            license: lgpl
+            arch: x86_64
+            arch-verify: "x86-64"
+          - platform: linuxmusl-x64
+            runner: ubuntu-latest
+            license: gpl
+            arch: x86_64
+            arch-verify: "x86-64"
+
+          # Linux musl ARM64 (Docker with QEMU)
+          - platform: linuxmusl-arm64v8
+            runner: ubuntu-latest
+            license: bsd
+            arch: aarch64
+            arch-verify: "aarch64"
+          - platform: linuxmusl-arm64v8
+            runner: ubuntu-latest
+            license: lgpl
+            arch: aarch64
+            arch-verify: "aarch64"
+          - platform: linuxmusl-arm64v8
+            runner: ubuntu-latest
+            license: gpl
+            arch: aarch64
+            arch-verify: "aarch64"
+
+          # Linux ARMv6 (Docker with QEMU - Raspberry Pi)
+          - platform: linux-armv6
+            runner: ubuntu-latest
+            license: bsd
+            arch: arm
+            arch-verify: "ARM"
+          - platform: linux-armv6
+            runner: ubuntu-latest
+            license: lgpl
+            arch: arm
+            arch-verify: "ARM"
+          - platform: linux-armv6
+            runner: ubuntu-latest
+            license: gpl
+            arch: arm
+            arch-verify: "ARM"
+
+          # Linux ppc64le (Docker with QEMU - IBM POWER)
+          - platform: linux-ppc64le
+            runner: ubuntu-latest
+            license: bsd
+            arch: ppc64le
+            arch-verify: "PowerPC"
+          - platform: linux-ppc64le
+            runner: ubuntu-latest
+            license: lgpl
+            arch: ppc64le
+            arch-verify: "PowerPC"
+          - platform: linux-ppc64le
+            runner: ubuntu-latest
+            license: gpl
+            arch: ppc64le
+            arch-verify: "PowerPC"
+
+          # Linux RISC-V 64 (Docker with QEMU)
+          - platform: linux-riscv64
+            runner: ubuntu-latest
+            license: bsd
+            arch: riscv64
+            arch-verify: "RISC-V"
+          - platform: linux-riscv64
+            runner: ubuntu-latest
+            license: lgpl
+            arch: riscv64
+            arch-verify: "RISC-V"
+          - platform: linux-riscv64
+            runner: ubuntu-latest
+            license: gpl
+            arch: riscv64
+            arch-verify: "RISC-V"
+
+          # Linux s390x (Docker with QEMU - IBM Z)
+          - platform: linux-s390x
+            runner: ubuntu-latest
+            license: bsd
+            arch: s390x
+            arch-verify: "S/390"
+          - platform: linux-s390x
+            runner: ubuntu-latest
+            license: lgpl
+            arch: s390x
+            arch-verify: "S/390"
+          - platform: linux-s390x
+            runner: ubuntu-latest
+            license: gpl
+            arch: s390x
+            arch-verify: "S/390"
 
     # Cancel in-progress builds for same platform/license/ref combination
     # Uses inputs.ref for release builds, github.sha for CI builds
@@ -39,6 +205,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.sha }}
+
+      - name: Set up QEMU (Linux cross-arch)
+        if: startsWith(matrix.platform, 'linux') && matrix.arch != 'x86_64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: ${{ matrix.arch }}
+
+      - name: Set up Docker Buildx (Linux)
+        if: startsWith(matrix.platform, 'linux')
+        uses: docker/setup-buildx-action@v3
 
       - name: Cache sources
         uses: actions/cache@v4
@@ -55,7 +231,6 @@ jobs:
 
       - name: Verify binary architecture
         run: |
-          EXPECTED_ARCH="${{ matrix.platform == 'darwin-arm64' && 'arm64' || 'x86_64' }}"
           FFMPEG_BIN="artifacts/${{ matrix.platform }}-${{ matrix.license }}/bin/ffmpeg"
 
           if [[ ! -f "$FFMPEG_BIN" ]]; then
@@ -63,15 +238,15 @@ jobs:
             exit 1
           fi
 
-          echo "Verifying $FFMPEG_BIN is $EXPECTED_ARCH..."
+          echo "Verifying $FFMPEG_BIN architecture..."
           file "$FFMPEG_BIN"
 
-          if ! file "$FFMPEG_BIN" | grep -q "$EXPECTED_ARCH"; then
-            echo "::error::Architecture mismatch! Expected $EXPECTED_ARCH"
+          if ! file "$FFMPEG_BIN" | grep -qE "${{ matrix.arch-verify }}"; then
+            echo "::error::Architecture mismatch! Expected ${{ matrix.arch-verify }}"
             exit 1
           fi
 
-          echo "Architecture verified: $EXPECTED_ARCH"
+          echo "Architecture verified: ${{ matrix.arch-verify }}"
 
       - name: Create tarball and checksum
         run: |
@@ -81,7 +256,12 @@ jobs:
             -C artifacts "${{ matrix.platform }}-${{ matrix.license }}"
 
           # Verify tarball has reasonable size (>1MB for FFmpeg)
-          TARBALL_SIZE=$(stat -f%z "$TARBALL")
+          if [[ "$OSTYPE" == "darwin"* ]]; then
+            TARBALL_SIZE=$(stat -f%z "$TARBALL")
+          else
+            TARBALL_SIZE=$(stat -c%s "$TARBALL")
+          fi
+
           if [[ "$TARBALL_SIZE" -lt 1000000 ]]; then
             echo "::error::Tarball suspiciously small: ${TARBALL_SIZE} bytes"
             exit 1

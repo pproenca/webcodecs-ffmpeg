@@ -23,7 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-FFmpeg prebuilds - a modular build system for creating statically-linked FFmpeg binaries with codec dependencies for multiple platforms. Currently implements macOS ARM64 (darwin-arm64) with architecture designed for multi-platform expansion.
+FFmpeg prebuilds - a modular build system for creating statically-linked FFmpeg binaries with codec dependencies for multiple platforms. Supports macOS (darwin-arm64, darwin-x64) and 8 Linux platforms (glibc + musl).
 
 ## Build Commands
 
@@ -87,10 +87,10 @@ The repository uses a reusable workflow architecture with artifact reuse to avoi
 Push to master
      │
      ▼
-  ci.yml ──────► _build.yml (6 jobs) ──► Artifacts (30-day retention)
-                                              │
-                                              │ (required for release)
-                                              ▼
+  ci.yml ──────► _build.yml (30 jobs) ──► Artifacts (30-day retention)
+                                               │
+                                               │ (required for release)
+                                               ▼
 workflow_dispatch ──► release.yml ──► Wait for CI (if running)
 (bump_type dropdown)       │                  │
                            │                  ▼
@@ -121,7 +121,12 @@ workflow_dispatch ──► release.yml ──► Wait for CI (if running)
 
 - **Trigger:** `workflow_call` from ci.yml
 - **Inputs:** `ref` (git ref to build), `retention-days` (artifact retention)
-- **Matrix:** 2 platforms × 3 licenses = 6 parallel jobs
+- **Matrix:** 10 platforms × 3 licenses = 30 parallel jobs
+- **Platforms:**
+  - macOS: darwin-arm64, darwin-x64 (native runners)
+  - Linux glibc: linux-x64, linux-arm64v8, linux-armv6, linux-ppc64le, linux-riscv64, linux-s390x
+  - Linux musl: linuxmusl-x64, linuxmusl-arm64v8
+- **Cross-arch builds:** Docker + QEMU for non-x64 Linux platforms
 - **Concurrency:** Per-platform groups with cancel-in-progress
 - **Artifacts:** Tarballs + SHA256 checksums
 - **Attestations:** SLSA build provenance generated per artifact

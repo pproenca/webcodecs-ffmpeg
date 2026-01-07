@@ -23,12 +23,19 @@ The package auto-selects the correct binary for your platform.
 
 ## Platforms
 
-| Platform | Architecture | Status |
-|----------|--------------|--------|
-| macOS | ARM64 (Apple Silicon) | Supported |
-| macOS | x86_64 | Planned |
-| Linux | x86_64 | Planned |
-| Windows | x86_64 | Planned |
+| Platform | Architecture | libc | Status |
+|----------|--------------|------|--------|
+| macOS | ARM64 (Apple Silicon) | - | Supported |
+| macOS | x86_64 | - | Supported |
+| Linux | x86_64 | glibc | Supported |
+| Linux | ARM64 | glibc | Supported |
+| Linux | ARMv6 (RPi Zero/1) | glibc | Supported |
+| Linux | ppc64le (IBM POWER) | glibc | Supported |
+| Linux | riscv64 (RISC-V) | glibc | Supported |
+| Linux | s390x (IBM Z) | glibc | Supported |
+| Linux | x86_64 | musl (Alpine) | Supported |
+| Linux | ARM64 | musl (Alpine) | Supported |
+| Windows | x86_64 | - | Planned |
 
 ## Usage
 

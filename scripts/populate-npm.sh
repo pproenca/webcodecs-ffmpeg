@@ -21,11 +21,19 @@ readonly FFMPEG_VERSION="${FFMPEG_VERSION:-0.1.0}"
 readonly TIERS=(bsd lgpl gpl)
 
 declare -Ar PLATFORM_MAP=(
+  # macOS platforms
   ["darwin-arm64"]="darwin-arm64"
   ["darwin-x64"]="darwin-x64"
-  # Future platforms:
-  # ["linux-x64"]="linux-x64"
-  # ["linux-arm64"]="linux-arm64"
+  # Linux glibc platforms
+  ["linux-x64"]="linux-x64"
+  ["linux-arm64v8"]="linux-arm64v8"
+  ["linux-armv6"]="linux-armv6"
+  ["linux-ppc64le"]="linux-ppc64le"
+  ["linux-riscv64"]="linux-riscv64"
+  ["linux-s390x"]="linux-s390x"
+  # Linux musl platforms
+  ["linuxmusl-x64"]="linuxmusl-x64"
+  ["linuxmusl-arm64v8"]="linuxmusl-arm64v8"
 )
 
 declare -Ar LICENSE_MAP=(
@@ -479,12 +487,19 @@ const os = require('os');
 const TIER_SUFFIX = '${TIER_SUFFIX}';
 
 const PLATFORMS = {
+  // macOS
   'darwin-arm64': { os: 'darwin', cpu: 'arm64' },
   'darwin-x64': { os: 'darwin', cpu: 'x64' },
+  // Linux glibc
   'linux-x64': { os: 'linux', cpu: 'x64' },
-  'linux-arm64': { os: 'linux', cpu: 'arm64' },
-  'win32-x64': { os: 'win32', cpu: 'x64' },
-  'win32-arm64': { os: 'win32', cpu: 'arm64' },
+  'linux-arm64v8': { os: 'linux', cpu: 'arm64' },
+  'linux-armv6': { os: 'linux', cpu: 'arm' },
+  'linux-ppc64le': { os: 'linux', cpu: 'ppc64' },
+  'linux-riscv64': { os: 'linux', cpu: 'riscv64' },
+  'linux-s390x': { os: 'linux', cpu: 's390x' },
+  // Linux musl (Alpine)
+  'linuxmusl-x64': { os: 'linux', cpu: 'x64', libc: 'musl' },
+  'linuxmusl-arm64v8': { os: 'linux', cpu: 'arm64', libc: 'musl' },
 };
 
 function getPlatformKey() {
@@ -644,7 +659,7 @@ main() {
 
   # Always regenerate workspaces to match current structure
   # Meta packages: ffmpeg (BSD default), ffmpeg-lgpl, ffmpeg-gpl
-  # Platform packages: darwin-arm64, darwin-x64 (BSD, LGPL, GPL tiers)
+  # Platform packages: all platforms × 3 tiers (BSD default, LGPL, GPL)
   cat >"${NPM_DIR}/package.json" <<'EOF'
 {
   "private": true,
@@ -658,7 +673,31 @@ main() {
     "darwin-arm64-gpl",
     "darwin-x64",
     "darwin-x64-lgpl",
-    "darwin-x64-gpl"
+    "darwin-x64-gpl",
+    "linux-x64",
+    "linux-x64-lgpl",
+    "linux-x64-gpl",
+    "linux-arm64v8",
+    "linux-arm64v8-lgpl",
+    "linux-arm64v8-gpl",
+    "linux-armv6",
+    "linux-armv6-lgpl",
+    "linux-armv6-gpl",
+    "linux-ppc64le",
+    "linux-ppc64le-lgpl",
+    "linux-ppc64le-gpl",
+    "linux-riscv64",
+    "linux-riscv64-lgpl",
+    "linux-riscv64-gpl",
+    "linux-s390x",
+    "linux-s390x-lgpl",
+    "linux-s390x-gpl",
+    "linuxmusl-x64",
+    "linuxmusl-x64-lgpl",
+    "linuxmusl-x64-gpl",
+    "linuxmusl-arm64v8",
+    "linuxmusl-arm64v8-lgpl",
+    "linuxmusl-arm64v8-gpl"
   ]
 }
 EOF
