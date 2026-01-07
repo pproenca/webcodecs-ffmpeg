@@ -44,9 +44,6 @@ ENV PKG_CONFIG_PATH=/opt/ffmpeg/lib/pkgconfig
 ENV PATH=/opt/ffmpeg/bin:$PATH
 ENV MAKEFLAGS="-j$(nproc)"
 
-# Create build user (non-root)
-RUN useradd -m -d /build builder
-USER builder
 WORKDIR /build
 
 # Default command

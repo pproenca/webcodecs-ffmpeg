@@ -1,5 +1,5 @@
 # =============================================================================
-# Common Codec Build Patterns for linux-x64
+# Common Codec Build Patterns for linux-s390x
 # =============================================================================
 # This file is included by the main Makefile and provides shared patterns
 # that individual codec makefiles can use.

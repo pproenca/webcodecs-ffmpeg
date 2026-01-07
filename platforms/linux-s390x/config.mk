@@ -21,6 +21,15 @@ CFLAGS := $(ARCH_FLAGS) -O2 -fPIC -fstack-protector-strong
 CXXFLAGS := $(ARCH_FLAGS) -O2 -fPIC -fstack-protector-strong
 LDFLAGS := -static-libgcc
 
+# =============================================================================
+# Build Tool Configuration
+# =============================================================================
+
+# pkg-config setup for consistent dependency resolution
+# PKG_CONFIG_LIBDIR replaces default search paths (prevents finding wrong libs)
+PKG_CONFIG := pkg-config
+PKG_CONFIG_LIBDIR := $(PREFIX)/lib/pkgconfig
+
 # CMake cross-compilation settings (native build)
 CMAKE_OPTS := \
 	-DCMAKE_SYSTEM_NAME=Linux \
@@ -30,8 +39,10 @@ CMAKE_OPTS := \
 	-DCMAKE_C_FLAGS="$(CFLAGS)" \
 	-DCMAKE_CXX_FLAGS="$(CXXFLAGS)" \
 	-DCMAKE_INSTALL_PREFIX=$(PREFIX) \
+	-DCMAKE_PREFIX_PATH=$(PREFIX) \
 	-DCMAKE_BUILD_TYPE=Release \
-	-DBUILD_SHARED_LIBS=OFF
+	-DBUILD_SHARED_LIBS=OFF \
+	$(if $(DEBUG),,-Wno-dev)
 
 # Meson cross-compilation settings (native build)
 MESON_OPTS := \
@@ -43,3 +54,11 @@ MESON_OPTS := \
 
 # Number of parallel jobs
 NPROC := $(shell nproc)
+
+# =============================================================================
+# Export Variables
+# =============================================================================
+
+export CC CXX
+export CFLAGS CXXFLAGS LDFLAGS
+export PKG_CONFIG PKG_CONFIG_LIBDIR

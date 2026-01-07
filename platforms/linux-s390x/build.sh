@@ -1,33 +1,15 @@
 #!/usr/bin/env bash
 #
-# FFmpeg Build Script - linux-s390x
-#
-# Builds FFmpeg and dependencies for Debian (glibc, s390x - IBM Z)
-# Uses QEMU emulation when running on non-s390x hosts
+# Build FFmpeg for linux-s390x using Docker
 #
 # Usage:
-#   ./build.sh [OPTIONS] [TARGET]
-#
-# Options:
-#   -l, --license TIER    License tier: bsd, lgpl, gpl (default: gpl)
-#   -h, --help            Show this help message
-#
-# Targets:
-#   all                   Build everything (default)
-#   codecs                Build codec libraries only
-#   ffmpeg                Build FFmpeg only
-#   package               Create distribution package
-#   clean                 Clean build artifacts
+#   ./build.sh [target]        - Run build (uses Docker if on host)
+#   ./build.sh all             - Full build (codecs + FFmpeg + package)
+#   LICENSE=bsd ./build.sh all - Build BSD tier only
 #
 # Environment:
-#   LICENSE_TIER          Same as --license option
-#   BUILD_DIR             Override build directory
-#
-# Examples:
-#   ./build.sh                      # Full GPL build
-#   ./build.sh -l lgpl              # LGPL build
-#   ./build.sh codecs               # Build codecs only
-#   LICENSE_TIER=bsd ./build.sh     # BSD-only build
+#   LICENSE - License tier: bsd, lgpl, gpl (default: gpl)
+#   DEBUG   - Enable debug output: 1 (default: empty)
 
 set -euo pipefail
 
@@ -35,10 +17,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 readonly SCRIPT_DIR PROJECT_ROOT
 readonly PLATFORM="linux-s390x"
-
-# Default values
-LICENSE_TIER="${LICENSE_TIER:-gpl}"
-BUILD_DIR="${BUILD_DIR:-${SCRIPT_DIR}/build}"
 
 #######################################
 # Colors (disabled when output is not a terminal)
@@ -64,109 +42,128 @@ fi
 # Outputs:
 #   Writes message to stdout (or stderr for log_error)
 #######################################
-log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
-log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+log_info() { printf "${GREEN}[INFO]${NC} %s\n" "$*"; }
+log_warn() { printf "${YELLOW}[WARN]${NC} %s\n" "$*"; }
+log_error() { printf "${RED}[ERROR]${NC} %s\n" "$*" >&2; }
 
 #######################################
-# Print usage information.
+# Check if running inside a Docker container.
 # Globals:
 #   None
 # Arguments:
 #   None
-# Outputs:
-#   Writes usage to stdout
+# Returns:
+#   0 if inside Docker, 1 otherwise
 #######################################
-usage() {
-  cat <<EOF
-Usage: $(basename "$0") [OPTIONS] [TARGET]
-
-Options:
-  -l, --license TIER    License tier: bsd, lgpl, gpl (default: gpl)
-  -h, --help            Show this help message
-
-Targets:
-  all                   Build everything (default)
-  codecs                Build codec libraries only
-  ffmpeg                Build FFmpeg only
-  package               Create distribution package
-  clean                 Clean build artifacts
-
-Environment:
-  LICENSE_TIER          Same as --license option
-  BUILD_DIR             Override build directory
-
-Examples:
-  ./build.sh                      # Full GPL build
-  ./build.sh -l lgpl              # LGPL build
-  ./build.sh codecs               # Build codecs only
-  LICENSE_TIER=bsd ./build.sh     # BSD-only build
-EOF
+in_docker() {
+  [[ -f /.dockerenv ]] \
+    || grep -q docker /proc/1/cgroup 2>/dev/null \
+    || [[ -f /run/.containerenv ]]
 }
 
-# Parse arguments
-TARGET="all"
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    -l|--license)
-      LICENSE_TIER="$2"
-      shift 2
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    *)
-      TARGET="$1"
-      shift
-      ;;
-  esac
-done
+#######################################
+# Build FFmpeg using Docker container.
+# Globals:
+#   SCRIPT_DIR, PROJECT_ROOT, PLATFORM
+#   LICENSE (env var, optional)
+#   DEBUG (env var, optional)
+# Arguments:
+#   $1 - Build target (default: all)
+# Outputs:
+#   Writes build progress to stdout
+#######################################
+build_in_docker() {
+  local target="${1:-all}"
+  local license="${LICENSE:-gpl}"
+  local debug="${DEBUG:-}"
 
-# Validate license tier
-case "${LICENSE_TIER}" in
-  bsd|lgpl|gpl) ;;
-  *)
-    log_error "Invalid license tier: ${LICENSE_TIER}"
-    log_error "Valid options: bsd, lgpl, gpl"
-    exit 1
-    ;;
-esac
+  log_info "Building ${PLATFORM} (${license} tier) in Docker..."
+  log_info "Project root: ${PROJECT_ROOT}"
 
-log_info "Platform: ${PLATFORM}"
-log_info "License tier: ${LICENSE_TIER}"
-log_info "Build directory: ${BUILD_DIR}"
+  # Ensure QEMU is available for s390x emulation
+  if ! docker buildx inspect --bootstrap >/dev/null 2>&1; then
+    log_info "Setting up Docker buildx for multi-platform support..."
+    docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+  fi
 
-# Check if running inside Docker container
-if [[ -f /.dockerenv ]] || grep -q docker /proc/1/cgroup 2>/dev/null; then
-  log_info "Running inside Docker container"
-  exec make -C "${SCRIPT_DIR}" \
-    LICENSE_TIER="${LICENSE_TIER}" \
-    BUILD_DIR="${BUILD_DIR}" \
-    "${TARGET}"
-fi
+  # Build Docker image
+  log_info "Building Docker image for ${PLATFORM}..."
+  docker build \
+    --platform linux/s390x \
+    -t "ffmpeg-builder:${PLATFORM}" \
+    -f "${SCRIPT_DIR}/Dockerfile" \
+    "${PROJECT_ROOT}"
 
-# Build Docker image with QEMU emulation support
-IMAGE_NAME="ffmpeg-${PLATFORM}"
-log_info "Building Docker image: ${IMAGE_NAME} (s390x with QEMU)"
+  # Create output directories on host
+  mkdir -p "${PROJECT_ROOT}/artifacts"
+  mkdir -p "${PROJECT_ROOT}/build/${PLATFORM}"
 
-# Ensure QEMU is available for s390x emulation
-if ! docker buildx inspect --bootstrap >/dev/null 2>&1; then
-  log_info "Setting up Docker buildx for multi-platform support..."
-  docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-fi
+  # Run build in container
+  log_info "Running build in container (s390x via QEMU)..."
+  docker run --rm \
+    --platform linux/s390x \
+    -v "${PROJECT_ROOT}:/build:rw" \
+    -e "LICENSE=${license}" \
+    -e "DEBUG=${debug}" \
+    -w "/build/platforms/${PLATFORM}" \
+    "ffmpeg-builder:${PLATFORM}" \
+    bash -c "make -j\$(nproc) LICENSE=${license} DEBUG=${debug} ${target}"
 
-docker build --platform linux/s390x -t "${IMAGE_NAME}" "${SCRIPT_DIR}"
+  log_info "Build complete!"
+  log_info "Artifacts: ${PROJECT_ROOT}/artifacts/${PLATFORM}-${license}/"
+}
 
-# Run build in Docker with QEMU emulation
-log_info "Running build in Docker container (s390x via QEMU)..."
-docker run --rm \
-  --platform linux/s390x \
-  -v "${PROJECT_ROOT}:/build/ffmpeg-prebuilds:rw" \
-  -e LICENSE_TIER="${LICENSE_TIER}" \
-  -e BUILD_DIR="/build/ffmpeg-prebuilds/platforms/${PLATFORM}/build" \
-  -w "/build/ffmpeg-prebuilds/platforms/${PLATFORM}" \
-  "${IMAGE_NAME}" \
-  make LICENSE_TIER="${LICENSE_TIER}" "${TARGET}"
+#######################################
+# Build FFmpeg natively (inside Docker).
+# Globals:
+#   SCRIPT_DIR, PROJECT_ROOT, PLATFORM
+#   LICENSE (env var, optional)
+#   DEBUG (env var, optional)
+# Arguments:
+#   $1 - Build target (default: all)
+# Outputs:
+#   Writes build progress to stdout
+#######################################
+build_native() {
+  local target="${1:-all}"
+  local license="${LICENSE:-gpl}"
+  local debug="${DEBUG:-}"
 
-log_info "Build complete!"
+  log_info "Building ${PLATFORM} (${license} tier) natively..."
+
+  cd "${SCRIPT_DIR}"
+  make -j"$(nproc)" LICENSE="${license}" DEBUG="${debug}" "${target}"
+
+  log_info "Build complete!"
+  log_info "Artifacts: ${PROJECT_ROOT}/artifacts/${PLATFORM}-${license}/"
+}
+
+#######################################
+# Main entry point.
+# Globals:
+#   PLATFORM
+#   LICENSE (env var, optional)
+# Arguments:
+#   $1 - Build target (default: all)
+# Outputs:
+#   Writes build progress to stdout
+#######################################
+main() {
+  local target="${1:-all}"
+
+  log_info "FFmpeg Build for ${PLATFORM}"
+  log_info "Target: ${target}"
+  log_info "License: ${LICENSE:-gpl}"
+
+  if in_docker; then
+    # Running inside Docker container - build directly with Make
+    log_info "Detected Docker environment, building natively..."
+    build_native "${target}"
+  else
+    # Running on host - use Docker
+    log_info "Running on host, using Docker for build..."
+    build_in_docker "${target}"
+  fi
+}
+
+main "$@"
