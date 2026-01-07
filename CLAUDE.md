@@ -70,18 +70,19 @@ Push to master
      ▼
   ci.yml ──────► _build.yml (6 jobs) ──► Artifacts (30-day retention)
                                               │
-                                              │ (reused if available)
+                                              │ (required for release)
                                               ▼
-Release published ──► release.yml ──► Check for CI artifacts
-                           │                  │
+workflow_dispatch ──► release.yml ──► Check for CI artifacts
+(bump_type dropdown)       │                  │
                            │          ┌───────┴───────┐
                            │          ▼               ▼
                            │       Found?          Missing?
                            │          │               │
                            │          ▼               ▼
-                           │      Download      _build.yml (fallback)
-                           │          │               │
-                           └──────────┴───────────────┘
+                           │      Download         FAIL
+                           │          │          (must wait for CI)
+                           │          ▼
+                           └─► Create tag + GitHub Release
                                       │
                                       ▼
                               Publish to npm + GitHub
@@ -92,11 +93,11 @@ Release published ──► release.yml ──► Check for CI artifacts
 | `lint.yml` | PR to master | Land-blocking validation (actionlint, shellcheck, hadolint) |
 | `_build.yml` | Called by other workflows | Reusable build logic (matrix, attestations, artifacts) |
 | `ci.yml` | Push to master | Continuous builds, stores artifacts for 30 days |
-| `release.yml` | Release published | Reuses CI artifacts or builds as fallback, publishes to npm/GitHub |
+| `release.yml` | Manual dispatch with bump_type | One-click release: creates tag, reuses CI artifacts, publishes |
 
 ### Reusable Build Workflow (`_build.yml`)
 
-- **Trigger:** `workflow_call` from ci.yml or release.yml
+- **Trigger:** `workflow_call` from ci.yml
 - **Inputs:** `ref` (git ref to build), `retention-days` (artifact retention)
 - **Matrix:** 2 platforms × 3 licenses = 6 parallel jobs
 - **Concurrency:** Per-platform groups with cancel-in-progress
@@ -112,30 +113,44 @@ Release published ──► release.yml ──► Check for CI artifacts
 
 ### Release Workflow (`release.yml`)
 
-- **Trigger:** `release.published` event or `workflow_dispatch` with tag input
-- **Artifact reuse:** Searches for existing CI artifacts before building
+- **Trigger:** `workflow_dispatch` with bump_type dropdown (patch/minor/major)
+- **Artifact requirement:** FAILS if no CI artifacts exist (no fallback build)
 - **Steps:**
-  1. Resolve tag to commit SHA (handles lightweight and annotated tags)
-  2. Search for successful CI run at that commit
-  3. If artifacts found: download from CI run (zero build jobs)
-  4. If artifacts missing/expired: call `_build.yml` as fallback
-  5. Publish artifacts to GitHub Release and npm with provenance
-- **Dependencies:** `dawidd6/action-download-artifact@v6` for cross-workflow downloads
+  1. Calculate new version from latest tag based on bump_type
+  2. Find HEAD commit
+  3. Search for successful CI run at that commit
+  4. If artifacts found: download from CI run
+  5. If artifacts missing/expired: **FAIL** (push to master and wait for CI first)
+  6. Create git tag and push to origin
+  7. Create GitHub Release with auto-generated notes
+  8. Publish artifacts to GitHub Release and npm with provenance
+- **Re-release:** Enter existing tag in the optional `tag` field to republish
 
-### Manual Release
+### One-Click Release
 
+**Via GitHub UI (recommended):**
+1. Go to **Actions** → **Release** workflow
+2. Click **Run workflow**
+3. Select bump type: `patch`, `minor`, or `major`
+4. Click **Run workflow**
+
+The workflow automatically:
+- Calculates new version (e.g., 0.1.3 → 0.1.4 for patch)
+- Verifies CI artifacts exist at HEAD
+- Creates and pushes git tag
+- Creates GitHub Release with auto-generated notes
+- Publishes to npm with provenance
+
+**Re-release existing tag:**
+- Enter existing tag in the `tag` field (e.g., `v0.1.4`)
+- Leave bump_type as default
+- Workflow skips tag/release creation, only republishes to npm
+
+**Local version bump (optional):**
 ```bash
-# Bump version and create tag (no commit needed)
+# Create tag locally without releasing
 mise run bump:patch  # or bump:minor, bump:major
-
-# Push tag to trigger release workflow
 git push origin v0.x.x
-
-# Create GitHub Release
-gh release create v0.x.x --generate-notes
-
-# Or use manual dispatch for re-releasing:
-gh workflow run release.yml -f tag=v0.2.0
 ```
 
 **Note:** Version bumping only creates a git tag. The `package.json` versions are

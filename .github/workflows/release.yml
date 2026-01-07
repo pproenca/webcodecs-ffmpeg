@@ -1,13 +1,19 @@
 name: Release
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Release tag (e.g., v0.2.0)'
+      bump_type:
+        description: 'Version bump type'
         required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+      tag:
+        description: 'Re-release existing tag (leave empty for new release)'
+        required: false
         type: string
 
 permissions:
@@ -26,62 +32,78 @@ env:
     ffmpeg-darwin-x64-gpl
 
 jobs:
-  # Job 1: Resolve tag to commit SHA
-  resolve:
-    name: resolve-tag
+  # Job 1: Calculate version and resolve commit
+  prepare:
+    name: prepare-release
     runs-on: ubuntu-latest
     outputs:
-      commit: ${{ steps.resolve.outputs.commit }}
-      tag: ${{ steps.resolve.outputs.tag }}
+      tag: ${{ steps.version.outputs.tag }}
+      commit: ${{ steps.version.outputs.commit }}
+      is_new_release: ${{ steps.version.outputs.is_new_release }}
     steps:
-      - name: Resolve tag to commit
-        id: resolve
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for tags
+
+      - name: Calculate version
+        id: version
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if [[ "${{ github.event_name }}" == "release" ]]; then
-            TAG="${{ github.event.release.tag_name }}"
-          else
+          if [[ -n "${{ inputs.tag }}" ]]; then
+            # Re-releasing existing tag
             TAG="${{ inputs.tag }}"
-          fi
+            echo "is_new_release=false" >> "$GITHUB_OUTPUT"
 
-          # Handle both lightweight and annotated tags
-          RESPONSE=$(gh api "repos/${{ github.repository }}/git/refs/tags/${TAG}" 2>/dev/null || echo "")
-          if [[ -z "$RESPONSE" ]]; then
-            echo "::error::Could not find tag $TAG"
-            exit 1
-          fi
+            # Resolve tag to commit SHA
+            RESPONSE=$(gh api "repos/${{ github.repository }}/git/refs/tags/${TAG}" 2>/dev/null || echo "")
+            if [[ -z "$RESPONSE" ]]; then
+              echo "::error::Could not find tag $TAG"
+              exit 1
+            fi
 
-          OBJECT_TYPE=$(echo "$RESPONSE" | jq -r '.object.type')
-          OBJECT_SHA=$(echo "$RESPONSE" | jq -r '.object.sha')
+            OBJECT_TYPE=$(echo "$RESPONSE" | jq -r '.object.type')
+            OBJECT_SHA=$(echo "$RESPONSE" | jq -r '.object.sha')
 
-          # Annotated tags point to a tag object, lightweight tags point directly to commit
-          if [[ "$OBJECT_TYPE" == "tag" ]]; then
-            # Annotated tag - dereference to get the commit SHA it points to
-            COMMIT=$(gh api "repos/${{ github.repository }}/git/tags/${OBJECT_SHA}" --jq '.object.sha')
+            if [[ "$OBJECT_TYPE" == "tag" ]]; then
+              COMMIT=$(gh api "repos/${{ github.repository }}/git/tags/${OBJECT_SHA}" --jq '.object.sha')
+            else
+              COMMIT="$OBJECT_SHA"
+            fi
           else
-            # Lightweight tag - SHA is already the commit
-            COMMIT="$OBJECT_SHA"
+            # Calculate new version from bump_type
+            CURRENT=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")
+            IFS='.' read -r MAJ MIN PAT <<< "$CURRENT"
+
+            case "${{ inputs.bump_type }}" in
+              major) MAJ=$((MAJ + 1)); MIN=0; PAT=0 ;;
+              minor) MIN=$((MIN + 1)); PAT=0 ;;
+              patch) PAT=$((PAT + 1)) ;;
+            esac
+
+            TAG="v${MAJ}.${MIN}.${PAT}"
+            COMMIT=$(git rev-parse HEAD)
+            echo "is_new_release=true" >> "$GITHUB_OUTPUT"
           fi
 
-          echo "Resolved tag $TAG to commit $COMMIT"
-          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+          echo "Releasing $TAG at commit $COMMIT"
 
-  # Job 2: Check for existing CI artifacts
+  # Job 2: Check for existing CI artifacts (REQUIRED - no fallback build)
   check-artifacts:
     name: check-artifacts
-    needs: resolve
+    needs: prepare
     runs-on: ubuntu-latest
     outputs:
-      found: ${{ steps.search.outputs.found }}
       run_id: ${{ steps.search.outputs.run_id }}
     steps:
       - name: Search for CI artifacts
         id: search
         env:
           GH_TOKEN: ${{ github.token }}
-          COMMIT: ${{ needs.resolve.outputs.commit }}
+          COMMIT: ${{ needs.prepare.outputs.commit }}
         run: |
           echo "Searching for CI artifacts at commit $COMMIT"
 
@@ -91,9 +113,9 @@ jobs:
             2>/dev/null | head -1 || echo "")
 
           if [[ -z "$RUN_ID" ]]; then
-            echo "No successful CI run found for commit $COMMIT"
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            exit 0
+            echo "::error::No successful CI run found for commit $COMMIT"
+            echo "::error::Push to master first and wait for CI to complete before releasing."
+            exit 1
           fi
 
           echo "Found CI run: $RUN_ID"
@@ -110,52 +132,54 @@ jobs:
           done
 
           if [[ -n "$MISSING" ]]; then
-            echo "Missing artifacts:$MISSING"
-            echo "found=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "All 6 artifacts found in CI run $RUN_ID"
-            echo "found=true" >> "$GITHUB_OUTPUT"
-            echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+            echo "::error::Missing artifacts:$MISSING"
+            echo "::error::CI artifacts may have expired. Re-run CI workflow first."
+            exit 1
           fi
 
-  # Job 3: Build only if CI artifacts not found
-  build:
-    name: build
-    needs: [resolve, check-artifacts]
-    if: needs.check-artifacts.outputs.found != 'true'
-    uses: ./.github/workflows/_build.yml
-    with:
-      ref: ${{ needs.resolve.outputs.commit }}
-      retention-days: 90
-    permissions:
-      contents: read
-      id-token: write
-      attestations: write
+          echo "All 6 artifacts found in CI run $RUN_ID"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
-  # Job 4: Publish to GitHub Release and npm
+  # Job 3: Create tag, GitHub Release, and publish to npm
   publish:
     name: publish
-    needs: [resolve, check-artifacts, build]
-    if: always() && !cancelled() && needs.resolve.result == 'success' && needs.check-artifacts.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped')
+    needs: [prepare, check-artifacts]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Create and push tag
+        if: needs.prepare.outputs.is_new_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ needs.prepare.outputs.tag }}"
+          COMMIT="${{ needs.prepare.outputs.commit }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git tag "$TAG" "$COMMIT"
+          git push origin "$TAG"
+
+          echo "Created and pushed tag $TAG"
+
+      - name: Create GitHub Release
+        if: needs.prepare.outputs.is_new_release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ needs.prepare.outputs.tag }}" \
+            --generate-notes \
+            --target "${{ needs.prepare.outputs.commit }}"
+
       - name: Download from CI workflow
-        if: needs.check-artifacts.outputs.found == 'true'
         uses: dawidd6/action-download-artifact@v6
         with:
           workflow: ci.yml
           run_id: ${{ needs.check-artifacts.outputs.run_id }}
           path: artifacts-download
-
-      - name: Download from fallback build
-        if: needs.check-artifacts.outputs.found != 'true'
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts-download
-          merge-multiple: true
 
       - name: Flatten artifact directories
         run: |
@@ -244,7 +268,7 @@ jobs:
 
       - name: Populate npm packages
         env:
-          FFMPEG_VERSION: ${{ needs.resolve.outputs.tag }}
+          FFMPEG_VERSION: ${{ needs.prepare.outputs.tag }}
         run: |
           # Strip 'v' prefix from tag (v0.1.0 -> 0.1.0)
           export FFMPEG_VERSION="${FFMPEG_VERSION#v}"
@@ -254,7 +278,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload "${{ needs.resolve.outputs.tag }}" \
+          gh release upload "${{ needs.prepare.outputs.tag }}" \
             artifacts-download/*.tar.gz \
             artifacts-download/*.sha256 --clobber
 
