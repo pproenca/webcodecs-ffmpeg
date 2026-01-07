@@ -223,6 +223,28 @@ shared/                    # Cross-platform utilities
 
 All versions, URLs, and SHA256 checksums are in `shared/versions.mk`. Bump `CACHE_VERSION` to invalidate CI cache.
 
+### Shared Codec System
+
+Codec build recipes are centralized in `shared/codecs/` to eliminate duplication:
+
+```
+shared/codecs/
+├── codec.mk           # License tier configuration
+├── pkgconfig.mk       # Templated pkg-config generation
+├── bsd/               # BSD-licensed codecs (7)
+├── lgpl/              # LGPL-licensed codecs (1)
+└── gpl/               # GPL-licensed codecs (2)
+```
+
+**Platform-Specific Variables** (set in `platforms/*/config.mk`):
+
+| Variable | Description | Example (arm64) | Example (x64) |
+|----------|-------------|-----------------|---------------|
+| `LIBVPX_TARGET` | libvpx target triplet | arm64-darwin23-gcc | x86_64-darwin19-gcc |
+| `X264_HOST` | x264 host triplet | (empty) | x86_64-apple-darwin |
+| `AOM_TARGET_CPU` | aom CPU target | (empty) | x86_64 |
+| `ARCH_VERIFY_PATTERN` | Architecture verification | arm64 | x86_64 |
+
 ## Adding a New Codec
 
 1. Create `platforms/<platform>/codecs/<codec>.mk`

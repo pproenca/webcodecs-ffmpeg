@@ -16,6 +16,7 @@ aom.stamp:
 	cd $(AOM_BUILD) && \
 		cmake $(AOM_SRC) \
 			$(CMAKE_OPTS) \
+			$(if $(AOM_TARGET_CPU),-DAOM_TARGET_CPU=$(AOM_TARGET_CPU)) \
 			-DBUILD_SHARED_LIBS=OFF \
 			-DENABLE_DOCS=OFF \
 			-DENABLE_EXAMPLES=OFF \

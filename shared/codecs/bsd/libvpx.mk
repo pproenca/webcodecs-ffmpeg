@@ -3,12 +3,16 @@
 # =============================================================================
 # Google's VP8/VP9 codec for WebM format.
 #
-# Note: The target must be x86_64-darwin19-gcc (not x86_64-darwin-gcc).
-# The generic x86_64-darwin-gcc target builds for iOS, which causes linking
-# failures when used with macOS builds. darwin19 = macOS Catalina (10.15).
+# Note: The target must match the platform (e.g., arm64-darwin23-gcc for
+# macOS ARM64, x86_64-darwin-gcc for macOS Intel). The generic arm64-darwin-gcc
+# target builds for iOS, which causes linking failures with macOS builds.
 # =============================================================================
 
 LIBVPX_SRC := $(SOURCES_DIR)/libvpx-$(patsubst v%,%,$(LIBVPX_VERSION))
+
+ifndef LIBVPX_TARGET
+    $(error LIBVPX_TARGET must be defined in config.mk)
+endif
 
 libvpx.stamp:
 	$(call log_info,Building libvpx $(LIBVPX_VERSION)...)
@@ -17,7 +21,7 @@ libvpx.stamp:
 	cd $(LIBVPX_SRC) && \
 		./configure \
 			--prefix=$(PREFIX) \
-			--target=x86_64-darwin19-gcc \
+			--target=$(LIBVPX_TARGET) \
 			--enable-static \
 			--disable-shared \
 			--enable-pic \

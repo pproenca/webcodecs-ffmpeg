@@ -1,7 +1,34 @@
 # =============================================================================
 # Common Make Patterns and Functions
 # =============================================================================
-# Shared utilities for all platform builds
+# Shared utilities for all platform builds.
+#
+# SECTIONS:
+#   1. Shell Configuration - Bash settings for recipe execution
+#   2. Portable Commands - Platform-specific command abstractions
+#   3. Phony Target Registry - Centralized PHONY management
+#   4. Logging Functions - Colored output helpers
+#   5. Download Functions - Source code retrieval
+#   6. Verification Helpers - Build validation
+#   7. Cleanup Patterns - Source removal
+#   8. Safety Directives - .DELETE_ON_ERROR, .SECONDARY
+#
+# VARIABLE SCOPING:
+#   - Variables defined here are global to all including Makefiles
+#   - Use ?= for defaults that platforms may override
+#   - Use := for values that should not change
+#
+# NAMING CONVENTIONS:
+#   - Version variables: UPPERCASE (e.g., LIBVPX_VERSION)
+#   - Source directories: UPPERCASE_SRC (e.g., LIBVPX_SRC)
+#   - Build directories: UPPERCASE_BUILD (e.g., AOM_BUILD)
+#   - Stamp targets: lowercase.stamp (e.g., libvpx.stamp)
+#   - Clean targets: lowercase-clean (e.g., libvpx-clean)
+#
+# CROSS-REFERENCES:
+#   - shared/versions.mk: Version numbers and URLs
+#   - platforms/*/config.mk: Platform-specific compiler settings
+#   - shared/codecs/codec.mk: License-based codec selection
 # =============================================================================
 
 SHELL := /bin/bash
@@ -20,6 +47,26 @@ else
     COLOR_RED :=
     COLOR_RESET :=
 endif
+
+# =============================================================================
+# Portable Commands
+# =============================================================================
+# Abstractions for platform-specific command differences
+
+# Portable sed in-place edit (macOS uses -i '', Linux uses -i)
+ifeq ($(shell uname -s),Darwin)
+    SED_INPLACE = sed -i ''
+else
+    SED_INPLACE = sed -i
+endif
+
+# =============================================================================
+# Phony Target Registry
+# =============================================================================
+# All phony targets should be added using: PHONY_TARGETS += target1 target2
+# This allows distributed declaration across multiple files.
+
+PHONY_TARGETS := all clean distclean help
 
 # =============================================================================
 # Logging Functions
@@ -68,38 +115,6 @@ define git_clone
 endef
 
 # =============================================================================
-# Build Helpers
-# =============================================================================
-
-# Standard autoconf build pattern
-# Usage: $(call autoconf_build,source_dir,configure_args)
-define autoconf_build
-	cd $(1) && \
-	./configure $(2) && \
-	$(MAKE) -j$(NPROC) && \
-	$(MAKE) install
-endef
-
-# Standard CMake build pattern
-# Usage: $(call cmake_build,source_dir,build_dir,cmake_args)
-define cmake_build
-	mkdir -p $(2) && \
-	cd $(2) && \
-	cmake $(1) $(3) && \
-	$(MAKE) -j$(NPROC) && \
-	$(MAKE) install
-endef
-
-# Standard Meson build pattern
-# Usage: $(call meson_build,source_dir,build_dir,meson_args)
-define meson_build
-	cd $(1) && \
-	meson setup $(2) $(3) && \
-	ninja -C $(2) && \
-	ninja -C $(2) install
-endef
-
-# =============================================================================
 # Verification Helpers
 # =============================================================================
 
@@ -145,3 +160,19 @@ endef
 #   - Easy status checking
 
 .PRECIOUS: %.stamp
+
+# =============================================================================
+# Safety Directives
+# =============================================================================
+
+# Delete targets if recipe fails (prevents corrupt artifacts)
+.DELETE_ON_ERROR:
+
+# Don't delete intermediate files (keep downloaded sources)
+.SECONDARY:
+
+# =============================================================================
+# Consolidated PHONY Declaration
+# =============================================================================
+
+.PHONY: $(PHONY_TARGETS)
