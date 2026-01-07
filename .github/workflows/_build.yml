@@ -21,11 +21,25 @@ permissions:
 jobs:
   build:
     name: build-${{ matrix.platform }}-${{ matrix.license }}
-    runs-on: ${{ matrix.platform == 'darwin-arm64' && 'macos-15' || 'macos-15-intel' }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
-        platform: [darwin-arm64, darwin-x64]
+        include:
+          # macOS platforms (native builds)
+          - platform: darwin-arm64
+            runner: macos-15
+            os: darwin
+          - platform: darwin-x64
+            runner: macos-15-intel
+            os: darwin
+          # Linux platforms (Docker builds)
+          - platform: linux-x64
+            runner: ubuntu-24.04
+            os: linux
+          - platform: linux-arm64
+            runner: ubuntu-24.04
+            os: linux
         license: [bsd, lgpl, gpl]
 
     # Cancel in-progress builds for same platform/license/ref combination
@@ -40,6 +54,17 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.sha }}
 
+      # QEMU setup for ARM64 cross-compilation on Linux
+      - name: Set up QEMU
+        if: matrix.platform == 'linux-arm64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        if: startsWith(matrix.platform, 'linux')
+        uses: docker/setup-buildx-action@v3
+
       - name: Cache sources
         uses: actions/cache@v4
         with:
@@ -48,14 +73,31 @@ jobs:
           restore-keys: |
             sources-${{ matrix.platform }}-
 
-      - name: Build FFmpeg
+      # macOS builds run natively
+      - name: Build FFmpeg (macOS)
+        if: matrix.os == 'darwin'
         run: LICENSE=${{ matrix.license }} ./platforms/${{ matrix.platform }}/build.sh all
+        env:
+          DEBUG: ${{ runner.debug }}
+
+      # Linux builds run in Docker
+      - name: Build FFmpeg (Linux)
+        if: matrix.os == 'linux'
+        run: LICENSE=${{ matrix.license }} ./docker/build.sh ${{ matrix.platform }} all
         env:
           DEBUG: ${{ runner.debug }}
 
       - name: Verify binary architecture
         run: |
-          EXPECTED_ARCH="${{ matrix.platform == 'darwin-arm64' && 'arm64' || 'x86_64' }}"
+          # Architecture patterns for file command
+          case "${{ matrix.platform }}" in
+            darwin-arm64) EXPECTED_ARCH="arm64" ;;
+            darwin-x64)   EXPECTED_ARCH="x86_64" ;;
+            linux-x64)    EXPECTED_ARCH="x86-64" ;;
+            linux-arm64)  EXPECTED_ARCH="aarch64" ;;
+            *)            EXPECTED_ARCH="unknown" ;;
+          esac
+
           FFMPEG_BIN="artifacts/${{ matrix.platform }}-${{ matrix.license }}/bin/ffmpeg"
 
           if [[ ! -f "$FFMPEG_BIN" ]]; then
@@ -81,14 +123,25 @@ jobs:
             -C artifacts "${{ matrix.platform }}-${{ matrix.license }}"
 
           # Verify tarball has reasonable size (>1MB for FFmpeg)
-          TARBALL_SIZE=$(stat -f%z "$TARBALL")
+          # Use portable stat syntax (Linux uses -c, macOS uses -f)
+          if [[ "${{ matrix.os }}" == "darwin" ]]; then
+            TARBALL_SIZE=$(stat -f%z "$TARBALL")
+          else
+            TARBALL_SIZE=$(stat -c%s "$TARBALL")
+          fi
+
           if [[ "$TARBALL_SIZE" -lt 1000000 ]]; then
             echo "::error::Tarball suspiciously small: ${TARBALL_SIZE} bytes"
             exit 1
           fi
           echo "Created $TARBALL (${TARBALL_SIZE} bytes)"
 
-          shasum -a 256 "$TARBALL" > "${TARBALL}.sha256"
+          # Use portable checksum command
+          if [[ "${{ matrix.os }}" == "darwin" ]]; then
+            shasum -a 256 "$TARBALL" > "${TARBALL}.sha256"
+          else
+            sha256sum "$TARBALL" > "${TARBALL}.sha256"
+          fi
 
       - name: Generate build attestation
         uses: actions/attest-build-provenance@v2

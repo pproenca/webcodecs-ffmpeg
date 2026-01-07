@@ -1,0 +1,130 @@
+# =============================================================================
+# FFmpeg Linux Build Container
+# =============================================================================
+# Multi-stage Dockerfile for building FFmpeg on Linux platforms.
+#
+# Supports:
+#   - linux-x64 (native x86_64)
+#   - linux-arm64 (cross-compiled aarch64)
+#
+# Usage:
+#   # Build for x64
+#   docker build -f docker/Dockerfile.linux --target builder-x64 -t ffmpeg-build:linux-x64 .
+#
+#   # Build for arm64
+#   docker build -f docker/Dockerfile.linux --target builder-arm64 -t ffmpeg-build:linux-arm64 .
+#
+# Design:
+#   Stage 1: base        - Common build tools (Debian Buster for glibc 2.28)
+#   Stage 2: toolchain-* - Architecture-specific compilers
+#   Stage 3: builder-*   - Build environment with project mounted
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Stage 1: Base Build Environment
+# -----------------------------------------------------------------------------
+# Debian Bullseye provides glibc 2.31 for broad compatibility
+# (matches RHEL 9 / Ubuntu 22.04 era - widely supported)
+FROM debian:bullseye-slim AS base
+
+# Avoid interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install common build dependencies
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Build essentials
+    build-essential \
+    pkg-config \
+    # Download tools
+    curl \
+    ca-certificates \
+    git \
+    # Autotools
+    autoconf \
+    automake \
+    libtool \
+    # Build systems
+    ninja-build \
+    python3 \
+    python3-pip \
+    # Assembler
+    nasm \
+    yasm \
+    # Archive tools
+    xz-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install meson via pip (Buster's meson is too old for dav1d)
+# Install CMake 3.x (CMake 4.x breaks x265, libaom, svt-av1)
+# hadolint ignore=DL3013
+RUN pip3 install --no-cache-dir 'meson>=0.60,<2' 'cmake>=3.20,<4'
+
+# Create build user (avoid running as root)
+RUN useradd -m -s /bin/bash builder
+WORKDIR /build
+
+# -----------------------------------------------------------------------------
+# Stage 2a: x64 Toolchain (native compilation)
+# -----------------------------------------------------------------------------
+FROM base AS toolchain-x64
+
+# x64 uses native compilation - no cross-compiler needed
+ENV ARCH=x86_64 \
+    CROSS_PREFIX="" \
+    CC=gcc \
+    CXX=g++ \
+    AR=ar \
+    RANLIB=ranlib \
+    STRIP=strip
+
+# -----------------------------------------------------------------------------
+# Stage 2b: ARM64 Toolchain (cross-compilation)
+# -----------------------------------------------------------------------------
+FROM base AS toolchain-arm64
+
+# Install aarch64 cross-compiler
+# hadolint ignore=DL3008
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc-aarch64-linux-gnu \
+    g++-aarch64-linux-gnu \
+    binutils-aarch64-linux-gnu \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV ARCH=aarch64 \
+    CROSS_PREFIX=aarch64-linux-gnu- \
+    CC=aarch64-linux-gnu-gcc \
+    CXX=aarch64-linux-gnu-g++ \
+    AR=aarch64-linux-gnu-ar \
+    RANLIB=aarch64-linux-gnu-ranlib \
+    STRIP=aarch64-linux-gnu-strip
+
+# -----------------------------------------------------------------------------
+# Stage 3a: Builder for x64
+# -----------------------------------------------------------------------------
+FROM toolchain-x64 AS builder-x64
+
+# Set platform identification
+ENV PLATFORM=linux-x64 \
+    TARGET_OS=linux
+
+# Project will be mounted at /build
+WORKDIR /build
+
+# Default command runs the build
+CMD ["make", "-C", "/build/platforms/linux-x64", "all"]
+
+# -----------------------------------------------------------------------------
+# Stage 3b: Builder for ARM64
+# -----------------------------------------------------------------------------
+FROM toolchain-arm64 AS builder-arm64
+
+# Set platform identification
+ENV PLATFORM=linux-arm64 \
+    TARGET_OS=linux
+
+# Project will be mounted at /build
+WORKDIR /build
+
+# Default command runs the build
+CMD ["make", "-C", "/build/platforms/linux-arm64", "all"]

@@ -1,0 +1,38 @@
+# =============================================================================
+# Docker Build Context Exclusions
+# =============================================================================
+# Exclude large directories and artifacts to speed up Docker context transfer.
+
+# Build outputs
+build/
+artifacts/
+
+# Node.js
+node_modules/
+npm/*/node_modules/
+
+# Git
+.git/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Documentation (not needed for build)
+*.md
+!platforms/**/*.md
+
+# CI/CD (not needed for build)
+.github/
+
+# Local development
+.env
+.env.*
+*.log
