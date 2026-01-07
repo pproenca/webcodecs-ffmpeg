@@ -40,6 +40,15 @@ declare -Ar TIER_DESC=(
   ["gpl"]="all codecs including x264/x265"
 )
 
+# Map tiers to license file names in licenses/ directory
+declare -Ar LICENSE_FILE_MAP=(
+  ["bsd"]="BSD-3-Clause.txt"
+  ["lgpl"]="LGPL-2.1.txt"
+  ["gpl"]="GPL-2.0.txt"
+)
+
+readonly LICENSES_DIR="${PROJECT_ROOT}/licenses"
+
 #######################################
 # Portable in-place sed replacement.
 # Works on both macOS (BSD sed) and Linux (GNU sed).
@@ -50,10 +59,12 @@ declare -Ar TIER_DESC=(
 #   0 on success, 1 on failure
 #######################################
 sed_inplace() {
-  local expr="$1"
-  local file="$2"
+  local -r expr="$1"
+  local -r file="$2"
   local tmp
   tmp="$(mktemp)" || return 1
+  # Ensure cleanup on any exit path
+  trap 'rm -f "${tmp}"' RETURN
   sed "${expr}" "${file}" > "${tmp}" && mv "${tmp}" "${file}"
 }
 
@@ -225,15 +236,24 @@ populate_platform() {
   rm -rf "${npm_dest:?}/lib"
   mkdir -p "${npm_dest}/lib"
 
+  # Copy static libraries if they exist
   if [[ -d "${artifacts_src}/lib" ]]; then
-    cp -a "${artifacts_src}/lib/"*.a "${npm_dest}/lib/" 2>/dev/null || true
+    local -a lib_files
+    lib_files=("${artifacts_src}/lib/"*.a)
+    if [[ -e "${lib_files[0]}" ]]; then
+      cp -a "${lib_files[@]}" "${npm_dest}/lib/"
+    fi
   fi
 
   # Copy pkg-config files for native addon development
   if [[ -d "${artifacts_src}/lib/pkgconfig" ]]; then
-    mkdir -p "${npm_dest}/lib/pkgconfig"
-    cp -a "${artifacts_src}/lib/pkgconfig/"*.pc "${npm_dest}/lib/pkgconfig/" 2>/dev/null || true
-    generate_index_js "${npm_dest}/lib/pkgconfig"
+    local -a pc_files
+    pc_files=("${artifacts_src}/lib/pkgconfig/"*.pc)
+    if [[ -e "${pc_files[0]}" ]]; then
+      mkdir -p "${npm_dest}/lib/pkgconfig"
+      cp -a "${pc_files[@]}" "${npm_dest}/lib/pkgconfig/"
+      generate_index_js "${npm_dest}/lib/pkgconfig"
+    fi
   fi
 
   generate_index_js "${npm_dest}/lib"
@@ -241,6 +261,12 @@ populate_platform() {
   generate_versions_json "${npm_dest}/versions.json" "${platform}" "${tier}"
 
   generate_platform_package_json "${npm_dest}" "${platform}" "${tier}"
+
+  # Copy appropriate LICENSE file
+  local license_file="${LICENSE_FILE_MAP[$tier]}"
+  if [[ -f "${LICENSES_DIR}/${license_file}" ]]; then
+    cp "${LICENSES_DIR}/${license_file}" "${npm_dest}/LICENSE"
+  fi
 
   log_info "  -> Populated ${npm_dir_name}"
 }
@@ -283,7 +309,12 @@ populate_dev() {
   rm -rf "${dev_dir:?}/include"
   mkdir -p "${dev_dir}/include"
 
-  cp -a "${header_src}/"* "${dev_dir}/include/" 2>/dev/null || true
+  # Copy headers if they exist
+  local -a header_files
+  header_files=("${header_src}/"*)
+  if [[ -e "${header_files[0]}" ]]; then
+    cp -a "${header_files[@]}" "${dev_dir}/include/"
+  fi
   generate_index_js "${dev_dir}/include"
 
   # Generate gyp-config.js helper for binding.gyp
@@ -330,6 +361,11 @@ GYPCONFIG
 }
 EOF
 
+  # Copy MIT LICENSE file
+  if [[ -f "${LICENSES_DIR}/MIT.txt" ]]; then
+    cp "${LICENSES_DIR}/MIT.txt" "${dev_dir}/LICENSE"
+  fi
+
   log_info "  -> Populated dev package"
 }
 
@@ -363,9 +399,9 @@ generate_meta_package_json() {
   # Build optionalDependencies for all platforms
   local opt_deps=""
   local first=true
-  local platform
+  local platform dep_name
   for platform in "${!PLATFORM_MAP[@]}"; do
-    local dep_name="@pproenca/ffmpeg-${platform}"
+    dep_name="@pproenca/ffmpeg-${platform}"
     if [[ "${tier}" != "bsd" ]]; then
       dep_name="${dep_name}-${tier}"
     fi
@@ -566,18 +602,24 @@ RESOLVEJS
 populate_meta_packages() {
   log_info "Populating meta packages..."
 
-  local tier
+  local tier npm_subdir meta_dir license_file
   for tier in "${TIERS[@]}"; do
-    local npm_subdir="ffmpeg"
+    npm_subdir="ffmpeg"
     if [[ "${tier}" != "bsd" ]]; then
       npm_subdir="ffmpeg-${tier}"
     fi
-    local meta_dir="${NPM_DIR}/${npm_subdir}"
+    meta_dir="${NPM_DIR}/${npm_subdir}"
 
     mkdir -p "${meta_dir}"
     generate_meta_package_json "${meta_dir}" "${tier}"
     generate_meta_install_js "${meta_dir}" "${tier}"
     generate_meta_resolve_js "${meta_dir}" "${tier}"
+
+    # Copy appropriate LICENSE file
+    license_file="${LICENSE_FILE_MAP[$tier]}"
+    if [[ -f "${LICENSES_DIR}/${license_file}" ]]; then
+      cp "${LICENSES_DIR}/${license_file}" "${meta_dir}/LICENSE"
+    fi
 
     log_info "  -> Created ${npm_subdir} meta package"
   done
