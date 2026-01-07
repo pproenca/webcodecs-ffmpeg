@@ -112,16 +112,10 @@ FFMPEG_SRC := $(SOURCES_DIR)/FFmpeg-$(FFMPEG_VERSION)
 # -----------------------------------------------------------------------------
 # FFmpeg Configure Options (by license tier)
 # -----------------------------------------------------------------------------
-# Cross-compile mode (--enable-cross-compile, --target-os) is REQUIRED when
-# building x86_64 on ARM64 runners. Without it, FFmpeg's configure tries to
-# RUN test programs to detect libraries like LAME (which doesn't use pkg-config),
-# and the x86_64 test binaries fail to execute on the ARM64 host.
 
 FFMPEG_BASE_OPTS := \
 	--prefix=$(PREFIX) \
 	--arch=x86_64 \
-	--target-os=darwin \
-	--enable-cross-compile \
 	--enable-version3 \
 	--enable-static \
 	--disable-shared \
@@ -174,7 +168,7 @@ ffmpeg.stamp: dirs $(addsuffix .stamp,$(ACTIVE_CODECS))
 	@chmod +x $(BUILD_DIR)/pkg-config-cross
 	@# Verify pkg-config can find our built codecs before FFmpeg configure
 	@echo "=== Verifying pkg-config setup ==="
-	@PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" pkg-config --list-all 2>/dev/null | grep -iE "(svtav1|aom|vpx|dav1d|opus|vorbis)" || \
+	@PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" pkg-config --list-all 2>/dev/null | grep -iE "(svtav1|aom|vpx|dav1d|opus|vorbis|mp3lame)" || \
 		(echo "WARNING: Some codec .pc files not found" && ls -la $(PREFIX)/lib/pkgconfig/ 2>/dev/null || true)
 	cd $(FFMPEG_SRC) && \
 		export PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" && \
