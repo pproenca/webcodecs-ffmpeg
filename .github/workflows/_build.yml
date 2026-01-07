@@ -25,22 +25,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Define arrays for cartesian product (4 platforms × 3 licenses = 12 jobs)
+        platform: [darwin-arm64, darwin-x64, linux-x64, linux-arm64]
+        license: [bsd, lgpl, gpl]
+        # Add extra properties (runner, os) for each platform
         include:
-          # macOS platforms (native builds)
           - platform: darwin-arm64
             runner: macos-15
             os: darwin
           - platform: darwin-x64
             runner: macos-15-intel
             os: darwin
-          # Linux platforms (Docker builds)
           - platform: linux-x64
             runner: ubuntu-24.04
             os: linux
           - platform: linux-arm64
             runner: ubuntu-24.04
             os: linux
-        license: [bsd, lgpl, gpl]
 
     # Cancel in-progress builds for same platform/license/ref combination
     # Uses inputs.ref for release builds, github.sha for CI builds
