@@ -1,6 +1,6 @@
 {
   "name": "@pproenca/ffmpeg-lgpl",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Prebuilt FFmpeg with BSD + LGPL codecs (adds MP3) - auto-selects platform",
   "author": "Pedro Proenca",
   "homepage": "https://github.com/pproenca/ffmpeg-prebuilds",
@@ -17,6 +17,6 @@
     "postinstall": "node install.js"
   },
   "optionalDependencies": {
-    "@pproenca/ffmpeg-darwin-arm64-lgpl": "0.1.4"
+    "@pproenca/ffmpeg-darwin-arm64-lgpl": "0.1.5"
   }
 }
