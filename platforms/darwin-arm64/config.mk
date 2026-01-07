@@ -11,10 +11,10 @@ TARGET_OS := darwin
 # Compiler Settings
 # =============================================================================
 
-CC := clang
-CXX := clang++
-AR := ar
-RANLIB := ranlib
+CC ?= clang
+CXX ?= clang++
+AR ?= ar
+RANLIB ?= ranlib
 
 # macOS SDK path
 SDKROOT := $(shell xcrun --show-sdk-path 2>/dev/null || echo "")
@@ -127,3 +127,13 @@ export PATH
 ifdef SDKROOT
     export SDKROOT
 endif
+
+# =============================================================================
+# Codec Build Configuration
+# =============================================================================
+
+# libvpx target architecture
+LIBVPX_TARGET := arm64-darwin23-gcc
+
+# Enable Darwin-specific patches for vorbis
+VORBIS_PATCH_DARWIN := 1

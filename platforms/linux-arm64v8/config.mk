@@ -11,10 +11,10 @@ TARGET_OS := linux
 # Compiler Settings
 # =============================================================================
 
-CC := gcc
-CXX := g++
-AR := ar
-RANLIB := ranlib
+CC ?= gcc
+CXX ?= g++
+AR ?= ar
+RANLIB ?= ranlib
 
 # =============================================================================
 # Architecture Flags
@@ -80,3 +80,10 @@ endif
 export CC CXX AR RANLIB
 export CFLAGS CXXFLAGS LDFLAGS
 export PKG_CONFIG PKG_CONFIG_LIBDIR
+
+# =============================================================================
+# Codec Build Configuration
+# =============================================================================
+
+# libvpx target architecture
+LIBVPX_TARGET := arm64-linux-gcc

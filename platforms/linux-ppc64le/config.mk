@@ -9,8 +9,8 @@ PLATFORM := linux-ppc64le
 ARCH := ppc64le
 
 # Compiler settings (native Debian toolchain)
-CC := gcc
-CXX := g++
+CC ?= gcc
+CXX ?= g++
 
 # Architecture flags for ppc64le (POWER8+ Little Endian)
 # -mcpu=power8 is the baseline for ppc64le
@@ -50,9 +50,6 @@ MESON_OPTS := \
 PKG_CONFIG := pkg-config
 PKG_CONFIG_LIBDIR := $(PREFIX)/lib/pkgconfig
 
-# Number of parallel jobs
-NPROC := $(shell nproc)
-
 # =============================================================================
 # Export Variables
 # =============================================================================
@@ -60,3 +57,10 @@ NPROC := $(shell nproc)
 export CC CXX
 export CFLAGS CXXFLAGS LDFLAGS
 export PKG_CONFIG PKG_CONFIG_LIBDIR
+
+# =============================================================================
+# Codec Build Configuration
+# =============================================================================
+
+# libvpx target architecture
+LIBVPX_TARGET := ppc64le-linux-gcc

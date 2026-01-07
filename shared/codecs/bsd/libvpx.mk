@@ -3,16 +3,21 @@
 # =============================================================================
 # Google's VP8/VP9 codec for WebM format.
 #
-# Note: The target must match the platform (e.g., arm64-darwin23-gcc for
-# macOS ARM64, x86_64-darwin-gcc for macOS Intel). The generic arm64-darwin-gcc
-# target builds for iOS, which causes linking failures with macOS builds.
+# Platform-specific configuration:
+#   LIBVPX_TARGET     - Required. Target triplet (e.g., arm64-darwin23-gcc,
+#                       x86_64-linux-gcc, generic-gnu)
+#   LIBVPX_EXTRA_OPTS - Optional. Additional configure flags
+#
+# Note for macOS: Use arm64-darwin23-gcc (not arm64-darwin-gcc).
+# The generic arm64-darwin-gcc target builds for iOS, which causes linking
+# failures when used with macOS builds. darwin23 = macOS Sonoma (14.x).
 # =============================================================================
 
-LIBVPX_SRC := $(SOURCES_DIR)/libvpx-$(patsubst v%,%,$(LIBVPX_VERSION))
-
 ifndef LIBVPX_TARGET
-    $(error LIBVPX_TARGET must be defined in config.mk)
+$(error LIBVPX_TARGET must be defined (e.g., arm64-darwin23-gcc, x86_64-linux-gcc))
 endif
+
+LIBVPX_SRC := $(SOURCES_DIR)/libvpx-$(patsubst v%,%,$(LIBVPX_VERSION))
 
 libvpx.stamp:
 	$(call log_info,Building libvpx $(LIBVPX_VERSION)...)
@@ -22,6 +27,7 @@ libvpx.stamp:
 		./configure \
 			--prefix=$(PREFIX) \
 			--target=$(LIBVPX_TARGET) \
+			$(LIBVPX_EXTRA_OPTS) \
 			--enable-static \
 			--disable-shared \
 			--enable-pic \

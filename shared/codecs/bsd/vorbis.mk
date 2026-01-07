@@ -5,6 +5,9 @@
 # Depends on libogg.
 # Uses autoconf build system.
 #
+# Platform-specific configuration:
+#   VORBIS_PATCH_DARWIN - Set to 1 on macOS to patch out -force_cpusubtype_ALL
+#
 # Note: libvorbis 1.3.7 hardcodes -force_cpusubtype_ALL for darwin targets
 # in both the configure script (CFLAGS) and libtool. This flag is PowerPC-only
 # and rejected by Xcode 15+ linkers. We patch both before/after configure.
@@ -18,7 +21,7 @@ vorbis.stamp: ogg.stamp
 	@mkdir -p $(SOURCES_DIR) $(STAMPS_DIR)
 	$(call download_and_extract,vorbis,$(VORBIS_URL),$(SOURCES_DIR))
 	cd $(VORBIS_SRC) && \
-		$(SED_INPLACE) 's/-force_cpusubtype_ALL//g' configure && \
+		$(if $(VORBIS_PATCH_DARWIN),$(SED_INPLACE) 's/-force_cpusubtype_ALL//g' configure &&) \
 		./configure \
 			--prefix=$(PREFIX) \
 			--enable-static \
@@ -30,7 +33,7 @@ vorbis.stamp: ogg.stamp
 			--with-pic \
 			CFLAGS="$(CFLAGS) -I$(PREFIX)/include" \
 			LDFLAGS="$(LDFLAGS) -L$(PREFIX)/lib" && \
-		$(SED_INPLACE) 's/-force_cpusubtype_ALL//g' libtool && \
+		$(if $(VORBIS_PATCH_DARWIN),$(SED_INPLACE) 's/-force_cpusubtype_ALL//g' libtool &&) \
 		$(MAKE) -j$(NPROC) && \
 		$(MAKE) install
 	$(call verify_static_lib,libvorbis,$(PREFIX))

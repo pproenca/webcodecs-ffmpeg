@@ -9,8 +9,8 @@ PLATFORM := linuxmusl-x64
 ARCH := x86_64
 
 # Compiler settings (native Alpine toolchain)
-CC := gcc
-CXX := g++
+CC ?= gcc
+CXX ?= g++
 
 # Architecture flags for x86_64
 ARCH_FLAGS := -m64
@@ -44,9 +44,13 @@ MESON_OPTS := \
 PKG_CONFIG := pkg-config
 PKG_CONFIG_LIBDIR := $(PREFIX)/lib/pkgconfig
 
+# =============================================================================
+# Codec Build Configuration
+# =============================================================================
+
+# libvpx target architecture
+LIBVPX_TARGET := x86_64-linux-gcc
+
 # Export variables
 export CC CXX CFLAGS CXXFLAGS LDFLAGS
 export PKG_CONFIG PKG_CONFIG_LIBDIR
-
-# Number of parallel jobs
-NPROC := $(shell nproc)

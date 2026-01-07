@@ -6,7 +6,7 @@
 # =============================================================================
 
 X265_SRC := $(SOURCES_DIR)/x265_$(X265_VERSION)
-X265_BUILD := $(X265_SRC)/build/$(ARCH)
+X265_BUILD := $(X265_SRC)/build/$(PLATFORM)
 
 x265.stamp:
 	$(call log_info,Building x265 $(X265_VERSION)...)

@@ -34,6 +34,9 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
+# Delete target files when recipe fails (prevents partial builds appearing complete)
+.DELETE_ON_ERROR:
+
 NPROC ?= $(shell nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
 
 ifneq ($(TERM),)

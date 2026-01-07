@@ -9,8 +9,8 @@ PLATFORM := linux-armv6
 ARCH := arm
 
 # Compiler settings (native Debian toolchain)
-CC := gcc
-CXX := g++
+CC ?= gcc
+CXX ?= g++
 
 # Architecture flags for ARMv6 with VFP (Raspberry Pi Zero/1)
 # -mfpu=vfp enables vector floating point
@@ -42,9 +42,6 @@ MESON_OPTS := \
 	-Dc_args="$(CFLAGS)" \
 	-Dcpp_args="$(CXXFLAGS)"
 
-# Number of parallel jobs
-NPROC := $(shell nproc)
-
 # =============================================================================
 # Build Tool Configuration
 # =============================================================================
@@ -61,3 +58,16 @@ PKG_CONFIG_LIBDIR := $(PREFIX)/lib/pkgconfig
 export CC CXX
 export CFLAGS CXXFLAGS LDFLAGS
 export PKG_CONFIG PKG_CONFIG_LIBDIR
+
+# =============================================================================
+# Codec Build Configuration
+# =============================================================================
+
+# libvpx target architecture
+LIBVPX_TARGET := armv6-linux-gcc
+
+# armv6-specific libvpx options
+LIBVPX_EXTRA_OPTS := --disable-neon --disable-neon-asm
+
+# Exclude svt-av1 (requires 64-bit)
+BSD_CODECS := libvpx aom dav1d opus ogg vorbis

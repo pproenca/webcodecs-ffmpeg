@@ -9,8 +9,8 @@ PLATFORM := linux-s390x
 ARCH := s390x
 
 # Compiler settings (native Debian toolchain)
-CC := gcc
-CXX := g++
+CC ?= gcc
+CXX ?= g++
 
 # Architecture flags for s390x (z/Architecture)
 # -march=z13 is a reasonable baseline for modern IBM Z
@@ -52,9 +52,6 @@ MESON_OPTS := \
 	-Dc_args="$(CFLAGS)" \
 	-Dcpp_args="$(CXXFLAGS)"
 
-# Number of parallel jobs
-NPROC := $(shell nproc)
-
 # =============================================================================
 # Export Variables
 # =============================================================================
@@ -62,3 +59,10 @@ NPROC := $(shell nproc)
 export CC CXX
 export CFLAGS CXXFLAGS LDFLAGS
 export PKG_CONFIG PKG_CONFIG_LIBDIR
+
+# =============================================================================
+# Codec Build Configuration
+# =============================================================================
+
+# libvpx target architecture
+LIBVPX_TARGET := generic-gnu

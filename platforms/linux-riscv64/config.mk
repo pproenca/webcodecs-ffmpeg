@@ -9,8 +9,8 @@ PLATFORM := linux-riscv64
 ARCH := riscv64
 
 # Compiler settings (native Debian toolchain)
-CC := gcc
-CXX := g++
+CC ?= gcc
+CXX ?= g++
 
 # Architecture flags for RISC-V 64-bit
 # -march=rv64gc is the baseline (general + compressed instructions)
@@ -47,10 +47,14 @@ MESON_OPTS := \
 	-Dc_args="$(CFLAGS)" \
 	-Dcpp_args="$(CXXFLAGS)"
 
-# Number of parallel jobs
-NPROC := $(shell nproc)
-
 # Export variables
 export CC CXX
 export CFLAGS CXXFLAGS LDFLAGS
 export PKG_CONFIG PKG_CONFIG_LIBDIR
+
+# =============================================================================
+# Codec Build Configuration
+# =============================================================================
+
+# libvpx target architecture
+LIBVPX_TARGET := generic-gnu
