@@ -99,6 +99,23 @@ HOMEBREW_PREFIX := $(shell brew --prefix 2>/dev/null || echo "/opt/homebrew")
 PATH := $(HOMEBREW_PREFIX)/bin:$(PATH)
 
 # =============================================================================
+# Codec-Specific Platform Overrides
+# =============================================================================
+# These variables parameterize codec builds for this platform
+
+# libvpx target triple (must use darwin23 for macOS Sonoma)
+LIBVPX_TARGET := arm64-darwin23-gcc
+
+# x264 host triple (empty for native build)
+X264_HOST :=
+
+# aom CPU target (empty for auto-detect)
+AOM_TARGET_CPU :=
+
+# Architecture pattern for file command verification
+ARCH_VERIFY_PATTERN := arm64
+
+# =============================================================================
 # Export Variables
 # =============================================================================
 

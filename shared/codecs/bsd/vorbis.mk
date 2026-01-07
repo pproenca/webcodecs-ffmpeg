@@ -18,7 +18,7 @@ vorbis.stamp: ogg.stamp
 	@mkdir -p $(SOURCES_DIR) $(STAMPS_DIR)
 	$(call download_and_extract,vorbis,$(VORBIS_URL),$(SOURCES_DIR))
 	cd $(VORBIS_SRC) && \
-		sed -i '' 's/-force_cpusubtype_ALL//g' configure && \
+		$(SED_INPLACE) 's/-force_cpusubtype_ALL//g' configure && \
 		./configure \
 			--prefix=$(PREFIX) \
 			--enable-static \
@@ -30,7 +30,7 @@ vorbis.stamp: ogg.stamp
 			--with-pic \
 			CFLAGS="$(CFLAGS) -I$(PREFIX)/include" \
 			LDFLAGS="$(LDFLAGS) -L$(PREFIX)/lib" && \
-		sed -i '' 's/-force_cpusubtype_ALL//g' libtool && \
+		$(SED_INPLACE) 's/-force_cpusubtype_ALL//g' libtool && \
 		$(MAKE) -j$(NPROC) && \
 		$(MAKE) install
 	$(call verify_static_lib,libvorbis,$(PREFIX))

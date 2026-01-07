@@ -98,6 +98,23 @@ HOMEBREW_PREFIX := $(shell brew --prefix 2>/dev/null || echo "/usr/local")
 PATH := $(PREFIX)/bin:$(HOMEBREW_PREFIX)/bin:$(PATH)
 
 # =============================================================================
+# Codec-Specific Platform Overrides
+# =============================================================================
+# These variables parameterize codec builds for this platform
+
+# libvpx target triple (must use darwin19 for macOS Catalina)
+LIBVPX_TARGET := x86_64-darwin19-gcc
+
+# x264 host triple (needed for cross-compile detection)
+X264_HOST := x86_64-apple-darwin
+
+# aom CPU target (explicit for x86_64)
+AOM_TARGET_CPU := x86_64
+
+# Architecture pattern for file command verification
+ARCH_VERIFY_PATTERN := x86_64
+
+# =============================================================================
 # Export Variables
 # =============================================================================
 

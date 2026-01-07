@@ -35,6 +35,9 @@ PREFIX := $(BUILD_DIR)/prefix
 SOURCES_DIR := $(BUILD_DIR)/sources
 STAMPS_DIR := $(BUILD_DIR)/stamps
 
+# License tier (default: gpl for all codecs)
+LICENSE ?= gpl
+
 # Output directories (includes license tier for separate packages)
 ARTIFACTS_DIR := $(PROJECT_ROOT)/artifacts/$(PLATFORM)-$(LICENSE)
 
@@ -45,27 +48,28 @@ ARTIFACTS_DIR := $(PROJECT_ROOT)/artifacts/$(PLATFORM)-$(LICENSE)
 include $(PROJECT_ROOT)/shared/versions.mk
 include $(PROJECT_ROOT)/shared/common.mk
 include $(ROOT_DIR)/config.mk
-include $(ROOT_DIR)/codecs/codec.mk
+include $(PROJECT_ROOT)/shared/codecs/pkgconfig.mk
+include $(PROJECT_ROOT)/shared/codecs/codec.mk
 
 # =============================================================================
-# Include Individual Codec Build Rules
+# Include Individual Codec Build Rules (from shared)
 # =============================================================================
 
-include $(ROOT_DIR)/codecs/bsd/libvpx.mk
-include $(ROOT_DIR)/codecs/bsd/aom.mk
-include $(ROOT_DIR)/codecs/bsd/dav1d.mk
-include $(ROOT_DIR)/codecs/bsd/svt-av1.mk
-include $(ROOT_DIR)/codecs/bsd/opus.mk
-include $(ROOT_DIR)/codecs/bsd/ogg.mk
-include $(ROOT_DIR)/codecs/bsd/vorbis.mk
+include $(PROJECT_ROOT)/shared/codecs/bsd/libvpx.mk
+include $(PROJECT_ROOT)/shared/codecs/bsd/aom.mk
+include $(PROJECT_ROOT)/shared/codecs/bsd/dav1d.mk
+include $(PROJECT_ROOT)/shared/codecs/bsd/svt-av1.mk
+include $(PROJECT_ROOT)/shared/codecs/bsd/opus.mk
+include $(PROJECT_ROOT)/shared/codecs/bsd/ogg.mk
+include $(PROJECT_ROOT)/shared/codecs/bsd/vorbis.mk
 
 ifneq ($(LICENSE),bsd)
-include $(ROOT_DIR)/codecs/lgpl/lame.mk
+include $(PROJECT_ROOT)/shared/codecs/lgpl/lame.mk
 endif
 
 ifeq ($(LICENSE),gpl)
-include $(ROOT_DIR)/codecs/gpl/x264.mk
-include $(ROOT_DIR)/codecs/gpl/x265.mk
+include $(PROJECT_ROOT)/shared/codecs/gpl/x264.mk
+include $(PROJECT_ROOT)/shared/codecs/gpl/x265.mk
 endif
 
 # =============================================================================
