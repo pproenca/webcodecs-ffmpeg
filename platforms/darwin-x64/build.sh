@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck shell=bash
 # =============================================================================
 # FFmpeg Build Entry Point for darwin-x64
 # =============================================================================
@@ -11,22 +12,33 @@
 #   ./build.sh codecs       # Build only codecs
 #   ./build.sh clean        # Clean build directory
 #   ./build.sh help         # Show help
+#
+# Environment:
+#   LICENSE: Build license tier (bsd, lgpl, gpl). Default: gpl
+#
+# Returns:
+#   0 on success, non-zero on failure.
 # =============================================================================
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+readonly SCRIPT_DIR PROJECT_ROOT
 
 # =============================================================================
 # Colors
 # =============================================================================
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+# =============================================================================
+# Logging Functions
+# =============================================================================
 
 log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
@@ -64,7 +76,7 @@ install_dependencies() {
   fi
 
   # Homebrew tools (excludes cmake, nasm - installed separately for version control)
-  local tools=(
+  local -a tools=(
     meson      # Build system for dav1d
     ninja      # Build tool for meson
     pkg-config # Library configuration
@@ -73,11 +85,12 @@ install_dependencies() {
     libtool    # Build system for autotools projects
   )
 
-  local missing_tools=()
+  local -a missing_tools=()
 
+  local tool
   for tool in "${tools[@]}"; do
-    if ! command -v "$tool" &>/dev/null; then
-      missing_tools+=("$tool")
+    if ! command -v "${tool}" &>/dev/null; then
+      missing_tools+=("${tool}")
     fi
   done
 
@@ -99,7 +112,7 @@ install_dependencies() {
   # Show tool versions
   log_info "Tool versions:"
   echo "  nasm:     $(nasm --version | head -1)"
-  echo "  cmake:    $(cmake --version | head -1) ($(which cmake))"
+  echo "  cmake:    $(cmake --version | head -1) ($(command -v cmake))"
   echo "  meson:    $(meson --version)"
   echo "  ninja:    $(ninja --version)"
 }
@@ -110,7 +123,7 @@ install_cmake() {
   cmake_version="$(cmake --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "0.0.0")"
   local cmake_major="${cmake_version%%.*}"
 
-  if [[ "$cmake_major" -ge 4 ]] || ! command -v cmake &>/dev/null; then
+  if [[ "${cmake_major}" -ge 4 ]] || ! command -v cmake &>/dev/null; then
     log_info "Installing CMake 3.x via pip (CMake 4.x incompatible with codec builds)..."
     pip3 install --quiet --break-system-packages 'cmake>=3.20,<4'
   fi
@@ -123,7 +136,7 @@ install_nasm() {
   nasm_version="$(nasm --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' | head -1 || echo "0.0")"
   local nasm_major="${nasm_version%%.*}"
 
-  if [[ "$nasm_major" -ge 3 ]] || ! command -v nasm &>/dev/null; then
+  if [[ "${nasm_major}" -ge 3 ]] || ! command -v nasm &>/dev/null; then
     log_info "Building NASM 2.16.03 from source (NASM 3.x incompatible with libaom)..."
     local nasm_src="${PROJECT_ROOT}/build/darwin-x64/nasm-2.16.03"
     local nasm_bin="${nasm_src}/nasm"
@@ -151,8 +164,8 @@ run_build() {
   local target="${1:-all}"
   local license="${LICENSE:-gpl}"
 
-  if [[ ! "$license" =~ ^(bsd|lgpl|gpl)$ ]]; then
-    log_error "Invalid LICENSE=$license. Must be: bsd, lgpl, gpl"
+  if [[ ! "${license}" =~ ^(bsd|lgpl|gpl)$ ]]; then
+    log_error "Invalid LICENSE=${license}. Must be: bsd, lgpl, gpl"
     exit 1
   fi
 
@@ -164,6 +177,36 @@ run_build() {
   cd "${SCRIPT_DIR}"
 
   make -j LICENSE="${license}" "${target}"
+}
+
+# =============================================================================
+# Binary Architecture Verification
+# =============================================================================
+# Ensures built binaries match the target architecture.
+# Catches cross-compilation failures where host arch leaks into output.
+
+verify_binary_arch() {
+  local binary="$1"
+  local expected_arch="$2"
+
+  if [[ ! -f "${binary}" ]]; then
+    log_error "Binary not found for architecture verification: ${binary}"
+    exit 1
+  fi
+
+  log_step "Verifying binary architecture..."
+
+  local file_output
+  file_output="$(file "${binary}")"
+
+  if ! echo "${file_output}" | grep -q "${expected_arch}"; then
+    log_error "Architecture mismatch detected!"
+    log_error "Expected: ${expected_arch}"
+    log_error "Got: ${file_output}"
+    exit 1
+  fi
+
+  log_info "Architecture verified: ${expected_arch}"
 }
 
 # =============================================================================
@@ -182,7 +225,7 @@ main() {
   echo "=========================================="
   echo ""
 
-  if [[ "$target" == "help" ]] || [[ "$target" == "-h" ]] || [[ "$target" == "--help" ]]; then
+  if [[ "${target}" == "help" ]] || [[ "${target}" == "-h" ]] || [[ "${target}" == "--help" ]]; then
     cd "${SCRIPT_DIR}"
     make LICENSE="${license}" help
     exit 0
@@ -190,12 +233,12 @@ main() {
 
   verify_platform
   install_dependencies
-  run_build "$target"
+  run_build "${target}"
 
   echo ""
   log_info "Build completed successfully!"
 
-  if [[ "$target" == "all" ]] || [[ "$target" == "package" ]]; then
+  if [[ "${target}" == "all" ]] || [[ "${target}" == "package" ]]; then
     local artifacts_dir="${PROJECT_ROOT}/artifacts/darwin-x64-${license}"
     echo ""
     log_info "Artifacts location: ${artifacts_dir}/"
@@ -204,36 +247,6 @@ main() {
     # Verify binary architecture matches target
     verify_binary_arch "${artifacts_dir}/bin/ffmpeg" "x86_64"
   fi
-}
-
-# =============================================================================
-# Binary Architecture Verification
-# =============================================================================
-# Ensures built binaries match the target architecture.
-# Catches cross-compilation failures where host arch leaks into output.
-
-verify_binary_arch() {
-  local binary="$1"
-  local expected_arch="$2"
-
-  if [[ ! -f "$binary" ]]; then
-    log_error "Binary not found for architecture verification: $binary"
-    exit 1
-  fi
-
-  log_step "Verifying binary architecture..."
-
-  local file_output
-  file_output="$(file "$binary")"
-
-  if ! echo "$file_output" | grep -q "$expected_arch"; then
-    log_error "Architecture mismatch detected!"
-    log_error "Expected: $expected_arch"
-    log_error "Got: $file_output"
-    exit 1
-  fi
-
-  log_info "Architecture verified: $expected_arch"
 }
 
 main "$@"
