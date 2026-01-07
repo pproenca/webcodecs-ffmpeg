@@ -332,7 +332,7 @@ Lessons from iterative fixes in this codebase. Follow these to avoid repeat mist
 
 ### Environment Variables Don't Cross Process Boundaries
 
-**Problem:** `export PKG_CONFIG_LIBDIR=x` doesn't propagate when configure spawns subprocesses.
+**Problem:** `export PKG_CONFIG_LIBDIR=x` doesn't propagate when configure spawns subprocesses, especially in Docker containers.
 
 **Wrong:**
 ```bash
@@ -340,12 +340,28 @@ export PKG_CONFIG_LIBDIR="$BUILD_DIR/lib/pkgconfig"
 ./configure  # spawns child processes that lose the env
 ```
 
-**Right:** Use wrapper scripts that set env per-invocation:
+**Wrong (Makefile):**
+```makefile
+cd $(SRC) && \
+    export PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" && \
+    ./configure ...  # subshell export doesn't propagate reliably
+```
+
+**Right:** Use inline environment variable prefix:
+```makefile
+cd $(SRC) && \
+    PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" \
+    ./configure ...  # inline prefix propagates to all child processes
+```
+
+**Alternative:** Use wrapper scripts that set env per-invocation:
 ```bash
 PKG_CONFIG="$BUILD_DIR/pkg-config-wrapper.sh" ./configure
 ```
 
 **Before proposing env-based fixes:** Trace full process tree. Ask: "Does this survive `sh -c`?"
+
+**Docker-specific:** Environment isolation is stricter in containers. Always use inline prefixes instead of `export` when running builds in Docker.
 
 ### Verify Architecture, Don't Trust Build Flags
 
