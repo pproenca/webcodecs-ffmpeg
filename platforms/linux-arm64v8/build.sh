@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# =============================================================================
-# build.sh - Build FFmpeg for linux-arm64v8 using Docker with QEMU
-# =============================================================================
+#
+# Build FFmpeg for linux-arm64v8 using Docker with QEMU
 #
 # Usage:
 #   ./build.sh [target]        - Run build (uses Docker if on host)
@@ -13,42 +12,68 @@
 #   DEBUG   - Enable debug output: 1 (default: empty)
 #
 # Note: This build uses QEMU for ARM64 emulation when run on x64 hosts.
-# =============================================================================
 
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-readonly PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+readonly SCRIPT_DIR PROJECT_ROOT
 readonly PLATFORM="linux-arm64v8"
 
-# =============================================================================
-# Logging
-# =============================================================================
+#######################################
+# Colors (disabled when output is not a terminal)
+#######################################
+if [[ -t 1 ]]; then
+  readonly GREEN='\033[0;32m'
+  readonly YELLOW='\033[1;33m'
+  readonly RED='\033[0;31m'
+  readonly NC='\033[0m'
+else
+  readonly GREEN=''
+  readonly YELLOW=''
+  readonly RED=''
+  readonly NC=''
+fi
 
-log_info() {
-  printf "\033[0;32m[INFO]\033[0m %s\n" "$*"
-}
+#######################################
+# Logging functions
+# Globals:
+#   GREEN, YELLOW, RED, NC
+# Arguments:
+#   $* - Message to log
+# Outputs:
+#   Writes message to stdout (or stderr for log_error)
+#######################################
+log_info() { printf "${GREEN}[INFO]${NC} %s\n" "$*"; }
+log_warn() { printf "${YELLOW}[WARN]${NC} %s\n" "$*"; }
+log_error() { printf "${RED}[ERROR]${NC} %s\n" "$*" >&2; }
 
-log_warn() {
-  printf "\033[1;33m[WARN]\033[0m %s\n" "$*"
-}
-
-log_error() {
-  printf "\033[0;31m[ERROR]\033[0m %s\n" "$*" >&2
-}
-
-# =============================================================================
-# Docker Detection
-# =============================================================================
-
+#######################################
+# Check if running inside a Docker container.
+# Globals:
+#   None
+# Arguments:
+#   None
+# Returns:
+#   0 if inside Docker, 1 otherwise
+#######################################
 in_docker() {
-  [[ -f /.dockerenv ]] || grep -q docker /proc/1/cgroup 2>/dev/null || [[ -f /run/.containerenv ]]
+  [[ -f /.dockerenv ]] \
+    || grep -q docker /proc/1/cgroup 2>/dev/null \
+    || [[ -f /run/.containerenv ]]
 }
 
-# =============================================================================
-# Build Functions
-# =============================================================================
-
+#######################################
+# Build FFmpeg using Docker with QEMU.
+# Globals:
+#   SCRIPT_DIR, PROJECT_ROOT, PLATFORM
+#   LICENSE (env var, optional)
+#   DEBUG (env var, optional)
+# Arguments:
+#   $1 - Build target (default: all)
+# Outputs:
+#   Writes build progress to stdout
+#######################################
 build_in_docker() {
   local target="${1:-all}"
   local license="${LICENSE:-gpl}"
@@ -84,6 +109,17 @@ build_in_docker() {
   log_info "Artifacts: ${PROJECT_ROOT}/artifacts/${PLATFORM}-${license}/"
 }
 
+#######################################
+# Build FFmpeg natively (inside Docker).
+# Globals:
+#   SCRIPT_DIR, PROJECT_ROOT, PLATFORM
+#   LICENSE (env var, optional)
+#   DEBUG (env var, optional)
+# Arguments:
+#   $1 - Build target (default: all)
+# Outputs:
+#   Writes build progress to stdout
+#######################################
 build_native() {
   local target="${1:-all}"
   local license="${LICENSE:-gpl}"
@@ -98,10 +134,16 @@ build_native() {
   log_info "Artifacts: ${PROJECT_ROOT}/artifacts/${PLATFORM}-${license}/"
 }
 
-# =============================================================================
-# Main
-# =============================================================================
-
+#######################################
+# Main entry point.
+# Globals:
+#   PLATFORM
+#   LICENSE (env var, optional)
+# Arguments:
+#   $1 - Build target (default: all)
+# Outputs:
+#   Writes build progress to stdout
+#######################################
 main() {
   local target="${1:-all}"
 

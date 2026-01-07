@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# =============================================================================
+#
 # FFmpeg Build Entry Point for darwin-arm64
-# =============================================================================
+#
 # This script is the main entry point for CI/CD and local builds.
 # It installs dependencies and invokes the Makefile.
 #
@@ -10,7 +10,6 @@
 #   ./build.sh codecs       # Build only codecs
 #   ./build.sh clean        # Clean build directory
 #   ./build.sh help         # Show help
-# =============================================================================
 
 set -euo pipefail
 
@@ -27,10 +26,9 @@ PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)" || {
 }
 readonly PROJECT_ROOT
 
-# =============================================================================
+#######################################
 # Colors (disabled when output is not a terminal)
-# =============================================================================
-
+#######################################
 if [[ -t 1 ]]; then
   readonly RED='\033[0;31m'
   readonly GREEN='\033[0;32m'
@@ -58,10 +56,6 @@ log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
-
-# =============================================================================
-# Platform Verification
-# =============================================================================
 
 #######################################
 # Verify the script is running on darwin-arm64.
@@ -92,10 +86,6 @@ verify_platform() {
 
   log_info "Platform verified: darwin-arm64"
 }
-
-# =============================================================================
-# Dependency Installation
-# =============================================================================
 
 #######################################
 # Check and install required build dependencies via Homebrew.
@@ -177,10 +167,6 @@ install_cmake() {
   fi
 }
 
-# =============================================================================
-# Build Execution
-# =============================================================================
-
 #######################################
 # Execute the build via Make.
 # Globals:
@@ -212,10 +198,6 @@ run_build() {
 
   make -j LICENSE="${license}" DEBUG="${debug}" "${target}"
 }
-
-# =============================================================================
-# Main
-# =============================================================================
 
 #######################################
 # Main entry point.
@@ -261,10 +243,6 @@ main() {
     verify_binary_arch "${artifacts_dir}/bin/ffmpeg" "arm64"
   fi
 }
-
-# =============================================================================
-# Binary Architecture Verification
-# =============================================================================
 
 #######################################
 # Verify a binary matches the expected architecture.

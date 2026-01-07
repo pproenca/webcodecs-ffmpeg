@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
-# shellcheck shell=bash
-# =============================================================================
+#
 # FFmpeg Build Entry Point for darwin-x64
-# =============================================================================
+#
 # This script is the main entry point for CI/CD and local builds.
 # It installs dependencies and invokes the Makefile.
 # Cross-compiles from ARM64 runners using -arch x86_64.
@@ -15,10 +14,6 @@
 #
 # Environment:
 #   LICENSE: Build license tier (bsd, lgpl, gpl). Default: gpl
-#
-# Returns:
-#   0 on success, non-zero on failure.
-# =============================================================================
 
 set -euo pipefail
 
@@ -26,29 +21,48 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 readonly SCRIPT_DIR PROJECT_ROOT
 
-# =============================================================================
-# Colors
-# =============================================================================
+#######################################
+# Colors (disabled when output is not a terminal)
+#######################################
+if [[ -t 1 ]]; then
+  readonly RED='\033[0;31m'
+  readonly GREEN='\033[0;32m'
+  readonly YELLOW='\033[1;33m'
+  readonly BLUE='\033[0;34m'
+  readonly NC='\033[0m'
+else
+  readonly RED=''
+  readonly GREEN=''
+  readonly YELLOW=''
+  readonly BLUE=''
+  readonly NC=''
+fi
 
-readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
-readonly BLUE='\033[0;34m'
-readonly NC='\033[0m' # No Color
-
-# =============================================================================
-# Logging Functions
-# =============================================================================
-
+#######################################
+# Logging functions
+# Globals:
+#   GREEN, YELLOW, RED, BLUE, NC
+# Arguments:
+#   $* - Message to log
+# Outputs:
+#   Writes message to stdout (or stderr for log_error)
+#######################################
 log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 
-# =============================================================================
-# Platform Verification
-# =============================================================================
-
+#######################################
+# Verify the script is running on macOS.
+# Globals:
+#   None
+# Arguments:
+#   None
+# Outputs:
+#   Writes verification status to stdout
+# Returns:
+#   0 on success, exits with 1 on wrong platform
+#######################################
 verify_platform() {
   log_step "Verifying platform..."
 
@@ -62,10 +76,17 @@ verify_platform() {
   log_info "Platform verified: macOS (cross-compiling to x86_64)"
 }
 
-# =============================================================================
-# Dependency Installation
-# =============================================================================
-
+#######################################
+# Check and install required build dependencies via Homebrew.
+# Globals:
+#   None
+# Arguments:
+#   None
+# Outputs:
+#   Writes dependency status to stdout
+# Returns:
+#   0 on success, exits with 1 if Homebrew missing
+#######################################
 install_dependencies() {
   log_step "Checking build dependencies..."
 
@@ -86,8 +107,8 @@ install_dependencies() {
   )
 
   local -a missing_tools=()
-
   local tool
+
   for tool in "${tools[@]}"; do
     if ! command -v "${tool}" &>/dev/null; then
       missing_tools+=("${tool}")
@@ -117,10 +138,21 @@ install_dependencies() {
   echo "  ninja:    $(ninja --version)"
 }
 
-# Install CMake 3.x via pip (upstream codecs incompatible with CMake 4.x)
+#######################################
+# Install CMake 3.x via pip.
+# CMake 4.x is incompatible with upstream codec builds.
+# Globals:
+#   None
+# Arguments:
+#   None
+# Outputs:
+#   Writes installation status to stdout
+#######################################
 install_cmake() {
   local cmake_version
-  cmake_version="$(cmake --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "0.0.0")"
+  cmake_version="$(cmake --version 2>/dev/null \
+    | head -1 \
+    | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "0.0.0")"
   local cmake_major="${cmake_version%%.*}"
 
   if [[ "${cmake_major}" -ge 4 ]] || ! command -v cmake &>/dev/null; then
@@ -129,11 +161,22 @@ install_cmake() {
   fi
 }
 
-# Install NASM 2.x from source (NASM 3.x breaks libaom multipass optimization check)
+#######################################
+# Install NASM 2.x from source.
+# NASM 3.x breaks libaom multipass optimization check.
 # See: https://www.linuxfromscratch.org/blfs/view/svn/multimedia/libaom.html
+# Globals:
+#   PROJECT_ROOT, SCRIPT_DIR
+# Arguments:
+#   None
+# Outputs:
+#   Writes installation status to stdout
+#######################################
 install_nasm() {
   local nasm_version
-  nasm_version="$(nasm --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+' | head -1 || echo "0.0")"
+  nasm_version="$(nasm --version 2>/dev/null \
+    | grep -oE '[0-9]+\.[0-9]+' \
+    | head -1 || echo "0.0")"
   local nasm_major="${nasm_version%%.*}"
 
   if [[ "${nasm_major}" -ge 3 ]] || ! command -v nasm &>/dev/null; then
@@ -144,7 +187,8 @@ install_nasm() {
     if [[ ! -f "${nasm_bin}" ]]; then
       mkdir -p "${PROJECT_ROOT}/build/darwin-x64"
       cd "${PROJECT_ROOT}/build/darwin-x64"
-      curl -sL "https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/nasm-2.16.03.tar.gz" | tar xz
+      curl -sL "https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/nasm-2.16.03.tar.gz" \
+        | tar xz
       cd nasm-2.16.03
       ./configure
       make -j"$(sysctl -n hw.ncpu)"
@@ -156,10 +200,18 @@ install_nasm() {
   fi
 }
 
-# =============================================================================
-# Build Execution
-# =============================================================================
-
+#######################################
+# Execute the build via Make.
+# Globals:
+#   SCRIPT_DIR
+#   LICENSE (env var, optional)
+# Arguments:
+#   $1 - Build target (default: all)
+# Outputs:
+#   Writes build progress to stdout
+# Returns:
+#   0 on success, exits with 1 on invalid license
+#######################################
 run_build() {
   local target="${1:-all}"
   local license="${LICENSE:-gpl}"
@@ -181,12 +233,19 @@ run_build() {
   make -j LICENSE="${license}" DEBUG="${debug}" "${target}"
 }
 
-# =============================================================================
-# Binary Architecture Verification
-# =============================================================================
-# Ensures built binaries match the target architecture.
+#######################################
+# Verify a binary matches the expected architecture.
 # Catches cross-compilation failures where host arch leaks into output.
-
+# Globals:
+#   None
+# Arguments:
+#   $1 - Path to binary file
+#   $2 - Expected architecture (e.g., "x86_64")
+# Outputs:
+#   Writes verification status to stdout
+# Returns:
+#   0 on success, exits with 1 on mismatch or missing binary
+#######################################
 verify_binary_arch() {
   local binary="$1"
   local expected_arch="$2"
@@ -211,10 +270,16 @@ verify_binary_arch() {
   log_info "Architecture verified: ${expected_arch}"
 }
 
-# =============================================================================
-# Main
-# =============================================================================
-
+#######################################
+# Main entry point.
+# Globals:
+#   SCRIPT_DIR, PROJECT_ROOT
+#   LICENSE (env var, optional)
+# Arguments:
+#   $1 - Build target (default: all)
+# Outputs:
+#   Writes build progress and results to stdout
+#######################################
 main() {
   local target="${1:-all}"
   local license="${LICENSE:-gpl}"
@@ -227,7 +292,9 @@ main() {
   echo "=========================================="
   echo ""
 
-  if [[ "${target}" == "help" ]] || [[ "${target}" == "-h" ]] || [[ "${target}" == "--help" ]]; then
+  if [[ "${target}" == "help" ]] \
+      || [[ "${target}" == "-h" ]] \
+      || [[ "${target}" == "--help" ]]; then
     cd "${SCRIPT_DIR}"
     make LICENSE="${license}" help
     exit 0
