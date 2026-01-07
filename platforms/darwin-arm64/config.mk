@@ -35,6 +35,14 @@ ifdef SDKROOT
 endif
 CFLAGS := $(COMMON_FLAGS)
 CXXFLAGS := $(COMMON_FLAGS)
+
+# Suppress deprecated warnings unless DEBUG=1
+# In CI, DEBUG is set from RUNNER_DEBUG when debug logging is enabled
+ifndef DEBUG
+    CFLAGS += -Wno-deprecated-declarations
+    CXXFLAGS += -Wno-deprecated-declarations
+endif
+
 LDFLAGS := $(ARCH_FLAGS)
 ifdef SDKROOT
     LDFLAGS += -isysroot $(SDKROOT)
@@ -51,6 +59,7 @@ PKG_CONFIG := pkg-config
 PKG_CONFIG_LIBDIR := $(PREFIX)/lib/pkgconfig
 
 # CMake configuration for cmake-based codecs (x265, aom, svt-av1)
+# -Wno-dev suppresses CMake developer warnings unless DEBUG=1
 CMAKE_OPTS := \
     -DCMAKE_OSX_ARCHITECTURES=arm64 \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=$(MACOSX_DEPLOYMENT_TARGET) \
@@ -58,7 +67,8 @@ CMAKE_OPTS := \
     -DCMAKE_PREFIX_PATH=$(PREFIX) \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_C_COMPILER=$(CC) \
-    -DCMAKE_CXX_COMPILER=$(CXX)
+    -DCMAKE_CXX_COMPILER=$(CXX) \
+    $(if $(DEBUG),,-Wno-dev)
 
 # Meson configuration for meson-based codecs (dav1d)
 MESON_OPTS := \

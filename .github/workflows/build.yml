@@ -38,6 +38,8 @@ jobs:
 
       - name: Build FFmpeg
         run: LICENSE=${{ matrix.license }} ./platforms/${{ matrix.platform }}/build.sh all
+        env:
+          DEBUG: ${{ runner.debug }}
 
       - name: Verify binary architecture
         run: |

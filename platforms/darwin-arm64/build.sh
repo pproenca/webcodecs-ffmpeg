@@ -196,6 +196,7 @@ install_cmake() {
 run_build() {
   local target="${1:-all}"
   local license="${LICENSE:-gpl}"
+  local debug="${DEBUG:-}"
 
   if [[ ! "$license" =~ ^(bsd|lgpl|gpl)$ ]]; then
     log_error "Invalid LICENSE=$license. Must be: bsd, lgpl, gpl"
@@ -205,10 +206,11 @@ run_build() {
   log_step "Starting build..."
   log_info "Target: ${target}"
   log_info "License tier: ${license}"
+  [[ -n "$debug" ]] && log_info "Debug mode: enabled (showing all warnings)"
 
   cd "${SCRIPT_DIR}"
 
-  make -j LICENSE="${license}" "${target}"
+  make -j LICENSE="${license}" DEBUG="${debug}" "${target}"
 }
 
 # =============================================================================
