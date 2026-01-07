@@ -45,11 +45,12 @@ jobs:
           OBJECT_TYPE=$(echo "$RESPONSE" | jq -r '.object.type')
           OBJECT_SHA=$(echo "$RESPONSE" | jq -r '.object.sha')
 
+          # Annotated tags point to a tag object, lightweight tags point directly to commit
           if [[ "$OBJECT_TYPE" == "tag" ]]; then
-            # Annotated tag - need to dereference
+            # Annotated tag - dereference to get the commit SHA it points to
             COMMIT=$(gh api "repos/${{ github.repository }}/git/tags/${OBJECT_SHA}" --jq '.object.sha')
           else
-            # Lightweight tag - already points to commit
+            # Lightweight tag - SHA is already the commit
             COMMIT="$OBJECT_SHA"
           fi
 
@@ -88,16 +89,39 @@ jobs:
       - name: List downloaded artifacts
         run: ls -la artifacts-download/
 
+      - name: Verify all artifacts present
+        run: |
+          cd artifacts-download
+          EXPECTED=6  # 2 platforms × 3 licenses
+          shopt -s nullglob
+          tarballs=(./*.tar.gz)
+          ACTUAL=${#tarballs[@]}
+
+          if [[ "$ACTUAL" -ne "$EXPECTED" ]]; then
+            echo "::error::Expected $EXPECTED tarballs, found $ACTUAL"
+            ls -la
+            exit 1
+          fi
+          echo "All $EXPECTED artifacts present"
+
       - name: Verify checksums
         run: |
           cd artifacts-download
           shopt -s nullglob
           files=(*.sha256)
+
           if [[ ${#files[@]} -eq 0 ]]; then
             echo "::error::No checksum files found"
             exit 1
           fi
+
+          echo "Verifying ${#files[@]} checksums..."
           for f in "${files[@]}"; do
+            TARBALL="${f%.sha256}"
+            if [[ ! -f "$TARBALL" ]]; then
+              echo "::error::Missing tarball for $f"
+              exit 1
+            fi
             echo "Verifying $f..."
             sha256sum --check "$f"
           done
@@ -111,9 +135,20 @@ jobs:
       - name: Extract artifacts
         run: |
           mkdir -p artifacts
+
           for tarball in artifacts-download/*.tar.gz; do
+            echo "Extracting $tarball..."
             tar -xzvf "$tarball" -C artifacts
+
+            # Verify expected directory was created
+            DIRNAME=$(basename "$tarball" .tar.gz)
+            if [[ ! -d "artifacts/$DIRNAME" ]]; then
+              echo "::error::Extraction failed - artifacts/$DIRNAME not found"
+              exit 1
+            fi
           done
+
+          echo "Extracted artifacts:"
           ls -la artifacts/
 
       - name: Generate artifact attestations
