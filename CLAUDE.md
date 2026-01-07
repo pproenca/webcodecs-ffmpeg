@@ -236,6 +236,28 @@ All versions, URLs, and SHA256 checksums are in `shared/versions.mk`. Bump `CACH
 2. Copy and adapt `Makefile`, `config.mk`, `build.sh` from existing platform
 3. Adjust compiler flags, SDK paths, and codec build recipes for platform specifics
 
+### Native vs Cross-Compilation Decision
+
+**Prefer native runners** when available. Cross-compilation is fragile:
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| Native runner | Reliable, simpler config | May cost more, limited availability |
+| Cross-compile | One runner type | 8+ fixes needed for darwin-x64, PKG_CONFIG issues, arch detection failures |
+
+**darwin-x64 case study:** Started with cross-compilation from ARM runner. Required fixes for:
+- CMake architecture flags not propagating
+- x264 auto-detecting wrong architecture
+- NASM version incompatibility (had to build from source)
+- PKG_CONFIG_LIBDIR isolation failures
+
+**Resolution:** Switched to native Intel runner (`macos-13`). Slower but reliable.
+
+**When cross-compilation is unavoidable:**
+1. Use wrapper scripts for environment variables (not exports)
+2. Add architecture verification to `make verify`
+3. Test in CI before merging
+
 ## FFmpeg Skill
 
 Use `/dev-ffmpeg` skill for guidance on FFmpeg compilation decisions including license compliance, codec selection, and platform-specific configuration. Reference docs in `.claude/skills/dev-ffmpeg/references/`.
@@ -262,3 +284,68 @@ When encountering build problems or validating configuration decisions, consult 
 - Use `--pkg-config-flags="--static"` for static builds
 - NASM required for x86 assembly (YASM deprecated)
 - Channel layout API changed - old bitmask API removed
+
+## Bug Pattern Prevention
+
+Lessons from iterative fixes in this codebase. Follow these to avoid repeat mistakes.
+
+### Environment Variables Don't Cross Process Boundaries
+
+**Problem:** `export PKG_CONFIG_LIBDIR=x` doesn't propagate when configure spawns subprocesses.
+
+**Wrong:**
+```bash
+export PKG_CONFIG_LIBDIR="$BUILD_DIR/lib/pkgconfig"
+./configure  # spawns child processes that lose the env
+```
+
+**Right:** Use wrapper scripts that set env per-invocation:
+```bash
+PKG_CONFIG="$BUILD_DIR/pkg-config-wrapper.sh" ./configure
+```
+
+**Before proposing env-based fixes:** Trace full process tree. Ask: "Does this survive `sh -c`?"
+
+### Verify Architecture, Don't Trust Build Flags
+
+**Problem:** Cross-compilation flags can silently produce wrong-arch binaries.
+
+**Rule:** Every build must end with architecture verification:
+```bash
+file "$BINARY" | grep -q "$EXPECTED_ARCH" || exit 1
+```
+
+**Why native > cross-compile:** darwin-x64 required 8+ fixes for cross-compilation. Switched to native Intel runner (`macos-13`) - slower but reliable. Cross-compile only when native runners unavailable.
+
+### Understand Root Cause Before Fixing
+
+**Anti-pattern:** 4 commits in 45 minutes fixing the same PKG_CONFIG issue from different angles.
+
+**Before committing a fix:**
+1. Reproduce the failure locally
+2. Trace backwards to root cause (not just symptoms)
+3. Verify fix addresses root cause, not downstream effect
+4. Test that fix survives edge cases (subprocesses, different shells)
+
+### CI/CD Race Conditions Need Retry, Not Sleep
+
+**Problem:** npm E409 conflicts when publishing multiple packages.
+
+**Wrong:** `sleep 2` between publishes (timing-dependent, fragile)
+
+**Right:** Retry with backoff on known transient errors:
+```bash
+for attempt in 1 2 3; do
+  npm publish && break
+  sleep $((attempt * 5))
+done
+```
+
+### CMake 4.x Breaks Codec Builds
+
+aom, x265, svt-av1 require CMake 3.x. Pin version:
+```bash
+pip3 install 'cmake>=3.20,<4'
+```
+
+Monitor upstream for fixes before upgrading.
