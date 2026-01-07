@@ -14,19 +14,46 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+# Resolve script directory with error handling
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" || {
+  echo "ERROR: Failed to determine script directory" >&2
+  exit 1
+}
+readonly SCRIPT_DIR
+
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)" || {
+  echo "ERROR: Failed to determine project root" >&2
+  exit 1
+}
+readonly PROJECT_ROOT
 
 # =============================================================================
-# Colors
+# Colors (disabled when output is not a terminal)
 # =============================================================================
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+if [[ -t 1 ]]; then
+  readonly RED='\033[0;31m'
+  readonly GREEN='\033[0;32m'
+  readonly YELLOW='\033[1;33m'
+  readonly BLUE='\033[0;34m'
+  readonly NC='\033[0m'
+else
+  readonly RED=''
+  readonly GREEN=''
+  readonly YELLOW=''
+  readonly BLUE=''
+  readonly NC=''
+fi
 
+#######################################
+# Logging functions
+# Globals:
+#   GREEN, YELLOW, RED, BLUE, NC
+# Arguments:
+#   $* - Message to log
+# Outputs:
+#   Writes message to stdout (or stderr for log_error)
+#######################################
 log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
@@ -36,6 +63,17 @@ log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
 # Platform Verification
 # =============================================================================
 
+#######################################
+# Verify the script is running on darwin-arm64.
+# Globals:
+#   None
+# Arguments:
+#   None
+# Outputs:
+#   Writes verification status to stdout
+# Returns:
+#   0 on success, exits with 1 on wrong platform
+#######################################
 verify_platform() {
   log_step "Verifying platform..."
 
@@ -59,6 +97,17 @@ verify_platform() {
 # Dependency Installation
 # =============================================================================
 
+#######################################
+# Check and install required build dependencies via Homebrew.
+# Globals:
+#   None
+# Arguments:
+#   None
+# Outputs:
+#   Writes dependency status to stdout
+# Returns:
+#   0 on success, exits with 1 if Homebrew missing
+#######################################
 install_dependencies() {
   log_step "Checking build dependencies..."
 
@@ -80,6 +129,7 @@ install_dependencies() {
   )
 
   local missing_tools=()
+  local tool
 
   for tool in "${tools[@]}"; do
     if ! command -v "$tool" &>/dev/null; then
@@ -106,7 +156,16 @@ install_dependencies() {
   echo "  ninja:    $(ninja --version)"
 }
 
-# Install CMake 3.x via pip (upstream codecs incompatible with CMake 4.x)
+#######################################
+# Install CMake 3.x via pip.
+# CMake 4.x is incompatible with upstream codec builds (x265, libaom, svt-av1).
+# Globals:
+#   None
+# Arguments:
+#   None
+# Outputs:
+#   Writes installation status to stdout
+#######################################
 install_cmake() {
   local cmake_version
   cmake_version="$(cmake --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "0.0.0")"
@@ -122,6 +181,18 @@ install_cmake() {
 # Build Execution
 # =============================================================================
 
+#######################################
+# Execute the build via Make.
+# Globals:
+#   SCRIPT_DIR
+#   LICENSE (env var, optional)
+# Arguments:
+#   $1 - Build target (default: all)
+# Outputs:
+#   Writes build progress to stdout
+# Returns:
+#   0 on success, exits with 1 on invalid license
+#######################################
 run_build() {
   local target="${1:-all}"
   local license="${LICENSE:-gpl}"
@@ -144,6 +215,16 @@ run_build() {
 # Main
 # =============================================================================
 
+#######################################
+# Main entry point.
+# Globals:
+#   SCRIPT_DIR, PROJECT_ROOT
+#   LICENSE (env var, optional)
+# Arguments:
+#   $1 - Build target (default: all)
+# Outputs:
+#   Writes build progress and results to stdout
+#######################################
 main() {
   local target="${1:-all}"
   local license="${LICENSE:-gpl}"
@@ -182,9 +263,20 @@ main() {
 # =============================================================================
 # Binary Architecture Verification
 # =============================================================================
-# Ensures built binaries match the target architecture.
-# Catches cross-compilation failures where host arch leaks into output.
 
+#######################################
+# Verify a binary matches the expected architecture.
+# Catches cross-compilation failures where host arch leaks into output.
+# Globals:
+#   None
+# Arguments:
+#   $1 - Path to binary file
+#   $2 - Expected architecture (e.g., "arm64")
+# Outputs:
+#   Writes verification status to stdout
+# Returns:
+#   0 on success, exits with 1 on mismatch or missing binary
+#######################################
 verify_binary_arch() {
   local binary="$1"
   local expected_arch="$2"
