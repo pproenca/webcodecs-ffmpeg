@@ -297,53 +297,31 @@ jobs:
             artifacts-download/*.tar.gz \
             artifacts-download/*.sha256 --clobber
 
-      - name: Publish to npm (with retry on E409)
+      - name: Publish to npm (sequential to avoid E409)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           cd npm
 
-          # Publish with exponential backoff retry on E409 (registry conflict)
-          publish_with_retry() {
-            local pkg="$1"
-            local max_attempts=4
-            local attempt=1
-
-            while [[ $attempt -le $max_attempts ]]; do
-              echo "Publishing $pkg (attempt $attempt/$max_attempts)..."
-              if npm publish -w "$pkg" --access public --provenance 2>&1 | tee /tmp/npm-output.txt; then
-                return 0
-              fi
-
-              # Check if it's an E409 conflict (retryable)
-              if grep -q "E409\|ECONFLICT\|conflict" /tmp/npm-output.txt; then
-                local delay=$((attempt * 5))
-                echo "E409 conflict, retrying in ${delay}s..."
-                sleep "$delay"
-                ((attempt++))
-              else
-                # Non-retryable error
-                cat /tmp/npm-output.txt
-                return 1
-              fi
-            done
-
-            echo "::error::Failed to publish $pkg after $max_attempts attempts"
-            return 1
-          }
-
+          # Publish sequentially to avoid npm registry race condition (E409)
           # Platform packages first (dependencies for meta packages)
           for pkg in darwin-arm64 darwin-arm64-lgpl darwin-arm64-gpl \
                      darwin-x64 darwin-x64-lgpl darwin-x64-gpl; do
-            publish_with_retry "$pkg"
+            echo "Publishing $pkg..."
+            npm publish -w "$pkg" --access public --provenance
+            sleep 2  # Let registry process before next publish
           done
 
           # Dev package (headers only, independent)
-          publish_with_retry dev
+          echo "Publishing dev..."
+          npm publish -w dev --access public --provenance
+          sleep 2
 
           # Meta packages last (have optionalDependencies on platform packages)
           for pkg in ffmpeg ffmpeg-lgpl ffmpeg-gpl; do
-            publish_with_retry "$pkg"
+            echo "Publishing $pkg..."
+            npm publish -w "$pkg" --access public --provenance
+            sleep 2
           done
 
           echo "All packages published successfully"

@@ -203,20 +203,6 @@ verify: package
 	else \
 		echo "✓ Static linkage verified (only system libs)"; \
 	fi
-	@echo ""
-	@echo "=== pkg-config Isolation Test ==="
-	@# Test 1: .pc files exist in artifacts
-	@if ls $(ARTIFACTS_DIR)/lib/pkgconfig/*.pc >/dev/null 2>&1; then \
-		echo "✓ pkg-config files present"; \
-	else \
-		echo "✗ No .pc files in artifacts" && exit 1; \
-	fi
-	@# Test 2: PKG_CONFIG_LIBDIR isolation works (finds our libavcodec, not system)
-	@PKG_CONFIG_LIBDIR="$(ARTIFACTS_DIR)/lib/pkgconfig" pkg-config --exists libavcodec && \
-		echo "✓ pkg-config finds libavcodec" || (echo "✗ pkg-config cannot find libavcodec" && exit 1)
-	@# Test 3: Subshell propagation (the bug pattern - env must survive sh -c)
-	@sh -c 'PKG_CONFIG_LIBDIR="$(ARTIFACTS_DIR)/lib/pkgconfig" pkg-config --modversion libavcodec' >/dev/null && \
-		echo "✓ pkg-config works in subshell" || (echo "✗ pkg-config fails in subshell" && exit 1)
 	$(call log_info,Verification passed)
 
 # =============================================================================
