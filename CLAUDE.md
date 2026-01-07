@@ -427,3 +427,36 @@ If you meant to cross compile, use `--host'.
 ```
 
 **Affected codecs:** All autoconf-based (opus, ogg, vorbis, lame, x264). CMake and Meson codecs handle cross-compilation differently.
+
+### FFmpeg Cross-Prefix Disables pkg-config
+
+**Problem:** FFmpeg's configure prepends `--cross-prefix` to pkg-config binary name. If `aarch64-linux-gnu-pkg-config` doesn't exist, pkg-config is silently disabled.
+
+**Error signature:**
+```
+PKG_CONFIG_LIBDIR="/build/prefix/lib/pkgconfig" ./configure \
+    --cross-prefix=aarch64-linux-gnu- --enable-libaom ...
+ERROR: aom >= 2.0.0 not found using pkg-config
+```
+
+**Root cause:** FFmpeg computes `pkg_config = ${cross_prefix}pkg-config`:
+```bash
+# Inside FFmpeg configure:
+pkg_config_default="${cross_prefix}${pkg_config_default}"
+# Result: aarch64-linux-gnu-pkg-config (doesn't exist in Docker)
+if ! $pkg_config --version; then
+    pkg_config=false  # Silently disabled!
+```
+
+**Solution:** Explicitly override the pkg-config binary:
+```makefile
+./configure \
+    --cross-prefix=aarch64-linux-gnu- \
+    --pkg-config=pkg-config \        # Force native pkg-config
+    --pkg-config-flags="--static" \
+    ...
+```
+
+**Why this is safe:** `PKG_CONFIG_LIBDIR` still controls which `.pc` files are found. The native pkg-config only looks in our build prefix, maintaining cross-compilation isolation.
+
+**Reference:** [FFmpeg-devel: Fix pkg-config detection with cross-prefix](https://ffmpeg.org/pipermail/ffmpeg-devel/2012-June/126683.html)

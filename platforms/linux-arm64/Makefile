@@ -100,11 +100,15 @@ FFMPEG_SRC := $(SOURCES_DIR)/FFmpeg-$(FFMPEG_VERSION)
 # -----------------------------------------------------------------------------
 
 # Cross-compilation options for ARM64
+# Note: --pkg-config=pkg-config overrides FFmpeg's default behavior of
+# looking for ${CROSS_PREFIX}pkg-config (which doesn't exist in Docker).
+# PKG_CONFIG_LIBDIR ensures isolation to our build prefix only.
 FFMPEG_BASE_OPTS := \
 	--prefix=$(PREFIX) \
 	--arch=aarch64 \
 	--target-os=linux \
 	--cross-prefix=$(CROSS_PREFIX) \
+	--pkg-config=pkg-config \
 	--enable-cross-compile \
 	--enable-version3 \
 	--enable-static \

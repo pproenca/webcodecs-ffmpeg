@@ -96,9 +96,12 @@ FFMPEG_SRC := $(SOURCES_DIR)/FFmpeg-$(FFMPEG_VERSION)
 # FFmpeg Configure Options (by license tier)
 # -----------------------------------------------------------------------------
 
+# Note: --pkg-config=pkg-config ensures we use the system pkg-config with
+# our PKG_CONFIG_LIBDIR override, matching linux-arm64 behavior in Docker.
 FFMPEG_BASE_OPTS := \
 	--prefix=$(PREFIX) \
 	--arch=x86_64 \
+	--pkg-config=pkg-config \
 	--enable-version3 \
 	--enable-static \
 	--disable-shared \
