@@ -28,6 +28,7 @@ vorbis.stamp: ogg.stamp
 			--disable-docs \
 			--with-ogg=$(PREFIX) \
 			--with-pic \
+			$(if $(HOST_TRIPLET),--host=$(HOST_TRIPLET)) \
 			CFLAGS="$(CFLAGS) -I$(PREFIX)/include" \
 			LDFLAGS="$(LDFLAGS) -L$(PREFIX)/lib" && \
 		$(SED_INPLACE) 's/-force_cpusubtype_ALL//g' libtool && \

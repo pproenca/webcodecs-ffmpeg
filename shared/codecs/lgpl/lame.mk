@@ -20,6 +20,7 @@ lame.stamp:
 			--disable-decoder \
 			--enable-nasm \
 			--with-pic \
+			$(if $(HOST_TRIPLET),--host=$(HOST_TRIPLET)) \
 			CFLAGS="$(CFLAGS)" \
 			LDFLAGS="$(LDFLAGS)" && \
 		$(MAKE) -j$(NPROC) && \

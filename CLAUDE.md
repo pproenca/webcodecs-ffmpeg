@@ -390,3 +390,24 @@ pip3 install 'cmake>=3.20,<4'
 ```
 
 Monitor upstream for fixes before upgrading.
+
+### Autoconf Cross-Compilation Requires --host Flag
+
+**Problem:** Autoconf configure scripts try to run compiled test programs. When cross-compiling (e.g., x86_64 → aarch64), the compiled binary can't execute on the build host.
+
+**Error signature:**
+```
+checking host system type... x86_64-pc-linux-gnu    ← WRONG
+configure: error: cannot run C compiled programs.
+If you meant to cross compile, use `--host'.
+```
+
+**Solution:** Pass `--host` to configure when `HOST_TRIPLET` is defined:
+```makefile
+./configure \
+    --prefix=$(PREFIX) \
+    $(if $(HOST_TRIPLET),--host=$(HOST_TRIPLET)) \
+    CFLAGS="$(CFLAGS)"
+```
+
+**Affected codecs:** All autoconf-based (opus, ogg, vorbis, lame, x264). CMake and Meson codecs handle cross-compilation differently.

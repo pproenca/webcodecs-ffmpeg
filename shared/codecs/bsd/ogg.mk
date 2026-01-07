@@ -17,6 +17,7 @@ ogg.stamp:
 			--enable-static \
 			--disable-shared \
 			--with-pic \
+			$(if $(HOST_TRIPLET),--host=$(HOST_TRIPLET)) \
 			CFLAGS="$(CFLAGS)" \
 			LDFLAGS="$(LDFLAGS)" && \
 		$(MAKE) -j$(NPROC) && \

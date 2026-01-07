@@ -18,6 +18,7 @@ opus.stamp:
 			--disable-shared \
 			--disable-doc \
 			--disable-extra-programs \
+			$(if $(HOST_TRIPLET),--host=$(HOST_TRIPLET)) \
 			CFLAGS="$(CFLAGS)" \
 			LDFLAGS="$(LDFLAGS)" && \
 		$(MAKE) -j$(NPROC) && \
