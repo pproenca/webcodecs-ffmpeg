@@ -125,12 +125,22 @@ Release published ──► release.yml ──► Check for CI artifacts
 ### Manual Release
 
 ```bash
-# Create release via GitHub UI or:
-gh release create v0.2.0 --generate-notes
+# Bump version and create tag (no commit needed)
+mise run bump:patch  # or bump:minor, bump:major
 
-# Manual dispatch (useful for re-releasing):
+# Push tag to trigger release workflow
+git push origin v0.x.x
+
+# Create GitHub Release
+gh release create v0.x.x --generate-notes
+
+# Or use manual dispatch for re-releasing:
 gh workflow run release.yml -f tag=v0.2.0
 ```
+
+**Note:** Version bumping only creates a git tag. The `package.json` versions are
+injected at publish time from the tag name via `populate-npm.sh`. This avoids
+creating "chore(release)" commits that would trigger duplicate CI builds.
 
 ### Artifact Naming Convention
 

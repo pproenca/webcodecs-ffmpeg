@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
-# bump-version.sh - Bump package version across all npm packages
+# bump-version.sh - Create version tag for release
 #
 # Usage: ./bump-version.sh <major|minor|patch>
 #
-# Bumps the version in all npm/ffmpeg* packages, commits the change,
-# and creates a git tag. Requires a clean working directory.
+# Creates a git tag without modifying any files. The version is injected
+# at publish time by populate-npm.sh using FFMPEG_VERSION from the tag.
 
 set -euo pipefail
 
@@ -37,8 +37,10 @@ main() {
   [[ -z "$(git status --porcelain)" ]] || err "working directory not clean"
 
   local bump_type="$1"
+
+  # Get current version from latest tag
   local current
-  current=$(jq -r '.version' npm/ffmpeg/package.json)
+  current=$(git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")
 
   local maj min pat
   IFS='.' read -r maj min pat <<< "${current}"
@@ -50,22 +52,18 @@ main() {
   esac
 
   readonly new="${maj}.${min}.${pat}"
+  readonly tag="v${new}"
 
   echo "${current} → ${new}"
 
-  local pkg
-  for pkg in npm/ffmpeg npm/ffmpeg-lgpl npm/ffmpeg-gpl; do
-    jq --arg v "${new}" \
-      '.version = $v | .optionalDependencies |= with_entries(.value = $v)' \
-      "${pkg}/package.json" > "${pkg}/package.json.tmp"
-    mv "${pkg}/package.json.tmp" "${pkg}/package.json"
-  done
+  # Create tag pointing to HEAD (no commit needed)
+  git tag "${tag}"
 
-  git add npm/*/package.json
-  git commit -m "chore(release): v${new}"
-  git tag "v${new}"
-
-  echo "Tagged v${new} — run: git push origin master --tags"
+  echo "Tagged ${tag}"
+  echo ""
+  echo "To release:"
+  echo "  git push origin ${tag}"
+  echo "  gh release create ${tag} --generate-notes"
 }
 
 main "$@"

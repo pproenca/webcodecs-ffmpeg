@@ -4,6 +4,14 @@ artifacts/
 ffmpeg_sources/
 npm-dist/
 
+# Generated npm package files (created by populate-npm.sh at publish time)
+npm/*/package.json
+npm/*/index.js
+npm/*/install.js
+npm/*/versions.json
+npm/*/lib/
+npm/*/include/
+
 # Dependencies
 node_modules/
 
