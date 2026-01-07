@@ -101,14 +101,20 @@ define download_and_extract
 	@tar -xzf "$(3)/$(1).tar.gz" -C "$(3)"
 endef
 
-# Git clone at specific branch/tag
-# Usage: $(call git_clone,name,repo_url,branch,target_dir)
+# Git clone at specific branch/tag/commit
+# Usage: $(call git_clone,name,repo_url,ref,target_dir)
 # Example: $(call git_clone,x264,$(X264_REPO),$(X264_VERSION),$(SOURCES_DIR))
+# Note: For commit hashes, we can't use --depth 1 --branch, so we clone and checkout
 define git_clone
 	$(call log_info,Cloning $(1) at $(3)...)
 	@mkdir -p $(4)
 	@if [ ! -d "$(4)/$(1)" ]; then \
-		git clone --depth 1 --branch $(3) $(2) $(4)/$(1); \
+		if echo "$(3)" | grep -qE '^[0-9a-f]{40}$$'; then \
+			git clone $(2) $(4)/$(1) && \
+			cd $(4)/$(1) && git checkout $(3); \
+		else \
+			git clone --depth 1 --branch $(3) $(2) $(4)/$(1); \
+		fi; \
 	else \
 		$(call log_info,$(1) already cloned); \
 	fi
