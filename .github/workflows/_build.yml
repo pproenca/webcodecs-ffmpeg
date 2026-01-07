@@ -1,9 +1,17 @@
-name: Build
+name: Build (Reusable)
 
 on:
-  push:
-    branches: [master]
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      ref:
+        # Git ref to checkout. Empty string falls back to caller's github.sha
+        description: 'Git ref to build'
+        type: string
+        default: ''
+      retention-days:
+        description: 'Artifact retention days'
+        type: number
+        default: 30
 
 permissions:
   contents: read
@@ -20,13 +28,17 @@ jobs:
         platform: [darwin-arm64, darwin-x64]
         license: [bsd, lgpl, gpl]
 
+    # Cancel in-progress builds for same platform/license/ref combination
+    # Uses inputs.ref for release builds, github.sha for CI builds
     concurrency:
-      group: build-${{ matrix.platform }}-${{ matrix.license }}-${{ github.ref }}
+      group: build-${{ matrix.platform }}-${{ matrix.license }}-${{ inputs.ref || github.sha }}
       cancel-in-progress: true
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
 
       - name: Cache sources
         uses: actions/cache@v4
@@ -59,14 +71,24 @@ jobs:
             exit 1
           fi
 
-          echo "✓ Architecture verified: $EXPECTED_ARCH"
+          echo "Architecture verified: $EXPECTED_ARCH"
 
       - name: Create tarball and checksum
         run: |
-          tar -czvf ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz \
-            -C artifacts ${{ matrix.platform }}-${{ matrix.license }}
-          shasum -a 256 ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz > \
-            ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz.sha256
+          TARBALL="ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz"
+
+          tar -czvf "$TARBALL" \
+            -C artifacts "${{ matrix.platform }}-${{ matrix.license }}"
+
+          # Verify tarball has reasonable size (>1MB for FFmpeg)
+          TARBALL_SIZE=$(stat -f%z "$TARBALL")
+          if [[ "$TARBALL_SIZE" -lt 1000000 ]]; then
+            echo "::error::Tarball suspiciously small: ${TARBALL_SIZE} bytes"
+            exit 1
+          fi
+          echo "Created $TARBALL (${TARBALL_SIZE} bytes)"
+
+          shasum -a 256 "$TARBALL" > "${TARBALL}.sha256"
 
       - name: Generate build attestation
         uses: actions/attest-build-provenance@v2
@@ -80,4 +102,4 @@ jobs:
           path: |
             ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz
             ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz.sha256
-          retention-days: 90
+          retention-days: ${{ inputs.retention-days }}

@@ -9,35 +9,22 @@ on:
         description: 'Release tag (e.g., v0.2.0)'
         required: true
         type: string
-      force_build:
-        description: 'Force rebuild even if artifacts exist'
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: write
   id-token: write
   attestations: write
-  actions: read
-
-env:
-  EXPECTED_ARTIFACTS: "ffmpeg-darwin-arm64-bsd ffmpeg-darwin-arm64-lgpl ffmpeg-darwin-arm64-gpl ffmpeg-darwin-x64-bsd ffmpeg-darwin-x64-lgpl ffmpeg-darwin-x64-gpl"
 
 jobs:
-  # ============================================================================
-  # STEP 1: Find existing artifacts from build workflow
-  # ============================================================================
-  find-artifacts:
-    name: find-build-artifacts
+  # Job 1: Resolve tag to commit SHA
+  resolve:
+    name: resolve-tag
     runs-on: ubuntu-latest
     outputs:
-      found: ${{ steps.search.outputs.found }}
-      run_id: ${{ steps.search.outputs.run_id }}
       commit: ${{ steps.resolve.outputs.commit }}
       tag: ${{ steps.resolve.outputs.tag }}
     steps:
-      - name: Resolve commit SHA
+      - name: Resolve tag to commit
         id: resolve
         env:
           GH_TOKEN: ${{ github.token }}
@@ -58,11 +45,12 @@ jobs:
           OBJECT_TYPE=$(echo "$RESPONSE" | jq -r '.object.type')
           OBJECT_SHA=$(echo "$RESPONSE" | jq -r '.object.sha')
 
+          # Annotated tags point to a tag object, lightweight tags point directly to commit
           if [[ "$OBJECT_TYPE" == "tag" ]]; then
-            # Annotated tag - need to dereference
+            # Annotated tag - dereference to get the commit SHA it points to
             COMMIT=$(gh api "repos/${{ github.repository }}/git/tags/${OBJECT_SHA}" --jq '.object.sha')
           else
-            # Lightweight tag - already points to commit
+            # Lightweight tag - SHA is already the commit
             COMMIT="$OBJECT_SHA"
           fi
 
@@ -70,147 +58,70 @@ jobs:
           echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Search for artifacts
-        id: search
-        if: ${{ inputs.force_build != true }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          COMMIT="${{ steps.resolve.outputs.commit }}"
+  # Job 2: Build using reusable workflow
+  build:
+    name: build
+    needs: resolve
+    uses: ./.github/workflows/_build.yml
+    with:
+      ref: ${{ needs.resolve.outputs.commit }}
+      retention-days: 90
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
 
-          # Find successful build workflow runs for this commit
-          RUNS=$(gh api "repos/${{ github.repository }}/actions/workflows/build.yml/runs?head_sha=${COMMIT}&status=success" \
-            --jq '.workflow_runs | sort_by(.created_at) | reverse | .[0].id' 2>/dev/null || echo "")
-
-          if [[ -z "$RUNS" || "$RUNS" == "null" ]]; then
-            echo "No successful build found for commit $COMMIT"
-            echo "found=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          echo "Found build run: $RUNS"
-
-          # Verify all expected artifacts exist
-          ARTIFACTS=$(gh api "repos/${{ github.repository }}/actions/runs/${RUNS}/artifacts" \
-            --jq '.artifacts[].name' 2>/dev/null || echo "")
-
-          MISSING=""
-          for EXPECTED in $EXPECTED_ARTIFACTS; do
-            if ! echo "$ARTIFACTS" | grep -q "^${EXPECTED}$"; then
-              MISSING="$MISSING $EXPECTED"
-            fi
-          done
-
-          if [[ -n "$MISSING" ]]; then
-            echo "Missing artifacts:$MISSING"
-            echo "found=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "All artifacts found"
-            echo "found=true" >> "$GITHUB_OUTPUT"
-            echo "run_id=$RUNS" >> "$GITHUB_OUTPUT"
-          fi
-
-  # ============================================================================
-  # STEP 2: Fallback build if artifacts not found
-  # ============================================================================
-  build-fallback:
-    name: build-${{ matrix.platform }}-${{ matrix.license }}
-    needs: find-artifacts
-    if: needs.find-artifacts.outputs.found != 'true'
-    runs-on: macos-15
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [darwin-arm64, darwin-x64]
-        license: [bsd, lgpl, gpl]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.find-artifacts.outputs.commit }}
-
-      - name: Cache sources
-        uses: actions/cache@v4
-        with:
-          path: build/${{ matrix.platform }}/sources
-          key: sources-${{ matrix.platform }}-${{ hashFiles('shared/versions.mk') }}
-          restore-keys: |
-            sources-${{ matrix.platform }}-
-
-      - name: Build FFmpeg
-        run: LICENSE=${{ matrix.license }} ./platforms/${{ matrix.platform }}/build.sh all
-
-      - name: Create tarball and checksum
-        run: |
-          tar -czvf ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz \
-            -C artifacts ${{ matrix.platform }}-${{ matrix.license }}
-          shasum -a 256 ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz > \
-            ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz.sha256
-
-      - name: Generate build attestation
-        uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: 'ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz'
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ffmpeg-${{ matrix.platform }}-${{ matrix.license }}
-          path: |
-            ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz
-            ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz.sha256
-
-  # ============================================================================
-  # STEP 3: Publish to GitHub Release and npm
-  # ============================================================================
+  # Job 3: Publish to GitHub Release and npm
   publish:
     name: publish
-    needs: [find-artifacts, build-fallback]
-    if: always() && !cancelled() && needs.find-artifacts.result == 'success' && (needs.build-fallback.result == 'success' || needs.build-fallback.result == 'skipped')
+    needs: [resolve, build]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download from build workflow
-        if: needs.find-artifacts.outputs.found == 'true'
-        uses: dawidd6/action-download-artifact@v11
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          workflow: build.yml
-          run_id: ${{ needs.find-artifacts.outputs.run_id }}
-          path: artifacts-download
-
-      - name: Download from fallback build
-        if: needs.find-artifacts.outputs.found != 'true'
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts-download
           merge-multiple: true
 
-      - name: Flatten artifact directories
+      - name: List downloaded artifacts
+        run: ls -la artifacts-download/
+
+      - name: Verify all artifacts present
         run: |
-          # dawidd6/action-download-artifact creates subdirectories per artifact
-          # Flatten them to match the expected structure
           cd artifacts-download
-          for dir in */; do
-            if [[ -d "$dir" ]]; then
-              mv "$dir"* . 2>/dev/null || true
-              rmdir "$dir" 2>/dev/null || true
-            fi
-          done
-          ls -la
+          EXPECTED=6  # 2 platforms × 3 licenses
+          shopt -s nullglob
+          tarballs=(./*.tar.gz)
+          ACTUAL=${#tarballs[@]}
+
+          if [[ "$ACTUAL" -ne "$EXPECTED" ]]; then
+            echo "::error::Expected $EXPECTED tarballs, found $ACTUAL"
+            ls -la
+            exit 1
+          fi
+          echo "All $EXPECTED artifacts present"
 
       - name: Verify checksums
         run: |
           cd artifacts-download
           shopt -s nullglob
           files=(*.sha256)
+
           if [[ ${#files[@]} -eq 0 ]]; then
             echo "::error::No checksum files found"
             exit 1
           fi
+
+          echo "Verifying ${#files[@]} checksums..."
           for f in "${files[@]}"; do
+            TARBALL="${f%.sha256}"
+            if [[ ! -f "$TARBALL" ]]; then
+              echo "::error::Missing tarball for $f"
+              exit 1
+            fi
             echo "Verifying $f..."
             sha256sum --check "$f"
           done
@@ -224,9 +135,20 @@ jobs:
       - name: Extract artifacts
         run: |
           mkdir -p artifacts
+
           for tarball in artifacts-download/*.tar.gz; do
+            echo "Extracting $tarball..."
             tar -xzvf "$tarball" -C artifacts
+
+            # Verify expected directory was created
+            DIRNAME=$(basename "$tarball" .tar.gz)
+            if [[ ! -d "artifacts/$DIRNAME" ]]; then
+              echo "::error::Extraction failed - artifacts/$DIRNAME not found"
+              exit 1
+            fi
           done
+
+          echo "Extracted artifacts:"
           ls -la artifacts/
 
       - name: Generate artifact attestations
@@ -236,7 +158,7 @@ jobs:
 
       - name: Populate npm packages
         env:
-          FFMPEG_VERSION: ${{ needs.find-artifacts.outputs.tag }}
+          FFMPEG_VERSION: ${{ needs.resolve.outputs.tag }}
         run: |
           # Strip 'v' prefix from tag (v0.1.0 -> 0.1.0)
           export FFMPEG_VERSION="${FFMPEG_VERSION#v}"
@@ -246,7 +168,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload "${{ needs.find-artifacts.outputs.tag }}" \
+          gh release upload "${{ needs.resolve.outputs.tag }}" \
             artifacts-download/*.tar.gz \
             artifacts-download/*.sha256 --clobber
 
