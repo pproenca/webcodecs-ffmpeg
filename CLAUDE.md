@@ -60,16 +60,31 @@ mise run act               # Run workflows locally
 
 ## CI/CD Workflows
 
-The repository uses a reusable workflow architecture for consistent builds:
+The repository uses a reusable workflow architecture with artifact reuse to avoid duplicate builds:
 
 ### Workflow Structure
 
 ```
-_build.yml (reusable)     ← Single source of truth for build logic
+Push to master
      │
-     ├── ci.yml           ← Calls _build.yml on push to master
-     │
-     └── release.yml      ← Calls _build.yml at release time
+     ▼
+  ci.yml ──────► _build.yml (6 jobs) ──► Artifacts (30-day retention)
+                                              │
+                                              │ (reused if available)
+                                              ▼
+Release published ──► release.yml ──► Check for CI artifacts
+                           │                  │
+                           │          ┌───────┴───────┐
+                           │          ▼               ▼
+                           │       Found?          Missing?
+                           │          │               │
+                           │          ▼               ▼
+                           │      Download      _build.yml (fallback)
+                           │          │               │
+                           └──────────┴───────────────┘
+                                      │
+                                      ▼
+                              Publish to npm + GitHub
 ```
 
 | Workflow | Trigger | Purpose |
@@ -77,7 +92,7 @@ _build.yml (reusable)     ← Single source of truth for build logic
 | `lint.yml` | PR to master | Land-blocking validation (actionlint, shellcheck, hadolint) |
 | `_build.yml` | Called by other workflows | Reusable build logic (matrix, attestations, artifacts) |
 | `ci.yml` | Push to master | Continuous builds, stores artifacts for 30 days |
-| `release.yml` | Release published | Builds at tagged commit, publishes to npm/GitHub |
+| `release.yml` | Release published | Reuses CI artifacts or builds as fallback, publishes to npm/GitHub |
 
 ### Reusable Build Workflow (`_build.yml`)
 
@@ -92,16 +107,20 @@ _build.yml (reusable)     ← Single source of truth for build logic
 
 - **Trigger:** Push to master, manual dispatch
 - **Calls:** `_build.yml` with 30-day artifact retention
-- **Purpose:** Verify builds work on every commit
+- **Concurrency:** `build-${{ github.sha }}` with cancel-in-progress
+- **Purpose:** Verify builds work on every commit, produce reusable artifacts
 
 ### Release Workflow (`release.yml`)
 
 - **Trigger:** `release.published` event or `workflow_dispatch` with tag input
+- **Artifact reuse:** Searches for existing CI artifacts before building
 - **Steps:**
   1. Resolve tag to commit SHA (handles lightweight and annotated tags)
-  2. Call `_build.yml` to build at that exact commit
-  3. Publish artifacts to GitHub Release and npm with provenance
-- **Artifact retention:** 90 days for release builds
+  2. Search for successful CI run at that commit
+  3. If artifacts found: download from CI run (zero build jobs)
+  4. If artifacts missing/expired: call `_build.yml` as fallback
+  5. Publish artifacts to GitHub Release and npm with provenance
+- **Dependencies:** `dawidd6/action-download-artifact@v6` for cross-workflow downloads
 
 ### Manual Release
 

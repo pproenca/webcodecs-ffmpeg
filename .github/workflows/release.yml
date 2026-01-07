@@ -14,6 +14,16 @@ permissions:
   contents: write
   id-token: write
   attestations: write
+  actions: read
+
+env:
+  EXPECTED_ARTIFACTS: >-
+    ffmpeg-darwin-arm64-bsd
+    ffmpeg-darwin-arm64-lgpl
+    ffmpeg-darwin-arm64-gpl
+    ffmpeg-darwin-x64-bsd
+    ffmpeg-darwin-x64-lgpl
+    ffmpeg-darwin-x64-gpl
 
 jobs:
   # Job 1: Resolve tag to commit SHA
@@ -58,10 +68,61 @@ jobs:
           echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
-  # Job 2: Build using reusable workflow
+  # Job 2: Check for existing CI artifacts
+  check-artifacts:
+    name: check-artifacts
+    needs: resolve
+    runs-on: ubuntu-latest
+    outputs:
+      found: ${{ steps.search.outputs.found }}
+      run_id: ${{ steps.search.outputs.run_id }}
+    steps:
+      - name: Search for CI artifacts
+        id: search
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMIT: ${{ needs.resolve.outputs.commit }}
+        run: |
+          echo "Searching for CI artifacts at commit $COMMIT"
+
+          # Find successful CI workflow run for this commit
+          RUN_ID=$(gh api "repos/${{ github.repository }}/actions/workflows/ci.yml/runs" \
+            --jq ".workflow_runs[] | select(.head_sha == \"$COMMIT\" and .conclusion == \"success\") | .id" \
+            2>/dev/null | head -1 || echo "")
+
+          if [[ -z "$RUN_ID" ]]; then
+            echo "No successful CI run found for commit $COMMIT"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Found CI run: $RUN_ID"
+
+          # Verify all expected artifacts exist
+          ARTIFACTS=$(gh api "repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts" \
+            --jq '.artifacts[].name' 2>/dev/null || echo "")
+
+          MISSING=""
+          for name in $EXPECTED_ARTIFACTS; do
+            if ! echo "$ARTIFACTS" | grep -q "^${name}$"; then
+              MISSING="$MISSING $name"
+            fi
+          done
+
+          if [[ -n "$MISSING" ]]; then
+            echo "Missing artifacts:$MISSING"
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "All 6 artifacts found in CI run $RUN_ID"
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Job 3: Build only if CI artifacts not found
   build:
     name: build
-    needs: resolve
+    needs: [resolve, check-artifacts]
+    if: needs.check-artifacts.outputs.found != 'true'
     uses: ./.github/workflows/_build.yml
     with:
       ref: ${{ needs.resolve.outputs.commit }}
@@ -71,23 +132,44 @@ jobs:
       id-token: write
       attestations: write
 
-  # Job 3: Publish to GitHub Release and npm
+  # Job 4: Publish to GitHub Release and npm
   publish:
     name: publish
-    needs: [resolve, build]
+    needs: [resolve, check-artifacts, build]
+    if: always() && !cancelled() && needs.resolve.result == 'success' && needs.check-artifacts.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download artifacts
+      - name: Download from CI workflow
+        if: needs.check-artifacts.outputs.found == 'true'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: ci.yml
+          run_id: ${{ needs.check-artifacts.outputs.run_id }}
+          path: artifacts-download
+
+      - name: Download from fallback build
+        if: needs.check-artifacts.outputs.found != 'true'
         uses: actions/download-artifact@v4
         with:
           path: artifacts-download
           merge-multiple: true
 
-      - name: List downloaded artifacts
-        run: ls -la artifacts-download/
+      - name: Flatten artifact directories
+        run: |
+          # dawidd6/action-download-artifact creates subdirectories per artifact
+          # Flatten them to match expected structure
+          cd artifacts-download
+          for dir in */; do
+            if [[ -d "$dir" ]]; then
+              mv "$dir"* . 2>/dev/null || true
+              rmdir "$dir" 2>/dev/null || true
+            fi
+          done
+          echo "Flattened artifacts:"
+          ls -la
 
       - name: Verify all artifacts present
         run: |

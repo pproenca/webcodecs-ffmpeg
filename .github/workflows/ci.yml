@@ -5,6 +5,11 @@ on:
     branches: [master]
   workflow_dispatch:
 
+# Cancel in-progress builds for same commit
+concurrency:
+  group: build-${{ github.sha }}
+  cancel-in-progress: true
+
 jobs:
   build:
     uses: ./.github/workflows/_build.yml
