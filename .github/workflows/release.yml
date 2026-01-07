@@ -141,7 +141,11 @@ jobs:
             tar -xzvf "$tarball" -C artifacts
 
             # Verify expected directory was created
+            # Tarball is named ffmpeg-<platform>-<license>.tar.gz but contains
+            # directory <platform>-<license>/ (no ffmpeg- prefix) to match
+            # Makefile artifact structure and populate-npm.sh expectations
             DIRNAME=$(basename "$tarball" .tar.gz)
+            DIRNAME="${DIRNAME#ffmpeg-}"
             if [[ ! -d "artifacts/$DIRNAME" ]]; then
               echo "::error::Extraction failed - artifacts/$DIRNAME not found"
               exit 1
