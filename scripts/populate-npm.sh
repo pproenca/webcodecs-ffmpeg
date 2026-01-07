@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-# =============================================================================
+#
 # populate-npm.sh - Populate npm packages from build artifacts
-# =============================================================================
+#
 # Usage: ./scripts/populate-npm.sh [--version VERSION]
 #
 # Reads from: artifacts/<platform>-<tier>/
 # Writes to:  npm/<platform>[-tier]/
-# =============================================================================
+
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
@@ -41,41 +40,23 @@ declare -Ar TIER_DESC=(
   ["gpl"]="all codecs including x264/x265"
 )
 
-# =============================================================================
-# Functions
-# =============================================================================
-
 #######################################
-# Log an informational message.
+# Logging functions
 # Arguments:
-#   $1 - Message to display
+#   $* - Message to log
 # Outputs:
-#   Writes green-prefixed message to stdout
+#   Writes message to stdout (or stderr for log_error)
 #######################################
 log_info() {
-  printf "\033[0;32m[INFO]\033[0m %s\n" "$1"
+  printf "\033[0;32m[INFO]\033[0m %s\n" "$*"
 }
 
-#######################################
-# Log a warning message.
-# Arguments:
-#   $1 - Message to display
-# Outputs:
-#   Writes yellow-prefixed message to stdout
-#######################################
 log_warn() {
-  printf "\033[1;33m[WARN]\033[0m %s\n" "$1"
+  printf "\033[1;33m[WARN]\033[0m %s\n" "$*"
 }
 
-#######################################
-# Log an error message.
-# Arguments:
-#   $1 - Message to display
-# Outputs:
-#   Writes red-prefixed message to stdout
-#######################################
 log_error() {
-  printf "\033[0;31m[ERROR]\033[0m %s\n" "$1"
+  printf "\033[0;31m[ERROR]\033[0m %s\n" "$*" >&2
 }
 
 #######################################
@@ -502,10 +483,6 @@ populate_meta_packages() {
     log_info "  -> Created ${npm_subdir} meta package"
   done
 }
-
-# =============================================================================
-# Main
-# =============================================================================
 
 #######################################
 # Main entry point.
