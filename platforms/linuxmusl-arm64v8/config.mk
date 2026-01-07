@@ -40,5 +40,13 @@ MESON_OPTS := \
 	-Dc_args="$(CFLAGS)" \
 	-Dcpp_args="$(CXXFLAGS)"
 
+# pkg-config setup for consistent dependency resolution
+PKG_CONFIG := pkg-config
+PKG_CONFIG_LIBDIR := $(PREFIX)/lib/pkgconfig
+
+# Export variables
+export CC CXX CFLAGS CXXFLAGS LDFLAGS
+export PKG_CONFIG PKG_CONFIG_LIBDIR
+
 # Number of parallel jobs
 NPROC := $(shell nproc)
