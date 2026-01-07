@@ -119,7 +119,6 @@ install_dependencies() {
 
   # Homebrew tools (excludes cmake - installed via pip for version control)
   local tools=(
-    ccache     # Compiler cache for faster rebuilds
     nasm       # Assembler for x264 and others
     meson      # Build system for dav1d
     ninja      # Build tool for meson
