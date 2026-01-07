@@ -48,6 +48,16 @@ jobs:
           restore-keys: |
             sources-${{ matrix.platform }}-
 
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ matrix.platform }}-${{ matrix.license }}
+          restore-keys: |
+            ${{ matrix.platform }}-${{ matrix.license }}
+            ${{ matrix.platform }}-
+          max-size: 2G
+          verbose: 1
+
       - name: Build FFmpeg
         run: LICENSE=${{ matrix.license }} ./platforms/${{ matrix.platform }}/build.sh all
         env:

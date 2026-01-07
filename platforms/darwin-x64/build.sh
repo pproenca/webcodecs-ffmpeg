@@ -77,6 +77,7 @@ install_dependencies() {
 
   # Homebrew tools (excludes cmake, nasm - installed separately for version control)
   local -a tools=(
+    ccache     # Compiler cache for faster rebuilds
     meson      # Build system for dav1d
     ninja      # Build tool for meson
     pkg-config # Library configuration
