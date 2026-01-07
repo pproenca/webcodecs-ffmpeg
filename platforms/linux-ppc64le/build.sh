@@ -9,7 +9,7 @@
 #   ./build.sh [OPTIONS] [TARGET]
 #
 # Options:
-#   -l, --license TIER    License tier: bsd, lgpl, gpl (default: gpl)
+#   -l, --license LICENSE License tier: bsd, lgpl, gpl (default: gpl)
 #   -h, --help            Show this help message
 #
 # Targets:
@@ -20,14 +20,14 @@
 #   clean                 Clean build artifacts
 #
 # Environment:
-#   LICENSE_TIER          Same as --license option
+#   LICENSE               Same as --license option
 #   BUILD_DIR             Override build directory
 #
 # Examples:
 #   ./build.sh                      # Full GPL build
 #   ./build.sh -l lgpl              # LGPL build
 #   ./build.sh codecs               # Build codecs only
-#   LICENSE_TIER=bsd ./build.sh     # BSD-only build
+#   LICENSE=bsd ./build.sh          # BSD-only build
 
 set -euo pipefail
 
@@ -37,7 +37,7 @@ readonly SCRIPT_DIR PROJECT_ROOT
 readonly PLATFORM="linux-ppc64le"
 
 # Default values
-LICENSE_TIER="${LICENSE_TIER:-gpl}"
+LICENSE="${LICENSE:-gpl}"
 BUILD_DIR="${BUILD_DIR:-${SCRIPT_DIR}/build}"
 
 #######################################
@@ -82,7 +82,7 @@ usage() {
 Usage: $(basename "$0") [OPTIONS] [TARGET]
 
 Options:
-  -l, --license TIER    License tier: bsd, lgpl, gpl (default: gpl)
+  -l, --license LICENSE License tier: bsd, lgpl, gpl (default: gpl)
   -h, --help            Show this help message
 
 Targets:
@@ -93,14 +93,14 @@ Targets:
   clean                 Clean build artifacts
 
 Environment:
-  LICENSE_TIER          Same as --license option
+  LICENSE               Same as --license option
   BUILD_DIR             Override build directory
 
 Examples:
   ./build.sh                      # Full GPL build
   ./build.sh -l lgpl              # LGPL build
   ./build.sh codecs               # Build codecs only
-  LICENSE_TIER=bsd ./build.sh     # BSD-only build
+  LICENSE=bsd ./build.sh          # BSD-only build
 EOF
 }
 
@@ -109,7 +109,7 @@ TARGET="all"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -l|--license)
-      LICENSE_TIER="$2"
+      LICENSE="$2"
       shift 2
       ;;
     -h|--help)
@@ -124,24 +124,24 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Validate license tier
-case "${LICENSE_TIER}" in
+case "${LICENSE}" in
   bsd|lgpl|gpl) ;;
   *)
-    log_error "Invalid license tier: ${LICENSE_TIER}"
+    log_error "Invalid license tier: ${LICENSE}"
     log_error "Valid options: bsd, lgpl, gpl"
     exit 1
     ;;
 esac
 
 log_info "Platform: ${PLATFORM}"
-log_info "License tier: ${LICENSE_TIER}"
+log_info "License tier: ${LICENSE}"
 log_info "Build directory: ${BUILD_DIR}"
 
 # Check if running inside Docker container
 if [[ -f /.dockerenv ]] || grep -q docker /proc/1/cgroup 2>/dev/null; then
   log_info "Running inside Docker container"
   exec make -C "${SCRIPT_DIR}" \
-    LICENSE_TIER="${LICENSE_TIER}" \
+    LICENSE="${LICENSE}" \
     BUILD_DIR="${BUILD_DIR}" \
     "${TARGET}"
 fi
@@ -163,10 +163,10 @@ log_info "Running build in Docker container (ppc64le via QEMU)..."
 docker run --rm \
   --platform linux/ppc64le \
   -v "${PROJECT_ROOT}:/build/ffmpeg-prebuilds:rw" \
-  -e LICENSE_TIER="${LICENSE_TIER}" \
+  -e LICENSE="${LICENSE}" \
   -e BUILD_DIR="/build/ffmpeg-prebuilds/platforms/${PLATFORM}/build" \
   -w "/build/ffmpeg-prebuilds/platforms/${PLATFORM}" \
   "${IMAGE_NAME}" \
-  make LICENSE_TIER="${LICENSE_TIER}" "${TARGET}"
+  make LICENSE="${LICENSE}" "${TARGET}"
 
 log_info "Build complete!"

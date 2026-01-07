@@ -1,5 +1,5 @@
 # =============================================================================
-# Common Codec Build Patterns for linux-x64
+# Common Codec Build Patterns for linux-ppc64le
 # =============================================================================
 # This file is included by the main Makefile and provides shared patterns
 # that individual codec makefiles can use.

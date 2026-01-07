@@ -41,5 +41,22 @@ MESON_OPTS := \
 	-Dc_args="$(CFLAGS)" \
 	-Dcpp_args="$(CXXFLAGS)"
 
+# =============================================================================
+# Build Tool Configuration
+# =============================================================================
+
+# pkg-config setup for consistent dependency resolution
+# PKG_CONFIG_LIBDIR replaces default search paths (prevents finding wrong libs)
+PKG_CONFIG := pkg-config
+PKG_CONFIG_LIBDIR := $(PREFIX)/lib/pkgconfig
+
 # Number of parallel jobs
 NPROC := $(shell nproc)
+
+# =============================================================================
+# Export Variables
+# =============================================================================
+
+export CC CXX
+export CFLAGS CXXFLAGS LDFLAGS
+export PKG_CONFIG PKG_CONFIG_LIBDIR
