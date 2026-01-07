@@ -54,7 +54,8 @@ LAME_URL := https://downloads.sourceforge.net/project/lame/lame/$(LAME_VERSION)/
 # =============================================================================
 
 # Note: Using git clone for x264 as tarballs don't include version info properly
-X264_VERSION := stable
+# Pin to commit hash for cache correctness (branch names cause stale cache hits)
+X264_VERSION := b35605ace3ddf7c1a5d67a2eb553f034aef41d55
 X264_REPO := https://code.videolan.org/videolan/x264.git
 
 X265_VERSION := 4.0
