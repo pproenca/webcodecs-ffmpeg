@@ -156,13 +156,11 @@ generate_platform_package_json() {
   },
   "files": [
     "lib",
-    "include",
     "versions.json"
   ],
   "type": "commonjs",
   "exports": {
     "./lib": "./lib/index.js",
-    "./include": "./include/index.js",
     "./package": "./package.json",
     "./versions": "./versions.json"
   },
@@ -206,19 +204,14 @@ populate_platform() {
 
   log_info "Populating ${npm_dir_name} from ${artifacts_src}"
 
-  rm -rf "${npm_dest:?}/lib" "${npm_dest:?}/include"
-  mkdir -p "${npm_dest}/lib" "${npm_dest}/include"
+  rm -rf "${npm_dest:?}/lib"
+  mkdir -p "${npm_dest}/lib"
 
   if [[ -d "${artifacts_src}/lib" ]]; then
     cp -a "${artifacts_src}/lib/"*.a "${npm_dest}/lib/" 2>/dev/null || true
   fi
 
-  if [[ -d "${artifacts_src}/include" ]]; then
-    cp -a "${artifacts_src}/include/"* "${npm_dest}/include/" 2>/dev/null || true
-  fi
-
   generate_index_js "${npm_dest}/lib"
-  generate_index_js "${npm_dest}/include"
 
   generate_versions_json "${npm_dest}/versions.json" "${platform}" "${tier}"
 
