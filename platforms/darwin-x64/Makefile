@@ -49,14 +49,6 @@ include $(ROOT_DIR)/config.mk
 include $(ROOT_DIR)/codecs/codec.mk
 
 # =============================================================================
-# Include Build Tools
-# =============================================================================
-# NASM is built from source to get an x86_64 binary that can run on ARM64
-# hosts via Rosetta 2. Homebrew's ARM64 NASM fails libaom's multipass test.
-
-include $(ROOT_DIR)/tools/nasm.mk
-
-# =============================================================================
 # Include Individual Codec Build Rules
 # =============================================================================
 
@@ -90,18 +82,6 @@ all: package verify
 
 dirs:
 	@mkdir -p $(BUILD_DIR) $(PREFIX) $(SOURCES_DIR) $(STAMPS_DIR) $(ARTIFACTS_DIR)
-
-# =============================================================================
-# Build Tool Dependencies
-# =============================================================================
-# CMake-based codecs (aom, svt-av1, x265) require NASM for x86 assembly.
-# The built NASM (x86_64 binary) takes precedence over Homebrew's ARM64 NASM
-# because $(PREFIX)/bin is prepended to PATH in config.mk.
-
-aom.stamp svt-av1.stamp: nasm.stamp
-ifeq ($(LICENSE),gpl)
-x265.stamp: nasm.stamp
-endif
 
 # =============================================================================
 # FFmpeg Build
@@ -161,19 +141,9 @@ FFMPEG_CONFIGURE_OPTS := $(FFMPEG_BASE_OPTS) $(FFMPEG_LICENSE_OPTS)
 ffmpeg.stamp: dirs $(addsuffix .stamp,$(ACTIVE_CODECS))
 	$(call log_info,Building FFmpeg $(FFMPEG_VERSION) [$(LICENSE) tier]...)
 	$(call download_and_extract,ffmpeg,$(FFMPEG_URL),$(SOURCES_DIR))
-	@# Create pkg-config wrapper to ensure cross-compilation uses only our built libs
-	@echo '#!/bin/sh' > $(BUILD_DIR)/pkg-config-cross
-	@echo 'export PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig"' >> $(BUILD_DIR)/pkg-config-cross
-	@echo 'exec pkg-config "$$@"' >> $(BUILD_DIR)/pkg-config-cross
-	@chmod +x $(BUILD_DIR)/pkg-config-cross
-	@# Verify pkg-config can find our built codecs before FFmpeg configure
-	@echo "=== Verifying pkg-config setup ==="
-	@PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" pkg-config --list-all 2>/dev/null | grep -iE "(svtav1|aom|vpx|dav1d|opus|vorbis|mp3lame)" || \
-		(echo "WARNING: Some codec .pc files not found" && ls -la $(PREFIX)/lib/pkgconfig/ 2>/dev/null || true)
 	cd $(FFMPEG_SRC) && \
 		export PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" && \
 		./configure \
-			--pkg-config=$(BUILD_DIR)/pkg-config-cross \
 			$(FFMPEG_CONFIGURE_OPTS) \
 			--pkg-config-flags="--static" \
 			--extra-cflags="-I$(PREFIX)/include $(CFLAGS)" \
@@ -206,11 +176,18 @@ package: ffmpeg.stamp
 # =============================================================================
 # Verification
 # =============================================================================
-# Note: Cross-compiled binaries cannot be executed on ARM64 host.
-# Verification is limited to static checks (file type, dynamic libraries).
 
 verify: package
 	$(call log_info,Verifying build...)
+	@echo "=== FFmpeg Version ==="
+	@$(ARTIFACTS_DIR)/bin/ffmpeg -version
+	@echo ""
+	@echo "=== Build Configuration ==="
+	@$(ARTIFACTS_DIR)/bin/ffmpeg -buildconf 2>&1 | grep -E "(enable|configuration)" | head -20
+	@echo ""
+	@echo "=== Enabled Encoders (sample) ==="
+	@$(ARTIFACTS_DIR)/bin/ffmpeg -encoders 2>&1 | grep -E "(libx264|libx265|libvpx|libaom|libsvtav1|libopus)" || true
+	@echo ""
 	@echo "=== Binary Architecture ==="
 	@file $(ARTIFACTS_DIR)/bin/ffmpeg
 	@file $(ARTIFACTS_DIR)/bin/ffmpeg | grep -q "x86_64" && echo "✓ x86_64 verified" || (echo "✗ Not x86_64!" && exit 1)
@@ -223,13 +200,6 @@ verify: package
 	else \
 		echo "✓ Static linkage verified (only system libs)"; \
 	fi
-	@echo ""
-	@echo "=== Build Info ==="
-	@echo "Platform: $(PLATFORM)"
-	@echo "License tier: $(LICENSE)"
-	@echo "Codecs: $(ACTIVE_CODECS)"
-	@echo ""
-	@echo "Note: Runtime verification skipped (cross-compiled binary)"
 	$(call log_info,Verification passed)
 
 # =============================================================================

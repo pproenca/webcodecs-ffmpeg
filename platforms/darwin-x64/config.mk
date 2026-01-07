@@ -1,7 +1,7 @@
 # =============================================================================
 # macOS x86_64 (Intel) Platform Configuration
 # =============================================================================
-# Cross-compiled from ARM64 runners using -arch x86_64
+# Native build on Intel runners (macos-15-intel)
 
 # Platform identification
 PLATFORM := darwin-x64
@@ -45,20 +45,14 @@ endif
 # Build Tool Configuration
 # =============================================================================
 
-# pkg-config setup for cross-compilation
-# PKG_CONFIG_LIBDIR overrides default search paths (prevents finding host libs)
-# This is required for cross-compiling x86_64 from ARM64 host
+# pkg-config setup
 PKG_CONFIG := pkg-config
 PKG_CONFIG_LIBDIR := $(PREFIX)/lib/pkgconfig
 
 # CMake configuration for cmake-based codecs (x265, aom, svt-av1)
-# CMAKE_SYSTEM_PROCESSOR is required when cross-compiling from ARM64 runners
-# to x86_64 target - without it CMake detects ARM64 host and includes wrong
-# assembly code (e.g., libaom would include ARM NEON instead of x86 SSE/AVX)
 CMAKE_OPTS := \
     -DCMAKE_OSX_ARCHITECTURES=x86_64 \
     -DCMAKE_OSX_DEPLOYMENT_TARGET=$(MACOSX_DEPLOYMENT_TARGET) \
-    -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
     -DCMAKE_INSTALL_PREFIX=$(PREFIX) \
     -DCMAKE_PREFIX_PATH=$(PREFIX) \
     -DCMAKE_BUILD_TYPE=Release \
@@ -66,11 +60,7 @@ CMAKE_OPTS := \
     -DCMAKE_CXX_COMPILER=$(CXX)
 
 # Meson configuration for meson-based codecs (dav1d)
-# Cross-file required when building x86_64 on ARM64 runners - ensures Meson
-# detects x86_64 as host_machine.cpu_family() for correct assembly selection
-MESON_CROSS_FILE := $(CURDIR)/x86_64-darwin.ini
 MESON_OPTS := \
-    --cross-file=$(MESON_CROSS_FILE) \
     --prefix=$(PREFIX) \
     --libdir=lib \
     --buildtype=release \
@@ -91,12 +81,10 @@ endif
 # Homebrew Integration
 # =============================================================================
 
-# Detect Homebrew prefix (different on Intel vs ARM)
-HOMEBREW_PREFIX := $(shell brew --prefix 2>/dev/null || echo "/opt/homebrew")
+# Detect Homebrew prefix (Intel location)
+HOMEBREW_PREFIX := $(shell brew --prefix 2>/dev/null || echo "/usr/local")
 
-# Add tool paths for build tools
-# PREFIX/bin comes first so our built tools (x86_64 NASM) take precedence
-# over Homebrew's ARM64 tools when cross-compiling
+# Add tool paths
 PATH := $(PREFIX)/bin:$(HOMEBREW_PREFIX)/bin:$(PATH)
 
 # =============================================================================
