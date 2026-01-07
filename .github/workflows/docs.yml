@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   configure-help:
-    name: Extract Configure Help
+    name: extract-configure-help
     runs-on: macos-15
 
     steps:

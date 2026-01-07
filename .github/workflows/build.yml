@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Build ${{ matrix.platform }} ${{ matrix.license }}
+    name: build-${{ matrix.platform }}-${{ matrix.license }}
     runs-on: ${{ matrix.platform == 'darwin-arm64' && 'macos-15' || 'macos-15-intel' }}
     strategy:
       fail-fast: false

@@ -29,7 +29,7 @@ jobs:
   # STEP 1: Find existing artifacts from build workflow
   # ============================================================================
   find-artifacts:
-    name: Find Build Artifacts
+    name: find-build-artifacts
     runs-on: ubuntu-latest
     outputs:
       found: ${{ steps.search.outputs.found }}
@@ -114,7 +114,7 @@ jobs:
   # STEP 2: Fallback build if artifacts not found
   # ============================================================================
   build-fallback:
-    name: Build ${{ matrix.platform }} ${{ matrix.license }}
+    name: build-${{ matrix.platform }}-${{ matrix.license }}
     needs: find-artifacts
     if: needs.find-artifacts.outputs.found != 'true'
     runs-on: macos-15
@@ -164,7 +164,7 @@ jobs:
   # STEP 3: Publish to GitHub Release and npm
   # ============================================================================
   publish:
-    name: Publish
+    name: publish
     needs: [find-artifacts, build-fallback]
     if: always() && !cancelled() && needs.find-artifacts.result == 'success' && (needs.build-fallback.result == 'success' || needs.build-fallback.result == 'skipped')
     runs-on: ubuntu-latest
