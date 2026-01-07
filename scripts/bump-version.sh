@@ -51,8 +51,8 @@ main() {
     patch) pat=$((pat + 1)) ;;
   esac
 
-  readonly new="${maj}.${min}.${pat}"
-  readonly tag="v${new}"
+  local new="${maj}.${min}.${pat}"
+  local tag="v${new}"
 
   echo "${current} → ${new}"
 

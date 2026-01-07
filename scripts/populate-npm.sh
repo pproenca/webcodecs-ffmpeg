@@ -41,6 +41,23 @@ declare -Ar TIER_DESC=(
 )
 
 #######################################
+# Portable in-place sed replacement.
+# Works on both macOS (BSD sed) and Linux (GNU sed).
+# Arguments:
+#   $1 - sed expression
+#   $2 - file path
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+sed_inplace() {
+  local expr="$1"
+  local file="$2"
+  local tmp
+  tmp="$(mktemp)" || return 1
+  sed "${expr}" "${file}" > "${tmp}" && mv "${tmp}" "${file}"
+}
+
+#######################################
 # Logging functions
 # Arguments:
 #   $* - Message to log
@@ -480,8 +497,7 @@ main();
 INSTALLJS
 
   # Replace the placeholder with actual tier suffix
-  sed -i '' "s/\${TIER_SUFFIX}/${tier_suffix}/g" "${dir}/install.js" 2>/dev/null || \
-    sed -i "s/\${TIER_SUFFIX}/${tier_suffix}/g" "${dir}/install.js"
+  sed_inplace "s/\${TIER_SUFFIX}/${tier_suffix}/g" "${dir}/install.js"
 }
 
 #######################################
@@ -536,8 +552,7 @@ module.exports = {
 RESOLVEJS
 
   # Replace the placeholder with actual tier suffix
-  sed -i '' "s/\${TIER_SUFFIX}/${tier_suffix}/g" "${dir}/resolve.js" 2>/dev/null || \
-    sed -i "s/\${TIER_SUFFIX}/${tier_suffix}/g" "${dir}/resolve.js"
+  sed_inplace "s/\${TIER_SUFFIX}/${tier_suffix}/g" "${dir}/resolve.js"
 }
 
 #######################################
