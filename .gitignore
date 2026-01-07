@@ -28,5 +28,4 @@ npm-debug.log*
 .github/workflows/*.log
 
 # Planning and design documents
-docs/plans/
 *.draft.md

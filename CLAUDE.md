@@ -60,30 +60,48 @@ mise run act               # Run workflows locally
 
 ## CI/CD Workflows
 
-The repository uses a three-workflow architecture for continuous integration and release:
+The repository uses a reusable workflow architecture for consistent builds:
 
 ### Workflow Structure
+
+```
+_build.yml (reusable)     ← Single source of truth for build logic
+     │
+     ├── ci.yml           ← Calls _build.yml on push to master
+     │
+     └── release.yml      ← Calls _build.yml at release time
+```
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
 | `lint.yml` | PR to master | Land-blocking validation (actionlint, shellcheck, hadolint) |
-| `build.yml` | Push to master | Continuous builds, stores artifacts for 90 days |
-| `release.yml` | Release published | Downloads artifacts, publishes to npm/GitHub |
+| `_build.yml` | Called by other workflows | Reusable build logic (matrix, attestations, artifacts) |
+| `ci.yml` | Push to master | Continuous builds, stores artifacts for 30 days |
+| `release.yml` | Release published | Builds at tagged commit, publishes to npm/GitHub |
 
-### Build Workflow (`build.yml`)
+### Reusable Build Workflow (`_build.yml`)
 
-- **Trigger:** Push to master, manual dispatch
+- **Trigger:** `workflow_call` from ci.yml or release.yml
+- **Inputs:** `ref` (git ref to build), `retention-days` (artifact retention)
 - **Matrix:** 2 platforms × 3 licenses = 6 parallel jobs
 - **Concurrency:** Per-platform groups with cancel-in-progress
-- **Artifacts:** Tarballs + SHA256 checksums, 90-day retention
+- **Artifacts:** Tarballs + SHA256 checksums
 - **Attestations:** SLSA build provenance generated per artifact
+
+### CI Workflow (`ci.yml`)
+
+- **Trigger:** Push to master, manual dispatch
+- **Calls:** `_build.yml` with 30-day artifact retention
+- **Purpose:** Verify builds work on every commit
 
 ### Release Workflow (`release.yml`)
 
-- **Trigger:** `release.published` event or `workflow_dispatch`
-- **Artifact lookup:** Searches for build artifacts by commit SHA
-- **Fallback:** If artifacts missing/expired, triggers full rebuild
-- **Publishing:** npm workspaces with provenance, GitHub release assets
+- **Trigger:** `release.published` event or `workflow_dispatch` with tag input
+- **Steps:**
+  1. Resolve tag to commit SHA (handles lightweight and annotated tags)
+  2. Call `_build.yml` to build at that exact commit
+  3. Publish artifacts to GitHub Release and npm with provenance
+- **Artifact retention:** 90 days for release builds
 
 ### Manual Release
 
@@ -91,8 +109,8 @@ The repository uses a three-workflow architecture for continuous integration and
 # Create release via GitHub UI or:
 gh release create v0.2.0 --generate-notes
 
-# Force rebuild (ignores cached artifacts):
-gh workflow run release.yml -f tag=v0.2.0 -f force_build=true
+# Manual dispatch (useful for re-releasing):
+gh workflow run release.yml -f tag=v0.2.0
 ```
 
 ### Artifact Naming Convention

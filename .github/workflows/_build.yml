@@ -1,0 +1,105 @@
+name: Build (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        # Git ref to checkout. Empty string falls back to caller's github.sha
+        description: 'Git ref to build'
+        type: string
+        default: ''
+      retention-days:
+        description: 'Artifact retention days'
+        type: number
+        default: 30
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    name: build-${{ matrix.platform }}-${{ matrix.license }}
+    runs-on: ${{ matrix.platform == 'darwin-arm64' && 'macos-15' || 'macos-15-intel' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [darwin-arm64, darwin-x64]
+        license: [bsd, lgpl, gpl]
+
+    # Cancel in-progress builds for same platform/license/ref combination
+    # Uses inputs.ref for release builds, github.sha for CI builds
+    concurrency:
+      group: build-${{ matrix.platform }}-${{ matrix.license }}-${{ inputs.ref || github.sha }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.sha }}
+
+      - name: Cache sources
+        uses: actions/cache@v4
+        with:
+          path: build/${{ matrix.platform }}/sources
+          key: sources-${{ matrix.platform }}-${{ hashFiles('shared/versions.mk') }}
+          restore-keys: |
+            sources-${{ matrix.platform }}-
+
+      - name: Build FFmpeg
+        run: LICENSE=${{ matrix.license }} ./platforms/${{ matrix.platform }}/build.sh all
+        env:
+          DEBUG: ${{ runner.debug }}
+
+      - name: Verify binary architecture
+        run: |
+          EXPECTED_ARCH="${{ matrix.platform == 'darwin-arm64' && 'arm64' || 'x86_64' }}"
+          FFMPEG_BIN="artifacts/${{ matrix.platform }}-${{ matrix.license }}/bin/ffmpeg"
+
+          if [[ ! -f "$FFMPEG_BIN" ]]; then
+            echo "::error::Binary not found: $FFMPEG_BIN"
+            exit 1
+          fi
+
+          echo "Verifying $FFMPEG_BIN is $EXPECTED_ARCH..."
+          file "$FFMPEG_BIN"
+
+          if ! file "$FFMPEG_BIN" | grep -q "$EXPECTED_ARCH"; then
+            echo "::error::Architecture mismatch! Expected $EXPECTED_ARCH"
+            exit 1
+          fi
+
+          echo "Architecture verified: $EXPECTED_ARCH"
+
+      - name: Create tarball and checksum
+        run: |
+          TARBALL="ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz"
+
+          tar -czvf "$TARBALL" \
+            -C artifacts "${{ matrix.platform }}-${{ matrix.license }}"
+
+          # Verify tarball has reasonable size (>1MB for FFmpeg)
+          TARBALL_SIZE=$(stat -f%z "$TARBALL")
+          if [[ "$TARBALL_SIZE" -lt 1000000 ]]; then
+            echo "::error::Tarball suspiciously small: ${TARBALL_SIZE} bytes"
+            exit 1
+          fi
+          echo "Created $TARBALL (${TARBALL_SIZE} bytes)"
+
+          shasum -a 256 "$TARBALL" > "${TARBALL}.sha256"
+
+      - name: Generate build attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz'
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-${{ matrix.platform }}-${{ matrix.license }}
+          path: |
+            ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz
+            ffmpeg-${{ matrix.platform }}-${{ matrix.license }}.tar.gz.sha256
+          retention-days: ${{ inputs.retention-days }}
