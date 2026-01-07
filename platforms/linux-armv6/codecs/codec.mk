@@ -30,11 +30,6 @@ GPL_CODECS := x264 x265
 # Default to GPL (most complete)
 LICENSE ?= gpl
 
-# Map LICENSE_TIER env var to LICENSE make var
-ifdef LICENSE_TIER
-    LICENSE := $(LICENSE_TIER)
-endif
-
 # Build codec list based on license tier
 ifeq ($(LICENSE),bsd)
     ACTIVE_CODECS := $(BSD_CODECS)

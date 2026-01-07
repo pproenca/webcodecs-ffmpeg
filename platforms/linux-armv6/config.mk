@@ -44,3 +44,20 @@ MESON_OPTS := \
 
 # Number of parallel jobs
 NPROC := $(shell nproc)
+
+# =============================================================================
+# Build Tool Configuration
+# =============================================================================
+
+# pkg-config setup for consistent dependency resolution
+# PKG_CONFIG_LIBDIR replaces default search paths (prevents finding wrong libs)
+PKG_CONFIG := pkg-config
+PKG_CONFIG_LIBDIR := $(PREFIX)/lib/pkgconfig
+
+# =============================================================================
+# Export Variables
+# =============================================================================
+
+export CC CXX
+export CFLAGS CXXFLAGS LDFLAGS
+export PKG_CONFIG PKG_CONFIG_LIBDIR
