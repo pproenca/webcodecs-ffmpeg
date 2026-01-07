@@ -282,8 +282,31 @@ jobs:
             artifacts-download/*.tar.gz \
             artifacts-download/*.sha256 --clobber
 
-      - name: Publish to npm
-        working-directory: npm
-        run: npm publish --workspaces --access public --provenance
+      - name: Publish to npm (sequential to avoid E409)
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd npm
+
+          # Publish sequentially to avoid npm registry race condition (E409)
+          # Platform packages first (dependencies for meta packages)
+          for pkg in darwin-arm64 darwin-arm64-lgpl darwin-arm64-gpl \
+                     darwin-x64 darwin-x64-lgpl darwin-x64-gpl; do
+            echo "Publishing $pkg..."
+            npm publish -w "$pkg" --access public --provenance
+            sleep 2  # Let registry process before next publish
+          done
+
+          # Dev package (headers only, independent)
+          echo "Publishing dev..."
+          npm publish -w dev --access public --provenance
+          sleep 2
+
+          # Meta packages last (have optionalDependencies on platform packages)
+          for pkg in ffmpeg ffmpeg-lgpl ffmpeg-gpl; do
+            echo "Publishing $pkg..."
+            npm publish -w "$pkg" --access public --provenance
+            sleep 2
+          done
+
+          echo "All packages published successfully"
