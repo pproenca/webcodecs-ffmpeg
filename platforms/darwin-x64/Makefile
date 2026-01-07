@@ -167,6 +167,9 @@ package: ffmpeg.stamp
 	@cp -a $(PREFIX)/bin/ffprobe $(ARTIFACTS_DIR)/bin/
 	@# Copy static libraries
 	@cp -a $(PREFIX)/lib/*.a $(ARTIFACTS_DIR)/lib/ 2>/dev/null || true
+	@# Copy pkg-config files for native addon development
+	@mkdir -p $(ARTIFACTS_DIR)/lib/pkgconfig
+	@cp -a $(PREFIX)/lib/pkgconfig/*.pc $(ARTIFACTS_DIR)/lib/pkgconfig/ 2>/dev/null || true
 	@# Copy headers
 	@cp -a $(PREFIX)/include/* $(ARTIFACTS_DIR)/include/
 	@# Generate version info with license metadata

@@ -161,6 +161,7 @@ generate_platform_package_json() {
   "type": "commonjs",
   "exports": {
     "./lib": "./lib/index.js",
+    "./pkgconfig": "./lib/pkgconfig/index.js",
     "./package": "./package.json",
     "./versions": "./versions.json"
   },
@@ -209,6 +210,13 @@ populate_platform() {
 
   if [[ -d "${artifacts_src}/lib" ]]; then
     cp -a "${artifacts_src}/lib/"*.a "${npm_dest}/lib/" 2>/dev/null || true
+  fi
+
+  # Copy pkg-config files for native addon development
+  if [[ -d "${artifacts_src}/lib/pkgconfig" ]]; then
+    mkdir -p "${npm_dest}/lib/pkgconfig"
+    cp -a "${artifacts_src}/lib/pkgconfig/"*.pc "${npm_dest}/lib/pkgconfig/" 2>/dev/null || true
+    generate_index_js "${npm_dest}/lib/pkgconfig"
   fi
 
   generate_index_js "${npm_dest}/lib"
@@ -261,6 +269,21 @@ populate_dev() {
   cp -a "${header_src}/"* "${dev_dir}/include/" 2>/dev/null || true
   generate_index_js "${dev_dir}/include"
 
+  # Generate gyp-config.js helper for binding.gyp
+  cat >"${dev_dir}/gyp-config.js" <<'GYPCONFIG'
+/**
+ * Helper for binding.gyp to resolve FFmpeg include paths.
+ *
+ * Usage in binding.gyp:
+ *   "include_dirs": ["<!(node -p \"require('@pproenca/ffmpeg-dev/gyp-config').include\")"]
+ */
+const path = require('path');
+
+module.exports = {
+  include: path.join(__dirname, 'include')
+};
+GYPCONFIG
+
   cat >"${dev_dir}/package.json" <<EOF
 {
   "name": "@pproenca/ffmpeg-dev",
@@ -278,11 +301,13 @@ populate_dev() {
     "access": "public"
   },
   "files": [
-    "include"
+    "include",
+    "gyp-config.js"
   ],
   "type": "commonjs",
   "exports": {
     "./include": "./include/index.js",
+    "./gyp-config": "./gyp-config.js",
     "./package": "./package.json"
   }
 }
@@ -351,6 +376,15 @@ generate_meta_package_json() {
   "license": "${license}",
   "publishConfig": {
     "access": "public"
+  },
+  "files": [
+    "install.js",
+    "resolve.js"
+  ],
+  "type": "commonjs",
+  "exports": {
+    "./resolve": "./resolve.js",
+    "./package": "./package.json"
   },
   "scripts": {
     "postinstall": "node install.js"
@@ -451,6 +485,62 @@ INSTALLJS
 }
 
 #######################################
+# Generate resolve.js helper for binding.gyp to find platform package paths.
+# Arguments:
+#   $1 - Directory where resolve.js will be created
+#   $2 - Tier (bsd, lgpl, gpl)
+# Outputs:
+#   Creates resolve.js at the specified path
+#######################################
+generate_meta_resolve_js() {
+  local dir="$1"
+  local tier="$2"
+
+  local tier_suffix=""
+  if [[ "${tier}" != "bsd" ]]; then
+    tier_suffix="-${tier}"
+  fi
+
+  cat >"${dir}/resolve.js" <<'RESOLVEJS'
+/**
+ * Resolves platform-specific package paths for binding.gyp.
+ *
+ * Usage in binding.gyp:
+ *   "library_dirs": ["<!(node -p \"require('@pproenca/ffmpeg-gpl/resolve').lib\")"]
+ *   PKG_CONFIG_PATH: "<!(node -p \"require('@pproenca/ffmpeg-gpl/resolve').pkgconfig\")"
+ */
+const os = require('os');
+const path = require('path');
+
+const TIER_SUFFIX = '${TIER_SUFFIX}';
+
+function getPlatformPkgPath() {
+  const platform = os.platform();
+  const arch = os.arch();
+  const pkgName = `@pproenca/ffmpeg-${platform}-${arch}${TIER_SUFFIX}`;
+  try {
+    return path.dirname(require.resolve(`${pkgName}/lib`));
+  } catch (e) {
+    throw new Error(`Platform package not found: ${pkgName}. Install it with: npm install ${pkgName}`);
+  }
+}
+
+module.exports = {
+  get lib() {
+    return path.join(getPlatformPkgPath(), 'lib');
+  },
+  get pkgconfig() {
+    return path.join(getPlatformPkgPath(), 'lib', 'pkgconfig');
+  }
+};
+RESOLVEJS
+
+  # Replace the placeholder with actual tier suffix
+  sed -i '' "s/\${TIER_SUFFIX}/${tier_suffix}/g" "${dir}/resolve.js" 2>/dev/null || \
+    sed -i "s/\${TIER_SUFFIX}/${tier_suffix}/g" "${dir}/resolve.js"
+}
+
+#######################################
 # Populate meta packages that auto-select platform binaries.
 # Globals:
 #   NPM_DIR
@@ -472,6 +562,7 @@ populate_meta_packages() {
     mkdir -p "${meta_dir}"
     generate_meta_package_json "${meta_dir}" "${tier}"
     generate_meta_install_js "${meta_dir}" "${tier}"
+    generate_meta_resolve_js "${meta_dir}" "${tier}"
 
     log_info "  -> Created ${npm_subdir} meta package"
   done
