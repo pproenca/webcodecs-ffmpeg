@@ -91,10 +91,25 @@ jobs:
           echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
           echo "Releasing $TAG at commit $COMMIT"
 
-  # Job 2: Check for existing CI artifacts (REQUIRED - no fallback build)
+  # Job 2: Wait for CI workflow to complete (if still running)
+  wait-for-ci:
+    name: wait-for-ci
+    needs: prepare
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for CI workflow
+        uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ needs.prepare.outputs.commit }}
+          repo-token: ${{ github.token }}
+          check-regexp: '^build \(.*\)$'
+          wait-interval: 30
+          allowed-conclusions: success
+
+  # Job 3: Check for existing CI artifacts (REQUIRED - no fallback build)
   check-artifacts:
     name: check-artifacts
-    needs: prepare
+    needs: [prepare, wait-for-ci]
     runs-on: ubuntu-latest
     outputs:
       run_id: ${{ steps.search.outputs.run_id }}
@@ -140,7 +155,7 @@ jobs:
           echo "All 6 artifacts found in CI run $RUN_ID"
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
-  # Job 3: Create tag, GitHub Release, and publish to npm
+  # Job 4: Create tag, GitHub Release, and publish to npm
   publish:
     name: publish
     needs: [prepare, check-artifacts]

@@ -72,15 +72,18 @@ Push to master
                                               │
                                               │ (required for release)
                                               ▼
-workflow_dispatch ──► release.yml ──► Check for CI artifacts
+workflow_dispatch ──► release.yml ──► Wait for CI (if running)
 (bump_type dropdown)       │                  │
+                           │                  ▼
+                           │          Check for CI artifacts
+                           │                  │
                            │          ┌───────┴───────┐
                            │          ▼               ▼
-                           │       Found?          Missing?
+                           │       Found?          Missing/Expired?
                            │          │               │
                            │          ▼               ▼
                            │      Download         FAIL
-                           │          │          (must wait for CI)
+                           │          │
                            │          ▼
                            └─► Create tag + GitHub Release
                                       │
@@ -93,7 +96,7 @@ workflow_dispatch ──► release.yml ──► Check for CI artifacts
 | `lint.yml` | PR to master | Land-blocking validation (actionlint, shellcheck, hadolint) |
 | `_build.yml` | Called by other workflows | Reusable build logic (matrix, attestations, artifacts) |
 | `ci.yml` | Push to master | Continuous builds, stores artifacts for 30 days |
-| `release.yml` | Manual dispatch with bump_type | One-click release: creates tag, reuses CI artifacts, publishes |
+| `release.yml` | Manual dispatch with bump_type | One-click release: waits for CI, creates tag, reuses CI artifacts, publishes |
 
 ### Reusable Build Workflow (`_build.yml`)
 
@@ -118,12 +121,13 @@ workflow_dispatch ──► release.yml ──► Check for CI artifacts
 - **Steps:**
   1. Calculate new version from latest tag based on bump_type
   2. Find HEAD commit
-  3. Search for successful CI run at that commit
-  4. If artifacts found: download from CI run
-  5. If artifacts missing/expired: **FAIL** (push to master and wait for CI first)
-  6. Create git tag and push to origin
-  7. Create GitHub Release with auto-generated notes
-  8. Publish artifacts to GitHub Release and npm with provenance
+  3. Wait for CI workflow to complete (if still running)
+  4. Search for successful CI run at that commit
+  5. If artifacts found: download from CI run
+  6. If artifacts missing/expired: **FAIL** (re-run CI workflow first)
+  7. Create git tag and push to origin
+  8. Create GitHub Release with auto-generated notes
+  9. Publish artifacts to GitHub Release and npm with provenance
 - **Re-release:** Enter existing tag in the optional `tag` field to republish
 
 ### One-Click Release
@@ -136,6 +140,7 @@ workflow_dispatch ──► release.yml ──► Check for CI artifacts
 
 The workflow automatically:
 - Calculates new version (e.g., 0.1.3 → 0.1.4 for patch)
+- Waits for CI to complete (if still running)
 - Verifies CI artifacts exist at HEAD
 - Creates and pushes git tag
 - Creates GitHub Release with auto-generated notes
