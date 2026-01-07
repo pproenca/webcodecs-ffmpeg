@@ -153,6 +153,16 @@ FFMPEG_CONFIGURE_OPTS := $(FFMPEG_BASE_OPTS) $(FFMPEG_LICENSE_OPTS)
 ffmpeg.stamp: dirs $(addsuffix .stamp,$(ACTIVE_CODECS))
 	$(call log_info,Building FFmpeg $(FFMPEG_VERSION) [$(LICENSE) tier]...)
 	$(call download_and_extract,ffmpeg,$(FFMPEG_URL),$(SOURCES_DIR))
+	@echo "=== DEBUG: pkg-config environment ==="
+	@echo "PKG_CONFIG_LIBDIR=$(PREFIX)/lib/pkgconfig"
+	@ls -la $(PREFIX)/lib/pkgconfig/*.pc 2>/dev/null | head -20 || echo "No .pc files found"
+	@echo "=== DEBUG: pkg-config x265 test ==="
+	@PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" pkg-config --exists x265 && echo "x265 EXISTS" || echo "x265 NOT FOUND"
+	@PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" pkg-config --modversion x265 2>&1 || echo "modversion failed"
+	@PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" pkg-config --static --libs x265 2>&1 || echo "static libs failed"
+	@echo "=== DEBUG: x265.pc contents ==="
+	@cat $(PREFIX)/lib/pkgconfig/x265.pc 2>/dev/null || echo "x265.pc not found"
+	@echo "=== END DEBUG ==="
 	cd $(FFMPEG_SRC) && \
 		PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" \
 		./configure \
