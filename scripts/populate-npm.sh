@@ -60,10 +60,10 @@ readonly LICENSES_DIR="${PROJECT_ROOT}/licenses"
 sed_inplace() {
   local -r expr="$1"
   local -r file="$2"
-  local tmp
+  local tmp=""
   tmp="$(mktemp)" || return 1
-  # Ensure cleanup on any exit path
-  trap 'rm -f "${tmp}"' RETURN
+  # shellcheck disable=SC2064
+  trap "rm -f '${tmp}'" RETURN
   sed "${expr}" "${file}" > "${tmp}" && mv "${tmp}" "${file}"
 }
 
