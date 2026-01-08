@@ -153,20 +153,24 @@ FFMPEG_CONFIGURE_OPTS := $(FFMPEG_BASE_OPTS) $(FFMPEG_LICENSE_OPTS)
 ffmpeg.stamp: dirs $(addsuffix .stamp,$(ACTIVE_CODECS))
 	$(call log_info,Building FFmpeg $(FFMPEG_VERSION) [$(LICENSE) tier]...)
 	$(call download_and_extract,ffmpeg,$(FFMPEG_URL),$(SOURCES_DIR))
-	@echo "=== DEBUG: pkg-config environment ==="
-	@echo "PKG_CONFIG_LIBDIR=$(PREFIX)/lib/pkgconfig"
-	@ls -la $(PREFIX)/lib/pkgconfig/*.pc 2>/dev/null | head -20 || echo "No .pc files found"
-	@echo "=== DEBUG: pkg-config x265 test ==="
-	@PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" pkg-config --exists x265 && echo "x265 EXISTS" || echo "x265 NOT FOUND"
-	@PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" pkg-config --modversion x265 2>&1 || echo "modversion failed"
-	@PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" pkg-config --static --libs x265 2>&1 || echo "static libs failed"
-	@echo "=== DEBUG: x265.pc contents ==="
-	@cat $(PREFIX)/lib/pkgconfig/x265.pc 2>/dev/null || echo "x265.pc not found"
-	@echo "=== END DEBUG ==="
+	@# Create pkg-config wrapper that logs all calls and sets PKG_CONFIG_LIBDIR
+	@echo '#!/bin/sh' > $(BUILD_DIR)/pkg-config-wrapper
+	@echo 'echo "[pkg-config] args: $$@" >&2' >> $(BUILD_DIR)/pkg-config-wrapper
+	@echo 'export PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig"' >> $(BUILD_DIR)/pkg-config-wrapper
+	@echo 'result=$$(pkg-config "$$@" 2>&1)' >> $(BUILD_DIR)/pkg-config-wrapper
+	@echo 'exitcode=$$?' >> $(BUILD_DIR)/pkg-config-wrapper
+	@echo 'echo "[pkg-config] result: $$result (exit: $$exitcode)" >&2' >> $(BUILD_DIR)/pkg-config-wrapper
+	@echo 'echo "$$result"' >> $(BUILD_DIR)/pkg-config-wrapper
+	@echo 'exit $$exitcode' >> $(BUILD_DIR)/pkg-config-wrapper
+	@chmod +x $(BUILD_DIR)/pkg-config-wrapper
+	@echo "=== pkg-config wrapper created ==="
+	@cat $(BUILD_DIR)/pkg-config-wrapper
+	@echo "=== Testing wrapper with x265 ==="
+	@$(BUILD_DIR)/pkg-config-wrapper --exists x265 && echo "x265 EXISTS via wrapper" || echo "x265 NOT FOUND via wrapper"
 	cd $(FFMPEG_SRC) && \
-		PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" \
 		./configure \
 			$(FFMPEG_CONFIGURE_OPTS) \
+			--pkg-config=$(BUILD_DIR)/pkg-config-wrapper \
 			--pkg-config-flags="--static" \
 			--extra-cflags="-I$(PREFIX)/include $(CFLAGS)" \
 			--extra-ldflags="-L$(PREFIX)/lib $(LDFLAGS)" \
