@@ -152,7 +152,7 @@ ffmpeg.stamp: dirs $(addsuffix .stamp,$(ACTIVE_CODECS))
 			--pkg-config-flags="--static" \
 			--extra-cflags="-I$(PREFIX)/include $(CFLAGS)" \
 			--extra-ldflags="-L$(PREFIX)/lib $(LDFLAGS)" \
-			--extra-libs="-lpthread -lm -lstdc++" && \
+			--extra-libs="-lpthread -lm -lstdc++ -ldl" && \
 		$(MAKE) -j$(NPROC) && \
 		$(MAKE) install
 	@touch $(STAMPS_DIR)/$@
