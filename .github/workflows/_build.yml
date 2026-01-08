@@ -23,7 +23,7 @@ jobs:
     name: build-${{ matrix.platform }}-${{ matrix.license }}
     runs-on: ${{ matrix.runner }}
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         # Define arrays for cartesian product (4 platforms × 3 licenses = 12 jobs)
         platform: [darwin-arm64, darwin-x64, linux-x64, linux-arm64]

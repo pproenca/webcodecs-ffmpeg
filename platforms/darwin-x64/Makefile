@@ -166,17 +166,12 @@ ffmpeg: ffmpeg.stamp
 package: ffmpeg.stamp
 	$(call log_info,Packaging $(LICENSE) tier artifacts to $(ARTIFACTS_DIR)...)
 	@mkdir -p $(ARTIFACTS_DIR)/bin $(ARTIFACTS_DIR)/lib $(ARTIFACTS_DIR)/include
-	@# Copy binaries
 	@cp -a $(PREFIX)/bin/ffmpeg $(ARTIFACTS_DIR)/bin/
 	@cp -a $(PREFIX)/bin/ffprobe $(ARTIFACTS_DIR)/bin/
-	@# Copy static libraries
 	@cp -a $(PREFIX)/lib/*.a $(ARTIFACTS_DIR)/lib/ 2>/dev/null || true
-	@# Copy pkg-config files for native addon development
 	@mkdir -p $(ARTIFACTS_DIR)/lib/pkgconfig
 	@cp -a $(PREFIX)/lib/pkgconfig/*.pc $(ARTIFACTS_DIR)/lib/pkgconfig/ 2>/dev/null || true
-	@# Copy headers
 	@cp -a $(PREFIX)/include/* $(ARTIFACTS_DIR)/include/
-	@# Generate version info with license metadata
 	@echo '{"ffmpeg": "$(FFMPEG_VERSION)", "platform": "$(PLATFORM)", "license": "$(LICENSE_LABEL)", "tier": "$(LICENSE)", "codecs": "$(ACTIVE_CODECS)"}' > $(ARTIFACTS_DIR)/versions.json
 	$(call log_info,Artifacts packaged successfully)
 
@@ -201,7 +196,6 @@ verify: package
 	@echo ""
 	@echo "=== Dynamic Library Dependencies ==="
 	@otool -L $(ARTIFACTS_DIR)/bin/ffmpeg
-	@# Verify only expected system libs are dynamically linked (libSystem, libc++, libresolv)
 	@if otool -L $(ARTIFACTS_DIR)/bin/ffmpeg | tail -n +2 | grep -vE "^\s+/usr/lib/(libSystem|libc\+\+|libresolv)" | grep -q .; then \
 		echo "✗ WARNING: Unexpected dynamic libraries found"; \
 	else \

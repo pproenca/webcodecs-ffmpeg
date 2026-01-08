@@ -23,9 +23,8 @@ readonly TIERS=(bsd lgpl gpl)
 declare -Ar PLATFORM_MAP=(
   ["darwin-arm64"]="darwin-arm64"
   ["darwin-x64"]="darwin-x64"
-  # Future platforms:
-  # ["linux-x64"]="linux-x64"
-  # ["linux-arm64"]="linux-arm64"
+  ["linux-arm64"]="linux-arm64"
+  ["linux-x64"]="linux-x64"
 )
 
 declare -Ar LICENSE_MAP=(
@@ -644,7 +643,7 @@ main() {
 
   # Always regenerate workspaces to match current structure
   # Meta packages: ffmpeg (BSD default), ffmpeg-lgpl, ffmpeg-gpl
-  # Platform packages: darwin-arm64, darwin-x64 (BSD, LGPL, GPL tiers)
+  # Platform packages: darwin-*, linux-* (BSD, LGPL, GPL tiers)
   cat >"${NPM_DIR}/package.json" <<'EOF'
 {
   "private": true,
@@ -658,7 +657,13 @@ main() {
     "darwin-arm64-gpl",
     "darwin-x64",
     "darwin-x64-lgpl",
-    "darwin-x64-gpl"
+    "darwin-x64-gpl",
+    "linux-arm64",
+    "linux-arm64-lgpl",
+    "linux-arm64-gpl",
+    "linux-x64",
+    "linux-x64-lgpl",
+    "linux-x64-gpl"
   ]
 }
 EOF

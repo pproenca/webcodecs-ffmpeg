@@ -30,6 +30,12 @@ env:
     ffmpeg-darwin-x64-bsd
     ffmpeg-darwin-x64-lgpl
     ffmpeg-darwin-x64-gpl
+    ffmpeg-linux-arm64-bsd
+    ffmpeg-linux-arm64-lgpl
+    ffmpeg-linux-arm64-gpl
+    ffmpeg-linux-x64-bsd
+    ffmpeg-linux-x64-lgpl
+    ffmpeg-linux-x64-gpl
 
 jobs:
   # Job 1: Calculate version and resolve commit
@@ -102,7 +108,7 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.commit }}
           repo-token: ${{ github.token }}
-          check-regexp: '^build \(.*\)$'
+          check-regexp: '^build / build-'
           wait-interval: 30
           allowed-conclusions: success
 
@@ -152,7 +158,7 @@ jobs:
             exit 1
           fi
 
-          echo "All 6 artifacts found in CI run $RUN_ID"
+          echo "All 12 artifacts found in CI run $RUN_ID"
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
 
   # Job 4: Create tag, GitHub Release, and publish to npm
@@ -213,7 +219,7 @@ jobs:
       - name: Verify all artifacts present
         run: |
           cd artifacts-download
-          EXPECTED=6  # 2 platforms × 3 licenses
+          EXPECTED=12  # 4 platforms × 3 licenses
           shopt -s nullglob
           tarballs=(./*.tar.gz)
           ACTUAL=${#tarballs[@]}
@@ -306,7 +312,9 @@ jobs:
           # Publish sequentially to avoid npm registry race condition (E409)
           # Platform packages first (dependencies for meta packages)
           for pkg in darwin-arm64 darwin-arm64-lgpl darwin-arm64-gpl \
-                     darwin-x64 darwin-x64-lgpl darwin-x64-gpl; do
+                     darwin-x64 darwin-x64-lgpl darwin-x64-gpl \
+                     linux-arm64 linux-arm64-lgpl linux-arm64-gpl \
+                     linux-x64 linux-x64-lgpl linux-x64-gpl; do
             echo "Publishing $pkg..."
             npm publish -w "$pkg" --access public --provenance
             sleep 2  # Let registry process before next publish
