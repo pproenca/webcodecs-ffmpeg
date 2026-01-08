@@ -93,6 +93,10 @@ AOM_TARGET_CPU := arm64
 # Architecture pattern for file command verification
 ARCH_VERIFY_PATTERN := aarch64
 
+# FFmpeg extra libraries for linking
+# Linux requires -ldl for x265's dlopen() usage
+FFMPEG_EXTRA_LIBS := -lpthread -lm -lstdc++ -ldl
+
 # =============================================================================
 # Export Variables
 # =============================================================================

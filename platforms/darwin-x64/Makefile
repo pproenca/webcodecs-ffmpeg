@@ -49,6 +49,7 @@ ARTIFACTS_DIR := $(PROJECT_ROOT)/artifacts/$(PLATFORM)-$(LICENSE)
 include $(PROJECT_ROOT)/shared/versions.mk
 include $(PROJECT_ROOT)/shared/common.mk
 include $(ROOT_DIR)/config.mk
+include $(PROJECT_ROOT)/shared/verify.mk
 include $(PROJECT_ROOT)/shared/codecs/pkgconfig.mk
 include $(PROJECT_ROOT)/shared/codecs/codec.mk
 
@@ -79,13 +80,22 @@ endif
 
 .DEFAULT_GOAL := all
 
-.PHONY: all ffmpeg package verify clean distclean help dirs
+.PHONY: all ffmpeg package verify clean distclean help dirs preflight
 
 all: package verify
 	$(call log_info,Build complete: $(ARTIFACTS_DIR))
 
 dirs:
 	@mkdir -p $(BUILD_DIR) $(PREFIX) $(SOURCES_DIR) $(STAMPS_DIR) $(ARTIFACTS_DIR)
+
+# =============================================================================
+# Preflight Checks
+# =============================================================================
+# Verify toolchain and environment before expensive builds.
+
+preflight: dirs
+	$(call verify_arch_toolchain,$(BUILD_DIR),$(CC),$(CFLAGS),$(ARCH_VERIFY_PATTERN))
+	$(call verify_pkgconfig_isolation,$(PREFIX)/lib/pkgconfig)
 
 # =============================================================================
 # FFmpeg Build
@@ -144,6 +154,7 @@ FFMPEG_CONFIGURE_OPTS := $(FFMPEG_BASE_OPTS) $(FFMPEG_LICENSE_OPTS)
 
 ffmpeg.stamp: dirs $(addsuffix .stamp,$(ACTIVE_CODECS))
 	$(call log_info,Building FFmpeg $(FFMPEG_VERSION) [$(LICENSE) tier]...)
+	$(call verify_codecs_available,$(PREFIX)/lib/pkgconfig,$(CODEC_PKGCONFIG_NAMES))
 	$(call download_and_extract,ffmpeg,$(FFMPEG_URL),$(SOURCES_DIR))
 	cd $(FFMPEG_SRC) && \
 		PKG_CONFIG_LIBDIR="$(PREFIX)/lib/pkgconfig" \
@@ -152,7 +163,7 @@ ffmpeg.stamp: dirs $(addsuffix .stamp,$(ACTIVE_CODECS))
 			--pkg-config-flags="--static" \
 			--extra-cflags="-I$(PREFIX)/include $(CFLAGS)" \
 			--extra-ldflags="-L$(PREFIX)/lib $(LDFLAGS)" \
-			--extra-libs="-lpthread -lm -lc++" && \
+			--extra-libs="$(FFMPEG_EXTRA_LIBS)" && \
 		$(MAKE) -j$(NPROC) && \
 		$(MAKE) install
 	@touch $(STAMPS_DIR)/$@

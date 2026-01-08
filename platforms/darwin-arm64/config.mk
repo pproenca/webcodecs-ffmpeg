@@ -115,6 +115,10 @@ AOM_TARGET_CPU :=
 # Architecture pattern for file command verification
 ARCH_VERIFY_PATTERN := arm64
 
+# FFmpeg extra libraries for linking
+# macOS includes dlopen in libSystem, so no -ldl needed
+FFMPEG_EXTRA_LIBS := -lpthread -lm -lc++
+
 # =============================================================================
 # Export Variables
 # =============================================================================

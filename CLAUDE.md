@@ -460,3 +460,91 @@ if ! $pkg_config --version; then
 **Why this is safe:** `PKG_CONFIG_LIBDIR` still controls which `.pc` files are found. The native pkg-config only looks in our build prefix, maintaining cross-compilation isolation.
 
 **Reference:** [FFmpeg-devel: Fix pkg-config detection with cross-prefix](https://ffmpeg.org/pipermail/ffmpeg-devel/2012-June/126683.html)
+
+## Build System Guardrails
+
+Layered verification to catch build issues early with actionable error messages. Defined in `shared/verify.mk`.
+
+### Verification Layers
+
+| Layer | When | What | Catches |
+|-------|------|------|---------|
+| 0. Parse-Time | Makefile parsing | Immutable refs, required vars | Mutable git refs causing stale cache |
+| 1. Preflight | `make preflight` | Toolchain arch, pkg-config isolation | Wrong arch toolchain, env issues |
+| 2. Post-Codec | After each codec builds | Library exists, correct arch | Silent build failures |
+| 3. Pre-Configure | Before FFmpeg configure | All codecs available | Missing codecs before 30-min build |
+| 4. Post-Build | `make verify` | Binary arch, static linkage | Runtime issues, dynamic deps |
+
+### Running Preflight Checks
+
+```bash
+# Verify toolchain and environment before building
+make -C platforms/darwin-arm64 preflight
+
+# Preflight checks:
+#   ✓ Toolchain produces correct architecture
+#   ✓ pkg-config isolation (doesn't find system libs)
+```
+
+### Common Error Messages
+
+**Wrong architecture toolchain:**
+```
+ERROR: Toolchain produces wrong architecture
+
+  Diagnosis:
+    Expected: aarch64
+    Got: Mach-O 64-bit executable x86_64
+
+  Fix: Check CC and CFLAGS in config.mk
+       For cross-compile: verify CROSS_PREFIX is set
+```
+
+**Missing codec before FFmpeg:**
+```
+ERROR: Some codecs not available for FFmpeg
+
+  [FAIL] x265 not found
+  [OK] x264
+  [OK] aom
+
+  PKG_CONFIG_LIBDIR=/build/prefix/lib/pkgconfig
+
+  Available .pc files:
+    aom.pc
+    x264.pc
+
+  Fix: Build missing codecs first with 'make codecs'
+```
+
+**Mutable ref in versions.mk:**
+```
+*** x264 uses mutable ref 'stable'. Pin to commit hash for cache correctness.  Stop.
+```
+
+### Adding Verification to New Codecs
+
+When adding a new codec, include post-build verification before the stamp:
+
+```makefile
+mycodec.stamp:
+    # ... build steps ...
+    $(call verify_static_lib,libmycodec,$(PREFIX))
+    $(call verify_pkgconfig,mycodec,$(PREFIX))
+    @touch $(STAMPS_DIR)/$@
+```
+
+### Platform-Specific Variables
+
+Each platform's `config.mk` defines:
+
+| Variable | Purpose | Example |
+|----------|---------|---------|
+| `ARCH_VERIFY_PATTERN` | Pattern for `file` command verification | `arm64`, `aarch64`, `x86-64` |
+| `FFMPEG_EXTRA_LIBS` | Platform-specific link libraries | `-lpthread -lm -lc++` (darwin) |
+
+Linux platforms require `-ldl` for x265's `dlopen()` usage:
+```makefile
+# platforms/linux-*/config.mk
+FFMPEG_EXTRA_LIBS := -lpthread -lm -lstdc++ -ldl
+```
