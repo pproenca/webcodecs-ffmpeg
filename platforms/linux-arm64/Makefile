@@ -174,9 +174,9 @@ ffmpeg.stamp: dirs $(addsuffix .stamp,$(ACTIVE_CODECS))
 			--pkg-config-flags="--static" \
 			--extra-cflags="-I$(PREFIX)/include $(CFLAGS)" \
 			--extra-ldflags="-L$(PREFIX)/lib $(LDFLAGS)" \
-			--extra-libs="-lpthread -lm -lstdc++" && \
-		$(MAKE) -j$(NPROC) && \
-		$(MAKE) install
+			--extra-libs="-lpthread -lm -lstdc++" \
+		|| { echo "=== CONFIGURE FAILED - config.log tail ==="; tail -100 ffbuild/config.log; exit 1; }
+	cd $(FFMPEG_SRC) && $(MAKE) -j$(NPROC) && $(MAKE) install
 	@touch $(STAMPS_DIR)/$@
 
 ffmpeg: ffmpeg.stamp
