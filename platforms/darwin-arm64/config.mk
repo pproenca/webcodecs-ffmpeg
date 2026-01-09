@@ -15,6 +15,7 @@ CC := clang
 CXX := clang++
 AR := ar
 RANLIB := ranlib
+STRIP := strip
 
 # macOS SDK path
 SDKROOT := $(shell xcrun --show-sdk-path 2>/dev/null || echo "")
@@ -123,7 +124,7 @@ FFMPEG_EXTRA_LIBS := -lpthread -lm -lc++
 # Export Variables
 # =============================================================================
 
-export CC CXX AR RANLIB
+export CC CXX AR RANLIB STRIP
 export CFLAGS CXXFLAGS LDFLAGS
 export PKG_CONFIG PKG_CONFIG_LIBDIR
 export MACOSX_DEPLOYMENT_TARGET

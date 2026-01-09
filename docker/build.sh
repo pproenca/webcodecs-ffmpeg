@@ -23,29 +23,11 @@ set -euo pipefail
 # Resolve script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+readonly SCRIPT_DIR PROJECT_ROOT
 
-# =============================================================================
-# Colors
-# =============================================================================
-
-if [[ -t 1 ]]; then
-  readonly RED='\033[0;31m'
-  readonly GREEN='\033[0;32m'
-  readonly YELLOW='\033[1;33m'
-  readonly BLUE='\033[0;34m'
-  readonly NC='\033[0m'
-else
-  readonly RED=''
-  readonly GREEN=''
-  readonly YELLOW=''
-  readonly BLUE=''
-  readonly NC=''
-fi
-
-log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
-log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
-log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
+# Source shared libraries
+source "${PROJECT_ROOT}/scripts/lib/logging.sh"
+source "${PROJECT_ROOT}/scripts/lib/common.sh"
 
 # =============================================================================
 # Configuration
@@ -65,9 +47,11 @@ fi
 case "$PLATFORM" in
   linux-x64)
     DOCKER_TARGET="builder-x64"
+    EXPECTED_ARCH="x86-64"
     ;;
   linux-arm64)
     DOCKER_TARGET="builder-arm64"
+    EXPECTED_ARCH="aarch64"
     ;;
   *)
     log_error "Unknown platform: $PLATFORM"
@@ -76,31 +60,13 @@ case "$PLATFORM" in
     ;;
 esac
 
-# Backwards compatibility: map old values to new
-case "$LICENSE" in
-  bsd|lgpl)
-    log_warn "DEPRECATION: LICENSE=$LICENSE is deprecated. Use LICENSE=free instead."
-    LICENSE="free"
-    ;;
-  gpl)
-    log_warn "DEPRECATION: LICENSE=gpl is deprecated. Use LICENSE=non-free instead."
-    LICENSE="non-free"
-    ;;
-esac
-
-# Validate license
-if [[ ! "$LICENSE" =~ ^(free|non-free)$ ]]; then
-  log_error "Invalid LICENSE=$LICENSE. Must be: free, non-free"
-  exit 1
-fi
+# Normalize license
+LICENSE="$(normalize_license "$LICENSE")" || exit 1
 
 # =============================================================================
 # Docker Functions
 # =============================================================================
 
-#######################################
-# Check if Docker is available and running.
-#######################################
 check_docker() {
   if ! command -v docker &>/dev/null; then
     log_error "Docker is not installed"
@@ -114,9 +80,6 @@ check_docker() {
   fi
 }
 
-#######################################
-# Build the Docker image for the platform.
-#######################################
 build_image() {
   local image_name="ffmpeg-build:${PLATFORM}"
 
@@ -129,10 +92,7 @@ build_image() {
     "${PROJECT_ROOT}"
 }
 
-#######################################
-# Run the build inside Docker container.
-#######################################
-run_build() {
+run_docker_build() {
   local image_name="ffmpeg-build:${PLATFORM}"
 
   log_step "Running build in container..."
@@ -140,11 +100,6 @@ run_build() {
   log_info "Target: ${TARGET}"
   log_info "License: ${LICENSE}"
 
-  # Run build with project mounted
-  # --rm: Remove container after exit
-  # -v: Mount project directory
-  # -e: Pass environment variables
-  # -w: Set working directory
   docker run --rm \
     -v "${PROJECT_ROOT}:/build:rw" \
     -e "LICENSE=${LICENSE}" \
@@ -154,10 +109,7 @@ run_build() {
     make -C "/build/platforms/${PLATFORM}" LICENSE="${LICENSE}" "${TARGET}"
 }
 
-#######################################
-# Verify the build output.
-#######################################
-verify_build() {
+verify_docker_build() {
   local artifacts_dir="${PROJECT_ROOT}/artifacts/${PLATFORM}-${LICENSE}"
   local ffmpeg_bin="${artifacts_dir}/bin/ffmpeg"
 
@@ -168,28 +120,9 @@ verify_build() {
 
   log_step "Verifying build..."
 
-  # Verify architecture
-  local expected_arch
-  case "$PLATFORM" in
-    linux-x64)
-      expected_arch="x86-64"
-      ;;
-    linux-arm64)
-      expected_arch="aarch64"
-      ;;
-  esac
-
-  local file_output
-  file_output="$(file "$ffmpeg_bin")"
-
-  if ! echo "$file_output" | grep -qi "$expected_arch"; then
-    log_error "Architecture mismatch!"
-    log_error "Expected: $expected_arch"
-    log_error "Got: $file_output"
+  if ! verify_binary_arch "$ffmpeg_bin" "$EXPECTED_ARCH"; then
     exit 1
   fi
-
-  log_info "Architecture verified: $expected_arch"
 
   # Verify static linking (only libc, libm, libpthread should be dynamic)
   log_step "Checking dynamic dependencies..."
@@ -214,10 +147,10 @@ main() {
 
   check_docker
   build_image
-  run_build
+  run_docker_build
 
   if [[ "$TARGET" == "all" ]] || [[ "$TARGET" == "package" ]]; then
-    verify_build
+    verify_docker_build
 
     local artifacts_dir="${PROJECT_ROOT}/artifacts/${PLATFORM}-${LICENSE}"
     echo ""
