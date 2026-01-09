@@ -161,7 +161,10 @@ jobs:
           cd artifacts
           # Flatten subdirectories
           for dir in */; do
-            [[ -d "$dir" ]] && mv "$dir"* . 2>/dev/null && rmdir "$dir" 2>/dev/null || true
+            if [[ -d "$dir" ]]; then
+              mv "$dir"* . 2>/dev/null || true
+              rmdir "$dir" 2>/dev/null || true
+            fi
           done
 
           # Verify count
