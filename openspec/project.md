@@ -192,4 +192,4 @@ Each platform's `config.mk` sets: `LIBVPX_TARGET`, `X264_HOST`, `AOM_TARGET_CPU`
 - npm registry (@pproenca scope)
 
 **Version Management:**
-All versions, URLs, and checksums centralized in `shared/versions.mk`. Bump `CACHE_VERSION` to invalidate CI cache.
+All versions, URLs, and checksums centralized in `shared/versions.mk`.

@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# shellcheck shell=bash
 # =============================================================================
 # FFmpeg Build Entry Point for darwin-x64
 # =============================================================================
@@ -15,9 +14,6 @@
 #
 # Environment:
 #   LICENSE: Build license tier (free, non-free). Default: free
-#
-# Returns:
-#   0 on success, non-zero on failure.
 # =============================================================================
 
 set -euo pipefail
@@ -26,24 +22,16 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 readonly SCRIPT_DIR PROJECT_ROOT
 
-# =============================================================================
-# Colors
-# =============================================================================
-
-readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
-readonly BLUE='\033[0;34m'
-readonly NC='\033[0m' # No Color
+# Source shared libraries
+source "${PROJECT_ROOT}/scripts/lib/logging.sh"
+source "${PROJECT_ROOT}/scripts/lib/common.sh"
 
 # =============================================================================
-# Logging Functions
+# Platform Configuration
 # =============================================================================
 
-log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
-log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
-log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
+readonly PLATFORM="darwin-x64"
+readonly EXPECTED_ARCH="x86_64"
 
 # =============================================================================
 # Platform Verification
@@ -75,7 +63,6 @@ install_dependencies() {
     exit 1
   fi
 
-  # Homebrew tools (excludes cmake, nasm - installed separately for version control)
   local -a tools=(
     meson      # Build system for dav1d
     ninja      # Build tool for meson
@@ -86,8 +73,8 @@ install_dependencies() {
   )
 
   local -a missing_tools=()
-
   local tool
+
   for tool in "${tools[@]}"; do
     if ! command -v "${tool}" &>/dev/null; then
       missing_tools+=("${tool}")
@@ -102,11 +89,9 @@ install_dependencies() {
   fi
 
   # Install CMake 3.x via pip (CMake 4.x breaks x265, libaom, svt-av1 builds)
-  # Homebrew only provides CMake 4.x, so we use pip for version control
-  install_cmake
+  install_cmake_3x
 
   # Install NASM 2.x from source (NASM 3.x breaks libaom multipass optimization)
-  # Homebrew only provides NASM 3.x, so we build from source for version control
   install_nasm
 
   # Show tool versions
@@ -115,18 +100,6 @@ install_dependencies() {
   echo "  cmake:    $(cmake --version | head -1) ($(command -v cmake))"
   echo "  meson:    $(meson --version)"
   echo "  ninja:    $(ninja --version)"
-}
-
-# Install CMake 3.x via pip (upstream codecs incompatible with CMake 4.x)
-install_cmake() {
-  local cmake_version
-  cmake_version="$(cmake --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "0.0.0")"
-  local cmake_major="${cmake_version%%.*}"
-
-  if [[ "${cmake_major}" -ge 4 ]] || ! command -v cmake &>/dev/null; then
-    log_info "Installing CMake 3.x via pip (CMake 4.x incompatible with codec builds)..."
-    pip3 install --quiet --break-system-packages 'cmake>=3.20,<4'
-  fi
 }
 
 # Install NASM 2.x from source (NASM 3.x breaks libaom multipass optimization check)
@@ -138,12 +111,12 @@ install_nasm() {
 
   if [[ "${nasm_major}" -ge 3 ]] || ! command -v nasm &>/dev/null; then
     log_info "Building NASM 2.16.03 from source (NASM 3.x incompatible with libaom)..."
-    local nasm_src="${PROJECT_ROOT}/build/darwin-x64/nasm-2.16.03"
+    local nasm_src="${PROJECT_ROOT}/build/${PLATFORM}/nasm-2.16.03"
     local nasm_bin="${nasm_src}/nasm"
 
     if [[ ! -f "${nasm_bin}" ]]; then
-      mkdir -p "${PROJECT_ROOT}/build/darwin-x64"
-      cd "${PROJECT_ROOT}/build/darwin-x64"
+      mkdir -p "${PROJECT_ROOT}/build/${PLATFORM}"
+      cd "${PROJECT_ROOT}/build/${PLATFORM}"
       curl -sL "https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/nasm-2.16.03.tar.gz" | tar xz
       cd nasm-2.16.03
       ./configure
@@ -162,25 +135,10 @@ install_nasm() {
 
 run_build() {
   local target="${1:-all}"
-  local license="${LICENSE:-free}"
   local debug="${DEBUG:-}"
 
-  # Backwards compatibility: map old values to new
-  case "$license" in
-    bsd|lgpl)
-      log_warn "DEPRECATION: LICENSE=$license is deprecated. Use LICENSE=free instead."
-      license="free"
-      ;;
-    gpl)
-      log_warn "DEPRECATION: LICENSE=gpl is deprecated. Use LICENSE=non-free instead."
-      license="non-free"
-      ;;
-  esac
-
-  if [[ ! "${license}" =~ ^(free|non-free)$ ]]; then
-    log_error "Invalid LICENSE=${license}. Must be: free, non-free"
-    exit 1
-  fi
+  local license
+  license="$(normalize_license "${LICENSE:-free}")" || exit 1
 
   log_step "Starting build..."
   log_info "Target: ${target}"
@@ -189,38 +147,7 @@ run_build() {
   [[ -n "${debug}" ]] && log_info "Debug mode: enabled (showing all warnings)"
 
   cd "${SCRIPT_DIR}"
-
   make -j LICENSE="${license}" DEBUG="${debug}" "${target}"
-}
-
-# =============================================================================
-# Binary Architecture Verification
-# =============================================================================
-# Ensures built binaries match the target architecture.
-# Catches cross-compilation failures where host arch leaks into output.
-
-verify_binary_arch() {
-  local binary="$1"
-  local expected_arch="$2"
-
-  if [[ ! -f "${binary}" ]]; then
-    log_error "Binary not found for architecture verification: ${binary}"
-    exit 1
-  fi
-
-  log_step "Verifying binary architecture..."
-
-  local file_output
-  file_output="$(file "${binary}")"
-
-  if ! echo "${file_output}" | grep -q "${expected_arch}"; then
-    log_error "Architecture mismatch detected!"
-    log_error "Expected: ${expected_arch}"
-    log_error "Got: ${file_output}"
-    exit 1
-  fi
-
-  log_info "Architecture verified: ${expected_arch}"
 }
 
 # =============================================================================
@@ -233,7 +160,7 @@ main() {
 
   echo ""
   echo "=========================================="
-  echo " FFmpeg Build for darwin-x64"
+  echo " FFmpeg Build for ${PLATFORM}"
   echo " License tier: ${license}"
   echo " (cross-compiled from ARM64)"
   echo "=========================================="
@@ -253,13 +180,19 @@ main() {
   log_info "Build completed successfully!"
 
   if [[ "${target}" == "all" ]] || [[ "${target}" == "package" ]]; then
-    local artifacts_dir="${PROJECT_ROOT}/artifacts/darwin-x64-${license}"
+    # Normalize license for artifacts path
+    local normalized_license
+    normalized_license="$(normalize_license "${license}")" || exit 1
+    local artifacts_dir="${PROJECT_ROOT}/artifacts/${PLATFORM}-${normalized_license}"
+
     echo ""
     log_info "Artifacts location: ${artifacts_dir}/"
     ls -la "${artifacts_dir}/bin/" 2>/dev/null || true
 
     # Verify binary architecture matches target
-    verify_binary_arch "${artifacts_dir}/bin/ffmpeg" "x86_64"
+    if ! verify_binary_arch "${artifacts_dir}/bin/ffmpeg" "${EXPECTED_ARCH}"; then
+      exit 1
+    fi
   fi
 }
 

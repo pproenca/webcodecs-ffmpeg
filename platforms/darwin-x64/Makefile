@@ -53,6 +53,7 @@ include $(ROOT_DIR)/config.mk
 include $(PROJECT_ROOT)/shared/verify.mk
 include $(PROJECT_ROOT)/shared/codecs/pkgconfig.mk
 include $(PROJECT_ROOT)/shared/codecs/codec.mk
+include $(PROJECT_ROOT)/shared/ffmpeg.mk
 
 # =============================================================================
 # Include Individual Codec Build Rules (from shared)
@@ -125,29 +126,7 @@ FFMPEG_BASE_OPTS := \
 	--disable-podpages \
 	--disable-txtpages
 
-FFMPEG_BSD_OPTS := \
-	--enable-libvpx \
-	--enable-libaom \
-	--enable-libsvtav1 \
-	--enable-libdav1d \
-	--enable-libopus \
-	--enable-libvorbis
-
-FFMPEG_LGPL_OPTS := \
-	--enable-libmp3lame
-
-FFMPEG_GPL_OPTS := \
-	--enable-gpl \
-	--enable-libx264 \
-	--enable-libx265
-
-ifeq ($(LICENSE),free)
-    FFMPEG_LICENSE_OPTS := $(FFMPEG_BSD_OPTS) $(FFMPEG_LGPL_OPTS)
-else
-    # non-free: includes GPL codecs
-    FFMPEG_LICENSE_OPTS := $(FFMPEG_BSD_OPTS) $(FFMPEG_LGPL_OPTS) $(FFMPEG_GPL_OPTS)
-endif
-
+# FFmpeg codec options (BSD, LGPL, GPL) defined in shared/ffmpeg.mk
 FFMPEG_CONFIGURE_OPTS := $(FFMPEG_BASE_OPTS) $(FFMPEG_LICENSE_OPTS)
 
 # -----------------------------------------------------------------------------

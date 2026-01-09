@@ -70,12 +70,7 @@ endif
 # Dependency Graph
 # =============================================================================
 # Most codecs have no inter-dependencies and can build in parallel.
-# Exception: vorbis depends on ogg
-
-PARALLEL_CODECS := libvpx aom dav1d svt-av1 opus ogg lame x264 x265
-
-# Codecs with dependencies (must wait)
-# vorbis.stamp depends on ogg.stamp (defined in vorbis.mk)
+# Exception: vorbis depends on ogg (defined in vorbis.mk)
 
 # =============================================================================
 # Common Configure Arguments
@@ -86,8 +81,6 @@ AUTOCONF_STATIC_ARGS := \
     --enable-static \
     --disable-shared \
     --with-pic
-
-AUTOCONF_DARWIN_ARGS := $(AUTOCONF_STATIC_ARGS)
 
 # =============================================================================
 # Phony Targets

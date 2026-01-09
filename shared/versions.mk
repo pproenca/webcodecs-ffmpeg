@@ -3,11 +3,7 @@
 # =============================================================================
 # This file is the single source of truth for all dependency versions.
 # Grouped by license for clarity.
-#
-# To update: change version, update URL/SHA256, bump CACHE_VERSION
 # =============================================================================
-
-CACHE_VERSION := 1
 
 # =============================================================================
 # FFmpeg
@@ -68,17 +64,3 @@ X265_URL := https://bitbucket.org/multicoreware/x265_git/downloads/x265_$(X265_V
 NASM_VERSION := 2.16.03
 NASM_URL := https://www.nasm.us/pub/nasm/releasebuilds/$(NASM_VERSION)/nasm-$(NASM_VERSION).tar.gz
 
-# =============================================================================
-# Parse-Time Version Validation
-# =============================================================================
-# Ensure git-cloned dependencies use immutable refs (commit hashes) for cache
-# correctness. Branch names like "stable" cause stale cache hits.
-#
-# Note: This validation runs after verify.mk is included by platform Makefiles.
-# We define the check here but it only executes if verify.mk is loaded.
-
-# Defer validation until verify.mk functions are available
-# This will be called by Makefiles that include both versions.mk and verify.mk
-define validate_versions
-$(call validate_immutable_ref,X264_VERSION,x264)
-endef

@@ -22,29 +22,18 @@ set -euo pipefail
 # Resolve script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+readonly SCRIPT_DIR PROJECT_ROOT
+
+# Source shared libraries
+source "${PROJECT_ROOT}/scripts/lib/logging.sh"
+source "${PROJECT_ROOT}/scripts/lib/common.sh"
 
 # =============================================================================
-# Colors
+# Platform Configuration
 # =============================================================================
 
-if [[ -t 1 ]]; then
-  readonly RED='\033[0;31m'
-  readonly GREEN='\033[0;32m'
-  readonly YELLOW='\033[1;33m'
-  readonly BLUE='\033[0;34m'
-  readonly NC='\033[0m'
-else
-  readonly RED=''
-  readonly GREEN=''
-  readonly YELLOW=''
-  readonly BLUE=''
-  readonly NC=''
-fi
-
-log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
-log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
-log_step() { echo -e "${BLUE}[STEP]${NC} $*"; }
+readonly PLATFORM="linux-arm64"
+readonly EXPECTED_ARCH="aarch64"
 
 # =============================================================================
 # Platform Verification
@@ -55,12 +44,11 @@ verify_platform() {
 
   if [[ "$(uname -s)" != "Linux" ]]; then
     log_error "This script must run on Linux"
-    log_error "Use ./docker/build.sh linux-arm64 for Docker-based builds"
+    log_error "Use ./docker/build.sh ${PLATFORM} for Docker-based builds"
     exit 1
   fi
 
   # Cross-compilation: we build ON x86_64 FOR aarch64
-  # So we check for x86_64 host
   local host_arch
   host_arch="$(uname -m)"
   if [[ "$host_arch" != "x86_64" ]]; then
@@ -95,7 +83,7 @@ check_dependencies() {
 
   if [[ ${#missing[@]} -gt 0 ]]; then
     log_error "Missing build tools: ${missing[*]}"
-    log_error "Use Docker: ./docker/build.sh linux-arm64"
+    log_error "Use Docker: ./docker/build.sh ${PLATFORM}"
     exit 1
   fi
 
@@ -115,64 +103,20 @@ check_dependencies() {
 
 run_build() {
   local target="${1:-all}"
-  local license="${LICENSE:-free}"
   local debug="${DEBUG:-}"
 
-  # Backwards compatibility: map old values to new
-  case "$license" in
-    bsd|lgpl)
-      log_warn "DEPRECATION: LICENSE=$license is deprecated. Use LICENSE=free instead."
-      license="free"
-      ;;
-    gpl)
-      log_warn "DEPRECATION: LICENSE=gpl is deprecated. Use LICENSE=non-free instead."
-      license="non-free"
-      ;;
-  esac
-
-  if [[ ! "$license" =~ ^(free|non-free)$ ]]; then
-    log_error "Invalid LICENSE=$license. Must be: free, non-free"
-    exit 1
-  fi
+  local license
+  license="$(normalize_license "${LICENSE:-free}")" || exit 1
 
   log_step "Starting cross-compilation build..."
   log_info "Target: ${target}"
   log_info "License tier: ${license}"
   log_info "Host architecture: $(uname -m)"
-  log_info "Target architecture: aarch64"
+  log_info "Target architecture: ${EXPECTED_ARCH}"
   [[ -n "$debug" ]] && log_info "Debug mode: enabled"
 
   cd "${SCRIPT_DIR}"
-
   make -j LICENSE="${license}" DEBUG="${debug}" "${target}"
-}
-
-# =============================================================================
-# Binary Architecture Verification
-# =============================================================================
-
-verify_binary_arch() {
-  local binary="$1"
-  local expected_arch="$2"
-
-  if [[ ! -f "$binary" ]]; then
-    log_error "Binary not found: $binary"
-    exit 1
-  fi
-
-  log_step "Verifying binary architecture..."
-
-  local file_output
-  file_output="$(file "$binary")"
-
-  if ! echo "$file_output" | grep -q "$expected_arch"; then
-    log_error "Architecture mismatch!"
-    log_error "Expected: $expected_arch"
-    log_error "Got: $file_output"
-    exit 1
-  fi
-
-  log_info "Architecture verified: $expected_arch"
 }
 
 # =============================================================================
@@ -185,7 +129,7 @@ main() {
 
   echo ""
   echo "=========================================="
-  echo " FFmpeg Cross-Build for linux-arm64"
+  echo " FFmpeg Cross-Build for ${PLATFORM}"
   echo " License tier: ${license}"
   echo "=========================================="
   echo ""
@@ -204,12 +148,19 @@ main() {
   log_info "Build completed successfully!"
 
   if [[ "$target" == "all" ]] || [[ "$target" == "package" ]]; then
-    local artifacts_dir="${PROJECT_ROOT}/artifacts/linux-arm64-${license}"
+    # Normalize license for artifacts path
+    local normalized_license
+    normalized_license="$(normalize_license "${license}")" || exit 1
+    local artifacts_dir="${PROJECT_ROOT}/artifacts/${PLATFORM}-${normalized_license}"
+
     echo ""
     log_info "Artifacts location: ${artifacts_dir}/"
     ls -la "${artifacts_dir}/bin/" 2>/dev/null || true
 
-    verify_binary_arch "${artifacts_dir}/bin/ffmpeg" "aarch64"
+    # Verify binary architecture matches target
+    if ! verify_binary_arch "${artifacts_dir}/bin/ffmpeg" "${EXPECTED_ARCH}"; then
+      exit 1
+    fi
   fi
 }
 
