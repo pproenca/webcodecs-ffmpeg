@@ -1,8 +1,8 @@
-# ffmpeg-prebuilds
+# webcodecs-ffmpeg
 
 Statically-linked FFmpeg binaries for Node.js native addons.
 
-[![CI](https://github.com/pproenca/ffmpeg-prebuilds/actions/workflows/ci.yml/badge.svg)](https://github.com/pproenca/ffmpeg-prebuilds/actions/workflows/ci.yml)
+[![CI](https://github.com/pproenca/webcodecs-ffmpeg/actions/workflows/ci.yml/badge.svg)](https://github.com/pproenca/webcodecs-ffmpeg/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/@pproenca/webcodecs-ffmpeg)](https://www.npmjs.com/package/@pproenca/webcodecs-ffmpeg)
 
 ## Install

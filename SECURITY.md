@@ -13,7 +13,7 @@ We recommend always using the latest release.
 
 **Do not report security vulnerabilities through public GitHub issues.**
 
-Instead, please use [GitHub's private vulnerability reporting](https://github.com/pproenca/ffmpeg-prebuilds/security/advisories/new).
+Instead, please use [GitHub's private vulnerability reporting](https://github.com/pproenca/webcodecs-ffmpeg/security/advisories/new).
 
 ### What to include
 

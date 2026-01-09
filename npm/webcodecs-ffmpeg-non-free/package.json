@@ -3,10 +3,10 @@
   "version": "0.1.0-alpha",
   "description": "Prebuilt FFmpeg with all codecs including GPL x264/x265 - auto-selects platform",
   "author": "Pedro Proenca",
-  "homepage": "https://github.com/pproenca/ffmpeg-prebuilds",
+  "homepage": "https://github.com/pproenca/webcodecs-ffmpeg",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pproenca/ffmpeg-prebuilds.git",
+    "url": "git+https://github.com/pproenca/webcodecs-ffmpeg.git",
     "directory": "npm/webcodecs-ffmpeg-non-free"
   },
   "license": "GPL-2.0-or-later",

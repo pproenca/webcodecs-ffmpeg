@@ -2,7 +2,7 @@
 
 ## Context
 
-The ffmpeg-prebuilds project currently offers three license tiers (BSD, LGPL, GPL) that map to different codec sets. This creates a 3×N matrix of artifacts where N is the number of platforms. Users must understand three different licenses to choose the right package.
+The webcodecs-ffmpeg project currently offers three license tiers (BSD, LGPL, GPL) that map to different codec sets. This creates a 3×N matrix of artifacts where N is the number of platforms. Users must understand three different licenses to choose the right package.
 
 **Stakeholders:**
 - End users installing npm packages (want simplest choice)
