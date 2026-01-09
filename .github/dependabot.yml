@@ -1,0 +1,20 @@
+version: 2
+updates:
+  # GitHub Actions version updates
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "github-actions"
+
+  # npm registry dependencies (pnpm uses npm ecosystem for dependabot)
+  # Note: Internal tooling uses pnpm, but dependabot scans npm lockfiles
+  - package-ecosystem: "npm"
+    directory: "/npm"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "npm"

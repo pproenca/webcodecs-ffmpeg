@@ -1,0 +1,210 @@
+#!/usr/bin/env bash
+#
+# populate-artifacts.sh - Copy build artifacts to npm packages
+#
+# Usage: ./scripts/populate-artifacts.sh
+#
+# Copies lib/, pkgconfig/, and include/ from build artifacts to npm packages.
+# Does NOT modify package.json files - those are committed to git and updated
+# by bump-version.sh.
+#
+# Reads from: artifacts/<platform>-<tier>/
+# Writes to:  npm/<package>/lib/, npm/dev/include/
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+readonly PROJECT_ROOT
+readonly NPM_DIR="${PROJECT_ROOT}/npm"
+readonly ARTIFACTS_DIR="${PROJECT_ROOT}/artifacts"
+
+readonly TIERS=(free non-free)
+
+declare -Ar PLATFORM_MAP=(
+  ["darwin-arm64"]="darwin-arm64"
+  ["darwin-x64"]="darwin-x64"
+  ["linux-arm64"]="linux-arm64"
+  ["linux-x64"]="linux-x64"
+)
+
+#######################################
+# Logging functions
+#######################################
+log_info() {
+  printf "\033[0;32m[INFO]\033[0m %s\n" "$*"
+}
+
+log_warn() {
+  printf "\033[1;33m[WARN]\033[0m %s\n" "$*"
+}
+
+log_error() {
+  printf "\033[0;31m[ERROR]\033[0m %s\n" "$*" >&2
+}
+
+#######################################
+# Generate an index.js that exports the directory path.
+# Arguments:
+#   $1 - Directory path where index.js will be created
+#######################################
+generate_index_js() {
+  local dir="$1"
+  mkdir -p "${dir}"
+  cat >"${dir}/index.js" <<'EOF'
+module.exports = __dirname;
+EOF
+}
+
+#######################################
+# Generate versions.json with build metadata.
+# Arguments:
+#   $1 - Output file path
+#   $2 - Platform identifier (e.g., darwin-arm64)
+#   $3 - Tier (free, non-free)
+#######################################
+generate_versions_json() {
+  local output_file="$1"
+  local platform="$2"
+  local tier="$3"
+  local artifacts_json="${ARTIFACTS_DIR}/${platform}-${tier}/versions.json"
+
+  if [[ -f "${artifacts_json}" ]]; then
+    cp "${artifacts_json}" "${output_file}"
+  else
+    cat >"${output_file}" <<EOF
+{
+  "platform": "${platform}",
+  "tier": "${tier}",
+  "built": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+  fi
+}
+
+#######################################
+# Populate a platform-specific npm package from build artifacts.
+# Arguments:
+#   $1 - Platform identifier (e.g., darwin-arm64)
+#   $2 - Tier (free, non-free)
+#######################################
+populate_platform() {
+  local platform="$1"
+  local tier="$2"
+  local artifacts_src="${ARTIFACTS_DIR}/${platform}-${tier}"
+
+  # Determine npm package directory
+  local npm_dir_name="webcodecs-ffmpeg-${platform}"
+  if [[ "${tier}" != "free" ]]; then
+    npm_dir_name="webcodecs-ffmpeg-${platform}-${tier}"
+  fi
+  local npm_dest="${NPM_DIR}/${npm_dir_name}"
+
+  if [[ ! -d "${artifacts_src}" ]]; then
+    log_warn "Artifacts not found: ${artifacts_src}, skipping"
+    return 0
+  fi
+
+  if [[ ! -d "${npm_dest}" ]]; then
+    log_warn "Package directory not found: ${npm_dest}, skipping"
+    return 0
+  fi
+
+  log_info "Populating ${npm_dir_name} from ${artifacts_src}"
+
+  rm -rf "${npm_dest:?}/lib"
+  mkdir -p "${npm_dest}/lib"
+
+  # Copy static libraries if they exist
+  if [[ -d "${artifacts_src}/lib" ]]; then
+    local -a lib_files
+    lib_files=("${artifacts_src}/lib/"*.a)
+    if [[ -e "${lib_files[0]}" ]]; then
+      cp -a "${lib_files[@]}" "${npm_dest}/lib/"
+    fi
+  fi
+
+  # Copy pkg-config files for native addon development
+  if [[ -d "${artifacts_src}/lib/pkgconfig" ]]; then
+    local -a pc_files
+    pc_files=("${artifacts_src}/lib/pkgconfig/"*.pc)
+    if [[ -e "${pc_files[0]}" ]]; then
+      mkdir -p "${npm_dest}/lib/pkgconfig"
+      cp -a "${pc_files[@]}" "${npm_dest}/lib/pkgconfig/"
+      generate_index_js "${npm_dest}/lib/pkgconfig"
+    fi
+  fi
+
+  generate_index_js "${npm_dest}/lib"
+  generate_versions_json "${npm_dest}/versions.json" "${platform}" "${tier}"
+
+  log_info "  -> Populated ${npm_dir_name}"
+}
+
+#######################################
+# Populate the dev npm package with FFmpeg headers.
+#######################################
+populate_dev() {
+  local dev_dir="${NPM_DIR}/dev"
+  local header_src=""
+
+  # Find headers from any available tier's artifacts
+  local tier platform src
+  for tier in non-free free; do
+    for platform in "${!PLATFORM_MAP[@]}"; do
+      src="${ARTIFACTS_DIR}/${platform}-${tier}/include"
+      if [[ -d "${src}" ]]; then
+        header_src="${src}"
+        break 2
+      fi
+    done
+  done
+
+  if [[ -z "${header_src}" ]]; then
+    log_warn "No headers found for dev package"
+    return 0
+  fi
+
+  if [[ ! -d "${dev_dir}" ]]; then
+    log_warn "Dev package directory not found: ${dev_dir}"
+    return 0
+  fi
+
+  log_info "Populating dev package from ${header_src}"
+
+  rm -rf "${dev_dir:?}/include"
+  mkdir -p "${dev_dir}/include"
+
+  # Copy headers if they exist
+  local -a header_files
+  header_files=("${header_src}/"*)
+  if [[ -e "${header_files[0]}" ]]; then
+    cp -a "${header_files[@]}" "${dev_dir}/include/"
+  fi
+  generate_index_js "${dev_dir}/include"
+
+  log_info "  -> Populated dev package"
+}
+
+#######################################
+# Main entry point.
+#######################################
+main() {
+  log_info "Populating npm packages with build artifacts..."
+  log_info "  Artifacts: ${ARTIFACTS_DIR}"
+  log_info "  NPM dir:   ${NPM_DIR}"
+
+  local platform tier
+  for platform in "${!PLATFORM_MAP[@]}"; do
+    for tier in "${TIERS[@]}"; do
+      populate_platform "${platform}" "${tier}"
+    done
+  done
+
+  populate_dev
+
+  log_info "Done!"
+}
+
+main "$@"

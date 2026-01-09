@@ -1,0 +1,31 @@
+lockfileVersion: '9.0'
+
+settings:
+  autoInstallPeers: true
+  excludeLinksFromLockfile: false
+
+importers:
+
+  .: {}
+
+  dev: {}
+
+  webcodecs-ffmpeg: {}
+
+  webcodecs-ffmpeg-darwin-arm64: {}
+
+  webcodecs-ffmpeg-darwin-arm64-non-free: {}
+
+  webcodecs-ffmpeg-darwin-x64: {}
+
+  webcodecs-ffmpeg-darwin-x64-non-free: {}
+
+  webcodecs-ffmpeg-linux-arm64: {}
+
+  webcodecs-ffmpeg-linux-arm64-non-free: {}
+
+  webcodecs-ffmpeg-linux-x64: {}
+
+  webcodecs-ffmpeg-linux-x64-non-free: {}
+
+  webcodecs-ffmpeg-non-free: {}

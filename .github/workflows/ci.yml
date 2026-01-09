@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      # Build system
+      - 'platforms/**'
+      - 'shared/**'
+      - 'docker/**'
+      # CI workflows that affect builds
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/_build.yml'
+  workflow_dispatch:
+
+# Cancel in-progress builds for same commit
+concurrency:
+  group: build-${{ github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    uses: ./.github/workflows/_build.yml
+    with:
+      retention-days: 30
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
