@@ -2,10 +2,16 @@
 #
 # bump-version.sh - Bump version in all package.json files
 #
-# Usage: ./bump-version.sh <major|minor|patch> [--dry-run]
+# Usage: ./bump-version.sh <major|minor|patch|release> [--dry-run]
 #
 # Updates all package.json files in the npm workspace, commits the changes,
 # and creates a git tag. Package.json files are the source of truth for versions.
+#
+# Bump types:
+#   major   - Increment major version (1.0.0 -> 2.0.0)
+#   minor   - Increment minor version (1.0.0 -> 1.1.0)
+#   patch   - Increment patch version (1.0.0 -> 1.0.1)
+#   release - Strip pre-release suffix (1.0.0-alpha -> 1.0.0)
 
 set -euo pipefail
 
@@ -140,20 +146,20 @@ main() {
   # Parse arguments
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      major|minor|patch)
+      major|minor|patch|release)
         bump_type="$1"
         ;;
       --dry-run)
         DRY_RUN=true
         ;;
       *)
-        err "usage: $0 <major|minor|patch> [--dry-run]"
+        err "usage: $0 <major|minor|patch|release> [--dry-run]"
         ;;
     esac
     shift
   done
 
-  [[ -n "${bump_type}" ]] || err "usage: $0 <major|minor|patch> [--dry-run]"
+  [[ -n "${bump_type}" ]] || err "usage: $0 <major|minor|patch|release> [--dry-run]"
 
   if [[ "${DRY_RUN}" == "false" ]]; then
     [[ -z "$(git status --porcelain)" ]] || err "working directory not clean"
@@ -170,13 +176,21 @@ main() {
   fi
 
   # Calculate new version
+  # Strip pre-release suffix if present (e.g., 0.1.0-alpha -> 0.1.0)
+  local base_version="${current%%-*}"
   local maj min pat
-  IFS='.' read -r maj min pat <<< "${current}"
+  IFS='.' read -r maj min pat <<< "${base_version}"
 
   case "${bump_type}" in
     major) maj=$((maj + 1)); min=0; pat=0 ;;
     minor) min=$((min + 1)); pat=0 ;;
     patch) pat=$((pat + 1)) ;;
+    release)
+      # Just strip pre-release suffix, no increment
+      if [[ "${current}" == "${base_version}" ]]; then
+        err "No pre-release suffix to strip from ${current}"
+      fi
+      ;;
   esac
 
   local new="${maj}.${min}.${pat}"

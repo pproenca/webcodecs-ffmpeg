@@ -175,10 +175,10 @@ generate_platform_package_json() {
   "version": "${FFMPEG_VERSION}",
   "description": "Prebuilt FFmpeg with ${desc} for ${platform}",
   "author": "Pedro Proenca",
-  "homepage": "https://github.com/pproenca/ffmpeg-prebuilds",
+  "homepage": "https://github.com/pproenca/webcodecs-ffmpeg",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pproenca/ffmpeg-prebuilds.git",
+    "url": "git+https://github.com/pproenca/webcodecs-ffmpeg.git",
     "directory": "npm/${npm_subdir}"
   },
   "license": "${license}",
@@ -342,10 +342,10 @@ GYPCONFIG
   "version": "${FFMPEG_VERSION}",
   "description": "FFmpeg headers for Node.js native addon development",
   "author": "Pedro Proenca",
-  "homepage": "https://github.com/pproenca/ffmpeg-prebuilds",
+  "homepage": "https://github.com/pproenca/webcodecs-ffmpeg",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pproenca/ffmpeg-prebuilds.git",
+    "url": "git+https://github.com/pproenca/webcodecs-ffmpeg.git",
     "directory": "npm/dev"
   },
   "license": "MIT",
@@ -424,10 +424,10 @@ generate_meta_package_json() {
   "version": "${FFMPEG_VERSION}",
   "description": "Prebuilt FFmpeg with ${desc} - auto-selects platform",
   "author": "Pedro Proenca",
-  "homepage": "https://github.com/pproenca/ffmpeg-prebuilds",
+  "homepage": "https://github.com/pproenca/webcodecs-ffmpeg",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pproenca/ffmpeg-prebuilds.git",
+    "url": "git+https://github.com/pproenca/webcodecs-ffmpeg.git",
     "directory": "npm/${npm_subdir}"
   },
   "license": "${license}",

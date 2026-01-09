@@ -117,7 +117,7 @@ fi
 # Resolve run ID if using --latest
 if [[ "$USE_LATEST" == "true" ]]; then
   log_info "Finding latest successful CI run on master..."
-  RUN_ID=$(gh api "repos/pproenca/ffmpeg-prebuilds/actions/workflows/ci.yml/runs?branch=master&status=success&per_page=1" \
+  RUN_ID=$(gh api "repos/pproenca/webcodecs-ffmpeg/actions/workflows/ci.yml/runs?branch=master&status=success&per_page=1" \
     --jq ".workflow_runs[0].id" 2>/dev/null || echo "")
 
   if [[ -z "$RUN_ID" ]]; then
@@ -129,7 +129,7 @@ fi
 
 # Verify artifacts exist
 log_info "Checking artifacts in run $RUN_ID..."
-ARTIFACT_COUNT=$(gh api "repos/pproenca/ffmpeg-prebuilds/actions/runs/$RUN_ID/artifacts" \
+ARTIFACT_COUNT=$(gh api "repos/pproenca/webcodecs-ffmpeg/actions/runs/$RUN_ID/artifacts" \
   --jq '[.artifacts[] | select(.name | startswith("ffmpeg-"))] | length')
 
 if [[ "$ARTIFACT_COUNT" -lt 8 ]]; then
@@ -211,10 +211,9 @@ done
 # Strip 'v' prefix from version if present
 CLEAN_VERSION="${VERSION#v}"
 
-# Run populate-npm.sh
-log_info "Populating npm packages with version $CLEAN_VERSION..."
-export FFMPEG_VERSION="$CLEAN_VERSION"
-./scripts/populate-npm.sh
+# Populate npm packages with artifacts (doesn't modify package.json)
+log_info "Populating npm packages with artifacts..."
+./scripts/populate-artifacts.sh
 
 # Publish
 if [[ "$DRY_RUN" == "true" ]]; then
