@@ -23,7 +23,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
       commit: ${{ steps.version.outputs.commit }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -57,12 +57,14 @@ jobs:
             exit 1
           fi
 
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+          {
+            echo "tag=$TAG"
+            echo "version=$VERSION"
+            echo "commit=$COMMIT"
+          } >> "$GITHUB_OUTPUT"
           echo "Releasing $TAG (version $VERSION) at commit $COMMIT"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
@@ -132,11 +134,11 @@ jobs:
     needs: [prepare, check-artifacts]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           ref: ${{ needs.prepare.outputs.tag }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
@@ -178,7 +180,7 @@ jobs:
           echo "All 8 artifacts verified"
 
       - name: Generate attestations
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v3
         with:
           subject-path: 'artifacts/*.tar.gz'
 
