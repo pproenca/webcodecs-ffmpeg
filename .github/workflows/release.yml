@@ -62,7 +62,7 @@ jobs:
           echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
           echo "Releasing $TAG (version $VERSION) at commit $COMMIT"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
@@ -136,7 +136,7 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.tag }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
