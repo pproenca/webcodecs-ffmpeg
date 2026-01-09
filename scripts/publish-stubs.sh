@@ -50,7 +50,7 @@ for platform in "${PLATFORMS[@]}"; do
   "license": "${license}",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pproenca/ffmpeg-prebuilds.git"
+    "url": "git+https://github.com/pproenca/webcodecs-ffmpeg.git"
   },
   "publishConfig": {
     "access": "public"
@@ -77,7 +77,7 @@ cat > "dev/package.json" <<EOF
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pproenca/ffmpeg-prebuilds.git"
+    "url": "git+https://github.com/pproenca/webcodecs-ffmpeg.git"
   },
   "publishConfig": {
     "access": "public"
@@ -108,7 +108,7 @@ for tier in "" "-non-free"; do
   "license": "${license}",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/pproenca/ffmpeg-prebuilds.git"
+    "url": "git+https://github.com/pproenca/webcodecs-ffmpeg.git"
   },
   "publishConfig": {
     "access": "public"
