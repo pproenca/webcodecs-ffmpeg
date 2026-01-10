@@ -195,6 +195,7 @@ jobs:
           artifacts: "artifacts/*.tar.gz,artifacts/*.sha256"
           generateReleaseNotes: true
           allowUpdates: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract and populate npm packages
         run: |
