@@ -19,6 +19,7 @@ FROM alpine:3.20 AS base
 # hadolint ignore=DL3018
 RUN apk add --no-cache \
     # Build essentials
+    bash \
     build-base \
     pkgconf \
     # Download tools
