@@ -20,18 +20,11 @@ readonly PROJECT_ROOT
 readonly NPM_DIR="${PROJECT_ROOT}/npm"
 readonly ARTIFACTS_DIR="${PROJECT_ROOT}/artifacts"
 
-readonly TIERS=(free non-free)
+# Source shared platform definitions (PLATFORM_MAP, LICENSE_TIERS, etc.)
+source "${PROJECT_ROOT}/scripts/lib/platforms.sh"
 
-# Maps artifact platform names to npm package suffixes
-# Key: artifact directory name (e.g., artifacts/linuxmusl-x64-free/)
-# Value: npm package suffix (e.g., webcodecs-ffmpeg-linux-x64-musl)
-declare -Ar PLATFORM_MAP=(
-  ["darwin-arm64"]="darwin-arm64"
-  ["darwin-x64"]="darwin-x64"
-  ["linux-arm64"]="linux-arm64"
-  ["linux-x64"]="linux-x64"
-  ["linuxmusl-x64"]="linux-x64-musl"
-)
+# Alias for backwards compatibility with this script
+readonly TIERS=("${LICENSE_TIERS[@]}")
 
 #######################################
 # Logging functions

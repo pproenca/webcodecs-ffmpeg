@@ -18,6 +18,21 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
+# Allowed System Libraries by Platform
+# -----------------------------------------------------------------------------
+# These patterns define which dynamic libraries are acceptable in statically-
+# linked binaries. Everything else is considered a linkage error.
+
+# macOS: System framework libs only
+ALLOWED_DYLIBS_darwin := libSystem|libc\+\+|libresolv|libz
+
+# Linux (glibc): Core runtime libs only
+ALLOWED_DYLIBS_linux := linux-vdso|ld-linux|libc\.so|libm\.so|libdl\.so|libpthread|librt\.so|libstdc\+\+|libgcc
+
+# Linux (musl): Same as glibc for our purposes
+ALLOWED_DYLIBS_linuxmusl := $(ALLOWED_DYLIBS_linux)
+
+# -----------------------------------------------------------------------------
 # Layer 0: Parse-Time Validation
 # -----------------------------------------------------------------------------
 # These checks run during Makefile parsing (before any recipe).

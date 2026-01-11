@@ -186,7 +186,7 @@ verify: package
 	@echo ""
 	@echo "=== Dynamic Library Dependencies ==="
 	@ldd $(ARTIFACTS_DIR)/bin/ffmpeg || true
-	@if ldd $(ARTIFACTS_DIR)/bin/ffmpeg 2>/dev/null | grep -vE "^\s*(linux-vdso|ld-linux|libc\.so|libm\.so|libpthread\.so|libdl\.so|librt\.so|libstdc\+\+)" | grep -q "=>"; then \
+	@if ldd $(ARTIFACTS_DIR)/bin/ffmpeg 2>/dev/null | grep -vE "^\s*($(ALLOWED_DYLIBS_linux))" | grep -q "=>"; then \
 		echo "WARN: Non-system dynamic libraries found (expected for glibc build)"; \
 	else \
 		echo "OK Static linkage verified (only system libs)"; \

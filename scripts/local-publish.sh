@@ -19,6 +19,9 @@ readonly SCRIPT_DIR
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 readonly PROJECT_ROOT
 
+# Source shared platform definitions
+source "${PROJECT_ROOT}/scripts/lib/platforms.sh"
+
 # Colors
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
@@ -132,8 +135,8 @@ log_info "Checking artifacts in run $RUN_ID..."
 ARTIFACT_COUNT=$(gh api "repos/pproenca/webcodecs-ffmpeg/actions/runs/$RUN_ID/artifacts" \
   --jq '[.artifacts[] | select(.name | startswith("ffmpeg-"))] | length')
 
-if [[ "$ARTIFACT_COUNT" -lt 8 ]]; then
-  log_error "Expected 8 artifacts, found $ARTIFACT_COUNT"
+if [[ "$ARTIFACT_COUNT" -lt "$EXPECTED_ARTIFACT_COUNT" ]]; then
+  log_error "Expected ${EXPECTED_ARTIFACT_COUNT} artifacts, found $ARTIFACT_COUNT"
   log_error "Artifacts may have expired (30-day retention) or CI run incomplete"
   exit 1
 fi
@@ -162,8 +165,8 @@ cd "$PROJECT_ROOT"
 # Count tarballs
 shopt -s nullglob
 tarballs=(artifacts-raw/*.tar.gz)
-if [[ ${#tarballs[@]} -ne 8 ]]; then
-  log_error "Expected 8 tarballs, found ${#tarballs[@]}"
+if [[ ${#tarballs[@]} -ne "$EXPECTED_ARTIFACT_COUNT" ]]; then
+  log_error "Expected ${EXPECTED_ARTIFACT_COUNT} tarballs, found ${#tarballs[@]}"
   ls -la artifacts-raw/
   exit 1
 fi

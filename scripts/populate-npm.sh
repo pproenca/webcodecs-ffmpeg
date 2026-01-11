@@ -26,30 +26,12 @@ readonly ARTIFACTS_DIR="${PROJECT_ROOT}/artifacts"
 
 readonly FFMPEG_VERSION="${FFMPEG_VERSION:-0.1.0}"
 
-readonly TIERS=(free non-free)
+# Source shared platform definitions
+# Provides: PLATFORMS, PLATFORM_MAP, LICENSE_TIERS, LICENSE_MAP, LICENSE_FILE_MAP, TIER_DESC
+source "${PROJECT_ROOT}/scripts/lib/platforms.sh"
 
-declare -Ar PLATFORM_MAP=(
-  ["darwin-arm64"]="darwin-arm64"
-  ["darwin-x64"]="darwin-x64"
-  ["linux-arm64"]="linux-arm64"
-  ["linux-x64"]="linux-x64"
-)
-
-declare -Ar LICENSE_MAP=(
-  ["free"]="LGPL-2.1-or-later"
-  ["non-free"]="GPL-2.0-or-later"
-)
-
-declare -Ar TIER_DESC=(
-  ["free"]="LGPL-safe codecs (VP8/9, AV1, Opus, Vorbis, MP3)"
-  ["non-free"]="all codecs including GPL x264/x265"
-)
-
-# Map tiers to license file names in licenses/ directory
-declare -Ar LICENSE_FILE_MAP=(
-  ["free"]="LGPL-2.1.txt"
-  ["non-free"]="GPL-2.0.txt"
-)
+# Alias for backwards compatibility with this script
+readonly TIERS=("${LICENSE_TIERS[@]}")
 
 readonly LICENSES_DIR="${PROJECT_ROOT}/licenses"
 

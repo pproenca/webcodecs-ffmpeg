@@ -186,7 +186,7 @@ verify: package
 	@echo ""
 	@echo "=== Dynamic Library Dependencies ==="
 	@otool -L $(ARTIFACTS_DIR)/bin/ffmpeg
-	@if otool -L $(ARTIFACTS_DIR)/bin/ffmpeg | tail -n +2 | grep -vE "^\s+/usr/lib/(libSystem|libc\+\+|libresolv)" | grep -q .; then \
+	@if otool -L $(ARTIFACTS_DIR)/bin/ffmpeg | tail -n +2 | grep -vE "^\s+/usr/lib/($(ALLOWED_DYLIBS_darwin))" | grep -q .; then \
 		echo "✗ WARNING: Unexpected dynamic libraries found"; \
 	else \
 		echo "✓ Static linkage verified (only system libs)"; \
