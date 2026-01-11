@@ -16,12 +16,14 @@
   },
   "files": [
     "lib",
-    "versions.json"
+    "versions.json",
+    "link-flags.js"
   ],
   "type": "commonjs",
   "exports": {
     "./lib": "./lib/index.js",
     "./pkgconfig": "./lib/pkgconfig/index.js",
+    "./link-flags": "./link-flags.js",
     "./package": "./package.json",
     "./versions": "./versions.json"
   },
