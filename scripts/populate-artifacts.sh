@@ -48,10 +48,10 @@ log_error() {
 #######################################
 # FFmpeg libraries in reverse dependency order (for static linking)
 #######################################
-readonly FFMPEG_LIBS="-lavfilter -lpostproc -lswscale -lswresample -lavformat -lavdevice -lavcodec -lavutil"
+readonly FFMPEG_LIBS="-lavfilter -lswscale -lswresample -lavformat -lavdevice -lavcodec -lavutil"
 
 # Free tier codecs (LGPL-safe)
-readonly CODECS_FREE="-lsvtav1 -laom -ldav1d -lvpx -lopus -lvorbisenc -lvorbis -logg -lmp3lame"
+readonly CODECS_FREE="-lSvtAv1Enc -laom -ldav1d -lvpx -lopus -lvorbisenc -lvorbis -logg -lmp3lame"
 
 # Non-free tier adds GPL codecs
 readonly CODECS_NON_FREE="-lx265 -lx264"
@@ -63,6 +63,35 @@ readonly SYSTEM_LINUX_MUSL="-lpthread -lm -lz -lbz2 -lstdc++"
 
 # macOS frameworks
 readonly FRAMEWORKS_DARWIN="-framework VideoToolbox -framework AudioToolbox -framework CoreMedia -framework CoreVideo -framework CoreFoundation -framework CoreServices -framework Security"
+
+#######################################
+# Verify link flags against actual libraries in artifacts.
+# Arguments:
+#   $1 - lib directory path
+#   $2 - space-separated list of -l flags
+# Returns: 0 if all found, 1 if any missing
+#######################################
+verify_link_flags() {
+  local lib_dir="$1"
+  local flags="$2"
+  local missing=0
+
+  for flag in ${flags}; do
+    # Skip non -l flags (frameworks, -L, etc.)
+    [[ "${flag}" != -l* ]] && continue
+
+    # Extract library name: -lfoo -> libfoo.a
+    local lib_name="${flag#-l}"
+    local lib_file="${lib_dir}/lib${lib_name}.a"
+
+    if [[ ! -f "${lib_file}" ]]; then
+      log_error "Link flag ${flag} has no matching library: ${lib_file}"
+      missing=1
+    fi
+  done
+
+  return ${missing}
+}
 
 #######################################
 # Generate link-flags.js with platform-specific linker flags.
@@ -213,6 +242,16 @@ populate_platform() {
   generate_index_js "${npm_dest}/lib"
   generate_versions_json "${npm_dest}/versions.json" "${platform}" "${tier}"
   generate_link_flags_js "${npm_dest}/link-flags.js" "${platform}" "${tier}"
+
+  # Verify link flags match actual libraries
+  local codecs="${CODECS_FREE}"
+  if [[ "${tier}" == "non-free" ]]; then
+    codecs="${CODECS_NON_FREE} ${CODECS_FREE}"
+  fi
+  if ! verify_link_flags "${npm_dest}/lib" "${FFMPEG_LIBS} ${codecs}"; then
+    log_error "Link flags verification failed for ${npm_dir_name}"
+    return 1
+  fi
 
   log_info "  -> Populated ${npm_dir_name}"
 }
