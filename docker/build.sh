@@ -40,22 +40,29 @@ LICENSE="${LICENSE:-free}"
 # Validate platform
 if [[ -z "$PLATFORM" ]]; then
   log_error "Usage: $0 <platform> [target] [LICENSE=tier]"
-  log_error "Platforms: linux-x64, linux-arm64"
+  log_error "Platforms: linux-x64, linux-arm64, linuxmusl-x64"
   exit 1
 fi
 
 case "$PLATFORM" in
   linux-x64)
+    DOCKER_FILE="Dockerfile.linux"
     DOCKER_TARGET="builder-x64"
     EXPECTED_ARCH="x86-64"
     ;;
   linux-arm64)
+    DOCKER_FILE="Dockerfile.linux"
     DOCKER_TARGET="builder-arm64"
     EXPECTED_ARCH="aarch64"
     ;;
+  linuxmusl-x64)
+    DOCKER_FILE="Dockerfile.linux-musl"
+    DOCKER_TARGET="builder-x64"
+    EXPECTED_ARCH="x86-64"
+    ;;
   *)
     log_error "Unknown platform: $PLATFORM"
-    log_error "Supported platforms: linux-x64, linux-arm64"
+    log_error "Supported platforms: linux-x64, linux-arm64, linuxmusl-x64"
     exit 1
     ;;
 esac
@@ -86,7 +93,7 @@ build_image() {
   log_step "Building Docker image: ${image_name}"
 
   docker build \
-    --file "${SCRIPT_DIR}/Dockerfile.linux" \
+    --file "${SCRIPT_DIR}/${DOCKER_FILE}" \
     --target "${DOCKER_TARGET}" \
     --tag "${image_name}" \
     "${PROJECT_ROOT}"

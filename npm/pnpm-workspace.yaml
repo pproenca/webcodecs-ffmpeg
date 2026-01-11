@@ -10,3 +10,5 @@ packages:
   - 'webcodecs-ffmpeg-linux-arm64-non-free'
   - 'webcodecs-ffmpeg-linux-x64'
   - 'webcodecs-ffmpeg-linux-x64-non-free'
+  - 'webcodecs-ffmpeg-linux-x64-musl'
+  - 'webcodecs-ffmpeg-linux-x64-musl-non-free'

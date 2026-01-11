@@ -1,0 +1,72 @@
+# =============================================================================
+# FFmpeg Linux musl Build Container
+# =============================================================================
+# Alpine-based container for building fully static FFmpeg binaries.
+#
+# Produces binaries with NO dynamic dependencies - suitable for:
+#   - Alpine Linux
+#   - Scratch/distroless containers
+#   - Any Linux system (no glibc requirement)
+#
+# Usage:
+#   docker build -f docker/Dockerfile.linux-musl -t ffmpeg-build:linuxmusl-x64 .
+#   docker run --rm -v $PWD:/build ffmpeg-build:linuxmusl-x64
+# =============================================================================
+
+FROM alpine:3.20 AS base
+
+# Install build dependencies
+# hadolint ignore=DL3018
+RUN apk add --no-cache \
+    # Build essentials
+    build-base \
+    pkgconf \
+    # Download tools
+    curl \
+    ca-certificates \
+    git \
+    # Autotools
+    autoconf \
+    automake \
+    libtool \
+    # Build systems
+    cmake \
+    meson \
+    ninja \
+    samurai \
+    python3 \
+    py3-pip \
+    # Assembler
+    nasm \
+    yasm \
+    # Archive tools
+    xz \
+    # Static libraries needed for fully static build
+    linux-headers \
+    musl-dev \
+    zlib-static
+
+# Create build user
+RUN adduser -D -s /bin/sh builder
+WORKDIR /build
+
+# =============================================================================
+# Builder for x64 (native compilation on x86_64)
+# =============================================================================
+FROM base AS builder-x64
+
+# Set platform identification
+ENV PLATFORM=linuxmusl-x64 \
+    TARGET_OS=linux \
+    ARCH=x86_64 \
+    CC=gcc \
+    CXX=g++ \
+    AR=ar \
+    RANLIB=ranlib \
+    STRIP=strip
+
+# Project will be mounted at /build
+WORKDIR /build
+
+# Default command runs the build
+CMD ["make", "-C", "/build/platforms/linuxmusl-x64", "all"]

@@ -1,0 +1,37 @@
+{
+  "name": "@pproenca/webcodecs-ffmpeg-linux-x64-musl",
+  "version": "0.1.1",
+  "description": "Prebuilt FFmpeg with LGPL-safe codecs (VP8/9, AV1, Opus, Vorbis, MP3) for linux-x64-musl (Alpine)",
+  "author": "Pedro Proenca",
+  "homepage": "https://github.com/pproenca/webcodecs-ffmpeg",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pproenca/webcodecs-ffmpeg.git",
+    "directory": "npm/webcodecs-ffmpeg-linux-x64-musl"
+  },
+  "license": "LGPL-2.1-or-later",
+  "preferUnplugged": true,
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "lib",
+    "versions.json"
+  ],
+  "type": "commonjs",
+  "exports": {
+    "./lib": "./lib/index.js",
+    "./pkgconfig": "./lib/pkgconfig/index.js",
+    "./package": "./package.json",
+    "./versions": "./versions.json"
+  },
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "libc": [
+    "musl"
+  ]
+}
