@@ -48,6 +48,10 @@ RUN apk add --no-cache \
     musl-dev \
     zlib-static
 
+# Ensure GNU diff takes precedence over BusyBox version
+# libvpx configure requires `diff --version` which BusyBox doesn't support
+RUN ln -sf /usr/bin/diff /bin/diff
+
 # Create build user
 RUN adduser -D -s /bin/sh builder
 WORKDIR /build
