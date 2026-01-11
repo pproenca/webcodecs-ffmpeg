@@ -22,6 +22,9 @@ readonly ARTIFACTS_DIR="${PROJECT_ROOT}/artifacts"
 
 readonly TIERS=(free non-free)
 
+# Maps artifact platform names to npm package suffixes
+# Key: artifact directory name (e.g., artifacts/linuxmusl-x64-free/)
+# Value: npm package suffix (e.g., webcodecs-ffmpeg-linux-x64-musl)
 declare -Ar PLATFORM_MAP=(
   ["darwin-arm64"]="darwin-arm64"
   ["darwin-x64"]="darwin-x64"
@@ -81,11 +84,13 @@ query_link_flags_from_pkgconfig() {
   fi
 
   # Remove any -L flags (we'll add our own)
-  # Use a loop since bash parameter expansion can't handle this pattern well
+  # shellcheck disable=SC2086  # Intentional word splitting on space-separated flags
   local cleaned=""
+  set -f  # Disable globbing to prevent * or ? in flags from expanding
   for flag in ${ffmpeg_libs}; do
     [[ "${flag}" != -L* ]] && cleaned="${cleaned} ${flag}"
   done
+  set +f  # Re-enable globbing
   ffmpeg_libs="${cleaned# }"
 
   # Add platform-specific system libs and frameworks
@@ -157,10 +162,13 @@ EOF
 # Generate an index.js that exports the directory path.
 # Arguments:
 #   $1 - Directory path where index.js will be created
+# Outputs:
+#   Creates index.js in the specified directory
 #######################################
 generate_index_js() {
   local dir="$1"
   mkdir -p "${dir}"
+  # Use <<'EOF' to prevent variable expansion (literal string needed)
   cat >"${dir}/index.js" <<'EOF'
 module.exports = __dirname;
 EOF
@@ -168,10 +176,13 @@ EOF
 
 #######################################
 # Generate versions.json with build metadata.
+# Copies from artifacts if available, otherwise creates minimal metadata.
 # Arguments:
 #   $1 - Output file path
 #   $2 - Platform identifier (e.g., darwin-arm64)
 #   $3 - Tier (free, non-free)
+# Outputs:
+#   Creates versions.json at the specified path
 #######################################
 generate_versions_json() {
   local output_file="$1"
@@ -194,19 +205,23 @@ EOF
 
 #######################################
 # Populate a platform-specific npm package from build artifacts.
+# Copies libraries, pkg-config files, and generates metadata.
 # Arguments:
-#   $1 - Platform identifier (e.g., darwin-arm64)
+#   $1 - Platform identifier (e.g., darwin-arm64, linuxmusl-x64)
 #   $2 - Tier (free, non-free)
+# Returns:
+#   0 on success or skip, 1 on failure
 #######################################
 populate_platform() {
   local platform="$1"
   local tier="$2"
   local artifacts_src="${ARTIFACTS_DIR}/${platform}-${tier}"
 
-  # Determine npm package directory
-  local npm_dir_name="webcodecs-ffmpeg-${platform}"
+  # Determine npm package directory using PLATFORM_MAP for correct naming
+  local npm_suffix="${PLATFORM_MAP[${platform}]}"
+  local npm_dir_name="webcodecs-ffmpeg-${npm_suffix}"
   if [[ "${tier}" != "free" ]]; then
-    npm_dir_name="webcodecs-ffmpeg-${platform}-${tier}"
+    npm_dir_name="webcodecs-ffmpeg-${npm_suffix}-${tier}"
   fi
   local npm_dest="${NPM_DIR}/${npm_dir_name}"
 
@@ -222,7 +237,7 @@ populate_platform() {
 
   log_info "Populating ${npm_dir_name} from ${artifacts_src}"
 
-  rm -rf "${npm_dest:?}/lib"
+  rm -rf "${npm_dest:?npm_dest is unset}/lib"
   mkdir -p "${npm_dest}/lib"
 
   # Copy static libraries if they exist
@@ -259,6 +274,11 @@ populate_platform() {
 
 #######################################
 # Populate the dev npm package with FFmpeg headers.
+# Searches all platforms/tiers to find headers, copies first found.
+# Outputs:
+#   Copies headers to npm/dev/include/
+# Returns:
+#   0 on success or skip (no headers found)
 #######################################
 populate_dev() {
   local dev_dir="${NPM_DIR}/dev"
@@ -288,7 +308,7 @@ populate_dev() {
 
   log_info "Populating dev package from ${header_src}"
 
-  rm -rf "${dev_dir:?}/include"
+  rm -rf "${dev_dir:?dev_dir is unset}/include"
   mkdir -p "${dev_dir}/include"
 
   # Copy headers if they exist
@@ -304,6 +324,8 @@ populate_dev() {
 
 #######################################
 # Main entry point.
+# Returns:
+#   0 on success, 1 if any platform fails to populate
 #######################################
 main() {
   log_info "Populating npm packages with build artifacts..."
@@ -311,11 +333,19 @@ main() {
   log_info "  NPM dir:   ${NPM_DIR}"
 
   local platform tier
+  local failed=0
   for platform in "${!PLATFORM_MAP[@]}"; do
     for tier in "${TIERS[@]}"; do
-      populate_platform "${platform}" "${tier}"
+      if ! populate_platform "${platform}" "${tier}"; then
+        failed=1
+      fi
     done
   done
+
+  if (( failed )); then
+    log_error "One or more platforms failed to populate"
+    return 1
+  fi
 
   populate_dev
 
