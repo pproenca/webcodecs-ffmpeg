@@ -1,6 +1,6 @@
 {
   "name": "@pproenca/webcodecs-ffmpeg-non-free",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Prebuilt FFmpeg with all codecs including GPL x264/x265 - auto-selects platform",
   "author": "Pedro Proenca",
   "homepage": "https://github.com/pproenca/webcodecs-ffmpeg",
@@ -26,10 +26,10 @@
     "postinstall": "node install.js"
   },
   "optionalDependencies": {
-    "@pproenca/webcodecs-ffmpeg-darwin-arm64-non-free": "0.1.2",
-    "@pproenca/webcodecs-ffmpeg-darwin-x64-non-free": "0.1.2",
-    "@pproenca/webcodecs-ffmpeg-linux-arm64-non-free": "0.1.2",
-    "@pproenca/webcodecs-ffmpeg-linux-x64-non-free": "0.1.2",
-    "@pproenca/webcodecs-ffmpeg-linux-x64-musl-non-free": "0.1.2"
+    "@pproenca/webcodecs-ffmpeg-darwin-arm64-non-free": "0.1.3",
+    "@pproenca/webcodecs-ffmpeg-darwin-x64-non-free": "0.1.3",
+    "@pproenca/webcodecs-ffmpeg-linux-arm64-non-free": "0.1.3",
+    "@pproenca/webcodecs-ffmpeg-linux-x64-non-free": "0.1.3",
+    "@pproenca/webcodecs-ffmpeg-linux-x64-musl-non-free": "0.1.3"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@pproenca/webcodecs-ffmpeg-linux-x64-musl-non-free",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Prebuilt FFmpeg with all codecs including GPL (x264/x265) for linux-x64-musl (Alpine)",
   "author": "Pedro Proenca",
   "homepage": "https://github.com/pproenca/webcodecs-ffmpeg",
