@@ -41,6 +41,8 @@ RUN apk add --no-cache \
     yasm \
     # Archive tools
     xz \
+    # GNU utilities (libvpx configure requires GNU diff)
+    diffutils \
     # Static libraries needed for fully static build
     linux-headers \
     musl-dev \
