@@ -1,14 +1,31 @@
 #!/usr/bin/env node
 /**
  * Fallback installer for when optionalDependencies are disabled.
- * Attempts to locate the platform-specific package or provides guidance.
+ * @module install
  */
+
+'use strict';
 
 const os = require('os');
 const fs = require('fs');
 
-const TIER_SUFFIX = '';
+// ----- Type Definitions -----
 
+/**
+ * @typedef {Object} PlatformInfo
+ * @property {string} os
+ * @property {string} cpu
+ * @property {string} [libc]
+ */
+
+/** @typedef {'darwin-arm64' | 'darwin-x64' | 'linux-x64' | 'linux-x64-musl' | 'linux-arm64' | 'win32-x64' | 'win32-arm64'} PlatformKey */
+
+// ----- Constants -----
+
+const TIER_SUFFIX = '';
+const PACKAGE_SCOPE = '@pproenca/webcodecs-ffmpeg';
+
+/** @type {Record<PlatformKey, PlatformInfo>} */
 const PLATFORMS = {
   'darwin-arm64': { os: 'darwin', cpu: 'arm64' },
   'darwin-x64': { os: 'darwin', cpu: 'x64' },
@@ -19,20 +36,26 @@ const PLATFORMS = {
   'win32-arm64': { os: 'win32', cpu: 'arm64' },
 };
 
+// ----- Platform Detection -----
+
 /**
- * Detect if running on musl libc (Alpine Linux, etc.)
+ * Detects if the current system uses musl libc (Alpine Linux, etc.)
+ * @returns {boolean} True if running on musl libc
  */
 function isMusl() {
   if (os.platform() !== 'linux') return false;
   try {
-    // Check for musl loader
-    const arch = os.arch() === 'x64' ? 'x86_64' : os.arch();
-    return fs.existsSync(`/lib/ld-musl-${arch}.so.1`);
+    const muslArch = os.arch() === 'x64' ? 'x86_64' : os.arch();
+    return fs.existsSync(`/lib/ld-musl-${muslArch}.so.1`);
   } catch {
     return false;
   }
 }
 
+/**
+ * Gets the platform key for the current system
+ * @returns {string} Platform key (e.g., 'darwin-arm64', 'linux-x64-musl')
+ */
 function getPlatformKey() {
   const platform = os.platform();
   const arch = os.arch();
@@ -42,10 +65,20 @@ function getPlatformKey() {
   return `${platform}-${arch}`;
 }
 
+/**
+ * Gets the package name for a platform key
+ * @param {string} platformKey
+ * @returns {string} Full package name
+ */
 function getPackageName(platformKey) {
-  return `@pproenca/webcodecs-ffmpeg-${platformKey}`;
+  return `${PACKAGE_SCOPE}-${platformKey}${TIER_SUFFIX}`;
 }
 
+/**
+ * Checks if a package is installed
+ * @param {string} packageName
+ * @returns {boolean} True if the package can be resolved
+ */
 function checkInstalled(packageName) {
   try {
     require.resolve(packageName);
@@ -54,6 +87,8 @@ function checkInstalled(packageName) {
     return false;
   }
 }
+
+// ----- Main -----
 
 function main() {
   const platformKey = getPlatformKey();
@@ -67,11 +102,9 @@ function main() {
   const packageName = getPackageName(platformKey);
 
   if (checkInstalled(packageName)) {
-    // Package was installed via optionalDependencies - all good
     process.exit(0);
   }
 
-  // Package not found - provide guidance
   console.warn(`[ffmpeg] Warning: Platform package not found: ${packageName}`);
   console.warn('[ffmpeg] This usually happens when --no-optional or --ignore-optional is used.');
   console.warn(`[ffmpeg] To install manually: npm install ${packageName}`);
