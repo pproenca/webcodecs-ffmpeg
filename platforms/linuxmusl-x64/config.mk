@@ -29,7 +29,6 @@ ARCH_FLAGS := -m64
 # -fPIC: Position-independent code for static libs
 # -O3: Maximum optimization
 # -pthread: Enable threading
-# -static: Fully static linking (musl specialty)
 COMMON_FLAGS := $(ARCH_FLAGS) -O3 -fPIC -pthread
 CFLAGS := $(COMMON_FLAGS)
 CXXFLAGS := $(COMMON_FLAGS)

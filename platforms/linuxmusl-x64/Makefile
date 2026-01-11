@@ -170,7 +170,7 @@ verify: package
 	@file $(ARTIFACTS_DIR)/bin/ffmpeg | grep -q "$(ARCH_VERIFY_PATTERN)" && echo "OK x86_64 verified" || (echo "FAIL Not x86_64!" && exit 1)
 	@echo ""
 	@echo "=== Static Linking Verification ==="
-	@file $(ARTIFACTS_DIR)/bin/ffmpeg | grep -q "statically linked" && echo "OK Fully static binary" || echo "WARN: Not fully static (may have musl dynamic deps)"
+	@file $(ARTIFACTS_DIR)/bin/ffmpeg | grep -q "statically linked" && echo "OK Fully static binary" || (echo "FAIL: Not fully static! This platform requires fully static binaries." && exit 1)
 	@echo ""
 	@echo "=== Dynamic Dependencies (should be empty or 'not a dynamic executable') ==="
 	@ldd $(ARTIFACTS_DIR)/bin/ffmpeg 2>&1 || true
