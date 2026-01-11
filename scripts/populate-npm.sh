@@ -84,7 +84,7 @@ log_info() {
 }
 
 log_warn() {
-  printf "\033[1;33m[WARN]\033[0m %s\n" "$*"
+  printf "\033[1;33m[WARN]\033[0m %s\n" "$*" >&2
 }
 
 log_error() {
@@ -99,7 +99,7 @@ log_error() {
 #   Creates index.js file in the specified directory
 #######################################
 generate_index_js() {
-  local dir="$1"
+  local -r dir="$1"
   mkdir -p "${dir}"
   cat >"${dir}/index.js" <<'EOF'
 module.exports = __dirname;
@@ -119,10 +119,10 @@ EOF
 #   Creates versions.json at the specified path
 #######################################
 generate_versions_json() {
-  local output_file="$1"
-  local platform="$2"
-  local tier="$3"
-  local artifacts_json="${ARTIFACTS_DIR}/${platform}-${tier}/versions.json"
+  local -r output_file="$1"
+  local -r platform="$2"
+  local -r tier="$3"
+  local -r artifacts_json="${ARTIFACTS_DIR}/${platform}-${tier}/versions.json"
 
   if [[ -f "${artifacts_json}" ]]; then
     cp "${artifacts_json}" "${output_file}"
@@ -152,14 +152,14 @@ EOF
 #   Creates package.json at the specified path
 #######################################
 generate_platform_package_json() {
-  local dir="$1"
-  local platform="$2"
-  local tier="$3"
+  local -r dir="$1"
+  local -r platform="$2"
+  local -r tier="$3"
 
-  local os="${platform%%-*}"  # darwin
-  local cpu="${platform##*-}" # arm64
-  local license="${LICENSE_MAP[$tier]}"
-  local desc="${TIER_DESC[$tier]}"
+  local -r os="${platform%%-*}"  # darwin
+  local -r cpu="${platform##*-}" # arm64
+  local -r license="${LICENSE_MAP[$tier]}"
+  local -r desc="${TIER_DESC[$tier]}"
 
   # free is the default (no suffix)
   local pkg_name="@pproenca/webcodecs-ffmpeg-${platform}"
@@ -219,16 +219,16 @@ EOF
 #   0 on success or if artifacts not found (skipped)
 #######################################
 populate_platform() {
-  local platform="$1"
-  local tier="$2"
-  local artifacts_src="${ARTIFACTS_DIR}/${platform}-${tier}"
+  local -r platform="$1"
+  local -r tier="$2"
+  local -r artifacts_src="${ARTIFACTS_DIR}/${platform}-${tier}"
 
   # free is the default (no suffix)
   local npm_dir_name="webcodecs-ffmpeg-${platform}"
   if [[ "${tier}" != "free" ]]; then
     npm_dir_name="webcodecs-ffmpeg-${platform}-${tier}"
   fi
-  local npm_dest="${NPM_DIR}/${npm_dir_name}"
+  local -r npm_dest="${NPM_DIR}/${npm_dir_name}"
 
   if [[ ! -d "${artifacts_src}" ]]; then
     log_warn "Artifacts not found: ${artifacts_src}, skipping"
@@ -242,18 +242,22 @@ populate_platform() {
 
   # Copy static libraries if they exist
   if [[ -d "${artifacts_src}/lib" ]]; then
-    local -a lib_files
+    local -a lib_files=()
+    shopt -s nullglob
     lib_files=("${artifacts_src}/lib/"*.a)
-    if [[ -e "${lib_files[0]}" ]]; then
+    shopt -u nullglob
+    if (( ${#lib_files[@]} > 0 )); then
       cp -a "${lib_files[@]}" "${npm_dest}/lib/"
     fi
   fi
 
   # Copy pkg-config files for native addon development
   if [[ -d "${artifacts_src}/lib/pkgconfig" ]]; then
-    local -a pc_files
+    local -a pc_files=()
+    shopt -s nullglob
     pc_files=("${artifacts_src}/lib/pkgconfig/"*.pc)
-    if [[ -e "${pc_files[0]}" ]]; then
+    shopt -u nullglob
+    if (( ${#pc_files[@]} > 0 )); then
       mkdir -p "${npm_dest}/lib/pkgconfig"
       cp -a "${pc_files[@]}" "${npm_dest}/lib/pkgconfig/"
       generate_index_js "${npm_dest}/lib/pkgconfig"
@@ -287,12 +291,12 @@ populate_platform() {
 #   0 on success or if no headers found (skipped)
 #######################################
 populate_dev() {
-  local dev_dir="${NPM_DIR}/dev"
+  local -r dev_dir="${NPM_DIR}/dev"
   local header_src=""
 
-  local tier
-  local platform
-  local src
+  local tier=""
+  local platform=""
+  local src=""
   for tier in non-free free; do
     for platform in "${!PLATFORM_MAP[@]}"; do
       src="${ARTIFACTS_DIR}/${platform}-${tier}/include"
@@ -314,9 +318,11 @@ populate_dev() {
   mkdir -p "${dev_dir}/include"
 
   # Copy headers if they exist
-  local -a header_files
+  local -a header_files=()
+  shopt -s nullglob
   header_files=("${header_src}/"*)
-  if [[ -e "${header_files[0]}" ]]; then
+  shopt -u nullglob
+  if (( ${#header_files[@]} > 0 )); then
     cp -a "${header_files[@]}" "${dev_dir}/include/"
   fi
   generate_index_js "${dev_dir}/include"
@@ -387,10 +393,10 @@ EOF
 #   Creates package.json at the specified path
 #######################################
 generate_meta_package_json() {
-  local dir="$1"
-  local tier="$2"
-  local license="${LICENSE_MAP[$tier]}"
-  local desc="${TIER_DESC[$tier]}"
+  local -r dir="$1"
+  local -r tier="$2"
+  local -r license="${LICENSE_MAP[$tier]}"
+  local -r desc="${TIER_DESC[$tier]}"
 
   # Meta package name: @pproenca/webcodecs-ffmpeg for free (default), @pproenca/webcodecs-ffmpeg-non-free for non-free
   local pkg_name="@pproenca/webcodecs-ffmpeg"
@@ -403,7 +409,7 @@ generate_meta_package_json() {
   # Build optionalDependencies for all platforms
   local opt_deps=""
   local first=true
-  local platform dep_name
+  local platform="" dep_name=""
   for platform in "${!PLATFORM_MAP[@]}"; do
     dep_name="@pproenca/webcodecs-ffmpeg-${platform}"
     if [[ "${tier}" != "free" ]]; then
@@ -463,8 +469,8 @@ EOF
 #   Creates install.js at the specified path
 #######################################
 generate_meta_install_js() {
-  local dir="$1"
-  local tier="$2"
+  local -r dir="$1"
+  local -r tier="$2"
 
   local tier_suffix=""
   if [[ "${tier}" != "free" ]]; then
@@ -480,7 +486,7 @@ generate_meta_install_js() {
 
 const os = require('os');
 
-const TIER_SUFFIX = '${TIER_SUFFIX}';
+const TIER_SUFFIX = '__TIER_SUFFIX_PLACEHOLDER__';
 
 const PLATFORMS = {
   'darwin-arm64': { os: 'darwin', cpu: 'arm64' },
@@ -537,7 +543,7 @@ main();
 INSTALLJS
 
   # Replace the placeholder with actual tier suffix
-  sed_inplace "s/\${TIER_SUFFIX}/${tier_suffix}/g" "${dir}/install.js"
+  sed_inplace "s/__TIER_SUFFIX_PLACEHOLDER__/${tier_suffix}/g" "${dir}/install.js"
 }
 
 #######################################
@@ -549,8 +555,8 @@ INSTALLJS
 #   Creates resolve.js at the specified path
 #######################################
 generate_meta_resolve_js() {
-  local dir="$1"
-  local tier="$2"
+  local -r dir="$1"
+  local -r tier="$2"
 
   local tier_suffix=""
   if [[ "${tier}" != "free" ]]; then
@@ -568,7 +574,7 @@ generate_meta_resolve_js() {
 const os = require('os');
 const path = require('path');
 
-const TIER_SUFFIX = '${TIER_SUFFIX}';
+const TIER_SUFFIX = '__TIER_SUFFIX_PLACEHOLDER__';
 
 function getPlatformPkgPath() {
   const platform = os.platform();
@@ -592,7 +598,7 @@ module.exports = {
 RESOLVEJS
 
   # Replace the placeholder with actual tier suffix
-  sed_inplace "s/\${TIER_SUFFIX}/${tier_suffix}/g" "${dir}/resolve.js"
+  sed_inplace "s/__TIER_SUFFIX_PLACEHOLDER__/${tier_suffix}/g" "${dir}/resolve.js"
 }
 
 #######################################
@@ -606,7 +612,7 @@ RESOLVEJS
 populate_meta_packages() {
   log_info "Populating meta packages..."
 
-  local tier npm_subdir meta_dir license_file
+  local tier="" npm_subdir="" meta_dir="" license_file=""
   for tier in "${TIERS[@]}"; do
     npm_subdir="webcodecs-ffmpeg"
     if [[ "${tier}" != "free" ]]; then
@@ -653,8 +659,8 @@ main() {
 }
 EOF
 
-  local platform
-  local tier
+  local platform=""
+  local tier=""
   for platform in "${!PLATFORM_MAP[@]}"; do
     for tier in "${TIERS[@]}"; do
       populate_platform "${platform}" "${tier}"
