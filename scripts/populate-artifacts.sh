@@ -27,6 +27,7 @@ declare -Ar PLATFORM_MAP=(
   ["darwin-x64"]="darwin-x64"
   ["linux-arm64"]="linux-arm64"
   ["linux-x64"]="linux-x64"
+  ["linuxmusl-x64"]="linux-x64-musl"
 )
 
 #######################################

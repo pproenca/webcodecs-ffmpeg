@@ -121,8 +121,8 @@ jobs:
           ARTIFACT_COUNT=$(gh api "repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts" \
             --jq '[.artifacts[] | select(.name | startswith("ffmpeg-"))] | length')
 
-          if [[ "$ARTIFACT_COUNT" -lt 8 ]]; then
-            echo "::error::Expected 8 artifacts, found $ARTIFACT_COUNT. CI artifacts may have expired."
+          if [[ "$ARTIFACT_COUNT" -lt 10 ]]; then
+            echo "::error::Expected 10 artifacts, found $ARTIFACT_COUNT. CI artifacts may have expired."
             exit 1
           fi
 
@@ -170,8 +170,8 @@ jobs:
           # Verify count
           shopt -s nullglob
           tarballs=(*.tar.gz)
-          if [[ ${#tarballs[@]} -ne 8 ]]; then
-            echo "::error::Expected 8 tarballs, found ${#tarballs[@]}"
+          if [[ ${#tarballs[@]} -ne 10 ]]; then
+            echo "::error::Expected 10 tarballs, found ${#tarballs[@]}"
             ls -la
             exit 1
           fi
@@ -180,7 +180,7 @@ jobs:
           for f in *.sha256; do
             sha256sum --check "$f"
           done
-          echo "All 8 artifacts verified"
+          echo "All 10 artifacts verified"
 
       - name: Generate attestations
         uses: actions/attest-build-provenance@v3

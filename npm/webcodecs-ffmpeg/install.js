@@ -5,6 +5,7 @@
  */
 
 const os = require('os');
+const fs = require('fs');
 
 const TIER_SUFFIX = '';
 
@@ -12,14 +13,32 @@ const PLATFORMS = {
   'darwin-arm64': { os: 'darwin', cpu: 'arm64' },
   'darwin-x64': { os: 'darwin', cpu: 'x64' },
   'linux-x64': { os: 'linux', cpu: 'x64' },
+  'linux-x64-musl': { os: 'linux', cpu: 'x64', libc: 'musl' },
   'linux-arm64': { os: 'linux', cpu: 'arm64' },
   'win32-x64': { os: 'win32', cpu: 'x64' },
   'win32-arm64': { os: 'win32', cpu: 'arm64' },
 };
 
+/**
+ * Detect if running on musl libc (Alpine Linux, etc.)
+ */
+function isMusl() {
+  if (os.platform() !== 'linux') return false;
+  try {
+    // Check for musl loader
+    const arch = os.arch() === 'x64' ? 'x86_64' : os.arch();
+    return fs.existsSync(`/lib/ld-musl-${arch}.so.1`);
+  } catch {
+    return false;
+  }
+}
+
 function getPlatformKey() {
   const platform = os.platform();
   const arch = os.arch();
+  if (platform === 'linux' && arch === 'x64' && isMusl()) {
+    return 'linux-x64-musl';
+  }
   return `${platform}-${arch}`;
 }
 
