@@ -1,6 +1,6 @@
 {
   "name": "@pproenca/webcodecs-ffmpeg-darwin-x64-non-free",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Prebuilt FFmpeg with all codecs including GPL x264/x265 for darwin-x64",
   "author": "Pedro Proenca",
   "homepage": "https://github.com/pproenca/webcodecs-ffmpeg",

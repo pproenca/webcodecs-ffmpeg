@@ -1,6 +1,6 @@
 {
   "name": "@pproenca/webcodecs-ffmpeg-linux-arm64-non-free",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Prebuilt FFmpeg with all codecs including GPL x264/x265 for linux-arm64",
   "author": "Pedro Proenca",
   "homepage": "https://github.com/pproenca/webcodecs-ffmpeg",

@@ -1,6 +1,6 @@
 {
   "name": "@pproenca/webcodecs-ffmpeg-dev",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "FFmpeg headers for Node.js native addon development",
   "author": "Pedro Proenca",
   "homepage": "https://github.com/pproenca/webcodecs-ffmpeg",
