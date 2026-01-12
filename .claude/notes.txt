@@ -1,0 +1,732 @@
+# Static vs Dynamic Linking Analysis for node-webcodecs
+
+## Date: 2026-01-12
+
+---
+
+## 1. Core Concepts
+
+### Static Linking
+- Linker COPIES library code into final binary at build time
+- File extensions: `.a` (Unix), `.lib` (Windows)
+- Result: Self-contained binary, larger size, no runtime dependencies
+- Used for: Distributing Node.js native addons via npm
+
+### Dynamic Linking
+- Linker records "I need function X from libfoo" - resolved at runtime
+- File extensions: `.so` (Linux), `.dylib` (macOS), `.dll` (Windows)
+- Result: Smaller binary, requires libraries installed on target system
+- Used for: System libraries, shared components
+
+---
+
+## 2. Build Time vs Runtime Dependencies
+
+### BUILD TIME (Developer/CI machine building node-webcodecs)
+
+Required:
+- Headers (`include/*.h`) - For compilation (#include directives)
+- Static libraries (`lib/*.a`) - For linking (-l flags)
+- pkg-config files (`lib/pkgconfig/*.pc`) - For automated build config
+- Build tools: gcc/clang, node-gyp, python
+
+NOT required at build time:
+- FFmpeg binaries (ffmpeg, ffprobe)
+- Dynamic libraries (.so/.dylib)
+
+### RUNTIME (End user running node-webcodecs)
+
+Required:
+- The `.node` file (contains ALL FFmpeg code statically linked)
+- Node.js
+
+NOT required at runtime:
+- Headers (compilation already done)
+- Static libraries (already linked in)
+- pkg-config files (build config already done)
+- FFmpeg binaries (unless app needs to shell out)
+- System FFmpeg installation
+
+---
+
+## 3. Current webcodecs-ffmpeg Package Structure
+
+```
+@pproenca/webcodecs-ffmpeg-dev          # BUILD TIME - Headers only
+├── include/
+│   ├── libavcodec/*.h
+│   ├── libavformat/*.h
+│   ├── libavutil/*.h
+│   ├── libswscale/*.h
+│   └── libswresample/*.h
+└── gyp-config.js                       # Helper: exports include path
+
+@pproenca/webcodecs-ffmpeg-<platform>   # BUILD TIME - Static libs
+├── lib/
+│   ├── libavcodec.a
+│   ├── libavformat.a
+│   ├── libavutil.a
+│   ├── libswscale.a
+│   ├── libswresample.a
+│   ├── libvpx.a
+│   ├── libaom.a
+│   ├── libdav1d.a
+│   ├── libSvtAv1Enc.a
+│   ├── libopus.a
+│   ├── libogg.a
+│   ├── libvorbis.a
+│   ├── libvorbisenc.a
+│   ├── libmp3lame.a
+│   └── pkgconfig/*.pc
+├── versions.json
+└── link-flags.js (proposed)
+
+@pproenca/webcodecs-ffmpeg              # META - Platform selector
+├── resolve.js                          # Detects platform, returns paths
+├── install.js                          # Fallback if optionalDeps disabled
+└── optionalDependencies → platform packages
+
+Platforms supported:
+- darwin-arm64 (Apple Silicon)
+- darwin-x64 (Intel Mac)
+- linux-x64 (glibc)
+- linux-x64-musl (Alpine)
+- linux-arm64 (glibc)
+```
+
+---
+
+## 4. CI Failure Analysis (node-webcodecs PR #10)
+
+### Issue 1: Linux glibc - Using WRONG FFmpeg
+
+CI workflow installs system FFmpeg:
+```yaml
+dnf install -y ffmpeg-devel  # RPMFusion - DYNAMICALLY LINKED
+```
+
+Linker errors show missing dynamic deps:
+```
+/usr/bin/ld: cannot find -lvpx
+/usr/bin/ld: cannot find -laom
+/usr/bin/ld: cannot find -ldav1d
+/usr/bin/ld: cannot find -lcairo      # GUI lib - not needed!
+/usr/bin/ld: cannot find -lX11        # Display - not needed!
+/usr/bin/ld: cannot find -lva         # VAAPI - not needed!
+/usr/bin/ld: cannot find -lOpenCL     # GPU - not needed!
+```
+
+ROOT CAUSE: Not using webcodecs-ffmpeg packages at all.
+System FFmpeg has tons of optional features enabled that require
+additional libraries we don't need for WebCodecs.
+
+FIX: Remove system FFmpeg, use npm packages instead.
+
+### Issue 2: Linux musl - SVT-AV1 LTO Problem
+
+Error:
+```
+plugin needed to handle lto object
+svt_av1_enc_send_picture: symbol not found
+```
+
+ROOT CAUSE: SVT-AV1 built with Link Time Optimization (LTO).
+User's GCC doesn't have LTO plugin, can't read the .o files in .a archive.
+
+FIX: Already fixed in commit 5384b30 (disable LTO for SVT-AV1 on musl).
+Needs new release to npm.
+
+### Issue 3: macOS - Test failures (not build)
+
+Build succeeds, some tests fail. Likely test logic issues.
+
+---
+
+## 5. How Static Linking Works in Practice
+
+### Step 1: Compile (.cpp → .o)
+```bash
+g++ -c addon.cpp -I/path/to/ffmpeg/include -o addon.o
+```
+Compiler reads headers, produces object file with "holes" for external symbols.
+
+### Step 2: Link (.o + .a → .node)
+```bash
+g++ addon.o \
+  /path/to/libavcodec.a \
+  /path/to/libavformat.a \
+  /path/to/libvpx.a \
+  ... \
+  -o addon.node
+```
+Linker pulls ONLY the functions you use from each .a file.
+Copies that machine code into final binary.
+
+### Step 3: Result
+```bash
+$ file addon.node
+addon.node: Mach-O 64-bit bundle arm64
+
+$ otool -L addon.node  # Check dynamic dependencies
+addon.node:
+  /usr/lib/libc++.1.dylib           # System C++ runtime - OK
+  /usr/lib/libSystem.B.dylib        # System libs - OK
+  # NO FFmpeg libraries! All statically linked.
+```
+
+---
+
+## 6. What node-webcodecs binding.gyp Should Do
+
+### Include Paths (for headers)
+```python
+"include_dirs": [
+  "<!(node -p \"require('@pproenca/webcodecs-ffmpeg-dev/gyp-config').include\")"
+]
+```
+
+### Library Paths (for .a files)
+```python
+"library_dirs": [
+  "<!(node -p \"require('@pproenca/webcodecs-ffmpeg/resolve').lib\")"
+]
+```
+
+### Libraries (what to link)
+
+Option A: Explicit list
+```python
+"libraries": [
+  "-lavcodec", "-lavformat", "-lavutil", "-lswscale", "-lswresample",
+  "-lvpx", "-laom", "-ldav1d", "-lSvtAv1Enc",
+  "-lopus", "-logg", "-lvorbis", "-lvorbisenc", "-lmp3lame"
+]
+```
+
+Option B: Use pkg-config
+```python
+"libraries": [
+  "<!@(PKG_CONFIG_PATH=<path> pkg-config --static --libs libavcodec libavformat ...)"
+]
+```
+
+### System Libraries (always needed)
+```python
+# macOS
+"libraries": ["-framework CoreFoundation", "-framework CoreMedia", ...]
+
+# Linux
+"libraries": ["-lpthread", "-lm", "-ldl", "-lz"]
+```
+
+---
+
+## 7. Proposed Package Improvements
+
+### Add link-flags.js to platform packages
+
+```javascript
+// npm/webcodecs-ffmpeg-darwin-arm64/link-flags.js
+module.exports = {
+  // For node-gyp "libraries" array
+  libraries: [
+    '-lavcodec', '-lavformat', '-lavutil', '-lswscale', '-lswresample',
+    '-lvpx', '-laom', '-ldav1d', '-lSvtAv1Enc',
+    '-lopus', '-logg', '-lvorbis', '-lvorbisenc', '-lmp3lame',
+    '-lz', '-lbz2', '-liconv'
+  ],
+
+  // Platform-specific frameworks/libs
+  system: process.platform === 'darwin'
+    ? ['-framework CoreFoundation', '-framework CoreMedia', '-framework VideoToolbox']
+    : ['-lpthread', '-lm', '-ldl'],
+
+  // Combined for convenience
+  all: [...this.libraries, ...this.system]
+};
+```
+
+### Add resolve helpers
+
+```javascript
+// In @pproenca/webcodecs-ffmpeg/resolve.js
+module.exports = {
+  lib: '/path/to/platform/lib',
+  pkgconfig: '/path/to/platform/lib/pkgconfig',
+  include: '/path/to/dev/include',  // NEW - also expose include path
+  linkFlags: require('@pproenca/webcodecs-ffmpeg-<platform>/link-flags')
+};
+```
+
+---
+
+## 8. Recommended node-webcodecs CI Fix
+
+### Remove system FFmpeg installation
+
+```yaml
+# REMOVE THIS:
+- name: Install system dependencies
+  run: |
+    dnf install -y ffmpeg-devel  # NO!
+```
+
+### Use webcodecs-ffmpeg packages
+
+```yaml
+- name: Install dependencies
+  run: npm install
+  # package.json devDependencies includes:
+  # "@pproenca/webcodecs-ffmpeg": "^0.1.5"
+  # "@pproenca/webcodecs-ffmpeg-dev": "^0.1.5"
+```
+
+### Ensure binding.gyp uses package paths
+
+See section 6 above.
+
+---
+
+## 9. Release Checklist for webcodecs-ffmpeg
+
+Before node-webcodecs can use the packages:
+
+1. [ ] Release v0.1.5 with SVT-AV1 LTO fix (commit 5384b30)
+2. [ ] Consider adding link-flags.js to platform packages
+3. [ ] Consider adding bin/ with ffmpeg/ffprobe (optional, for debugging)
+4. [ ] Update resolve.js to also expose include path from dev package
+5. [ ] Document binding.gyp integration in README
+
+---
+
+## 10. Quick Reference: Error → Cause → Fix
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `cannot find -lvpx` | Missing static lib | Add to library_dirs or link explicitly |
+| `file not found: avcodec.h` | Missing headers | Add to include_dirs |
+| `undefined symbol: x264_encoder_open` | Missing library in link | Add -lx264 to libraries |
+| `wrong architecture` | Cross-compile issue | Use correct platform package |
+| `plugin needed to handle lto object` | LTO-compiled lib | Rebuild without LTO or use LTO plugin |
+| `GLIBC_2.xx not found` | Binary built on newer glibc | Build on older system (Rocky 9 = glibc 2.34) |
+
+---
+
+## 11. link-flags.js Implementation Status
+
+### Current State
+The link-flags.js generation IS implemented in `scripts/populate-artifacts.sh`.
+It queries pkg-config and generates:
+
+```javascript
+// link-flags.js - Generated from pkg-config
+const path = require('path');
+const libDir = path.join(__dirname, 'lib');
+
+module.exports = {
+  libDir,
+  flags: `-L${libDir} -lavfilter -lavformat ... -lpthread -lm -lz ...`
+};
+```
+
+### Platform-Specific System Libraries
+```bash
+SYSTEM_DARWIN="-lpthread -lm -lz -lbz2 -liconv -lc++"
+SYSTEM_LINUX="-lpthread -lm -lz -lbz2 -ldl -lstdc++"
+SYSTEM_LINUX_MUSL="-lpthread -lm -lz -lbz2 -lstdc++"
+FRAMEWORKS_DARWIN="-framework VideoToolbox -framework AudioToolbox ..."
+```
+
+### The Problem
+The npm packages in node_modules might not have link-flags.js if:
+1. Release v0.1.4 didn't generate them properly
+2. The populate-artifacts.sh wasn't run during release
+
+node-webcodecs' gyp/ffmpeg-paths-lib.ts expects this export:
+
+```typescript
+// In tryResolveLinkFlagsFromNpmPackage():
+const linkFlags = require(`${pkgName}/link-flags`);
+if (linkFlags?.flags) {
+  return linkFlags.flags;
+}
+```
+
+The platform packages need to export `./link-flags` with a `flags` property.
+
+### Required Implementation in webcodecs-ffmpeg
+
+Each platform package (e.g., `@pproenca/webcodecs-ffmpeg-darwin-arm64`) needs:
+
+**File: link-flags.js**
+```javascript
+'use strict';
+
+// Static link flags for darwin-arm64
+// These are the libraries needed to statically link FFmpeg
+module.exports = {
+  // The full linker flags string
+  flags: [
+    '-L' + require('path').join(__dirname, 'lib'),
+    '-lavcodec',
+    '-lavformat',
+    '-lavutil',
+    '-lswscale',
+    '-lswresample',
+    '-lvpx',
+    '-laom',
+    '-ldav1d',
+    '-lSvtAv1Enc',
+    '-lopus',
+    '-logg',
+    '-lvorbis',
+    '-lvorbisenc',
+    '-lmp3lame',
+    '-lz',
+    '-lbz2',
+    '-liconv'
+  ].join(' ')
+};
+```
+
+**Update package.json exports:**
+```json
+{
+  "exports": {
+    "./lib": "./lib/index.js",
+    "./pkgconfig": "./lib/pkgconfig/index.js",
+    "./link-flags": "./link-flags.js",
+    "./package": "./package.json",
+    "./versions": "./versions.json"
+  }
+}
+```
+
+### Why link-flags.js is Needed
+
+pkg-config files (`.pc`) have HARDCODED ABSOLUTE PATHS:
+```
+prefix=/Users/runner/work/webcodecs-ffmpeg/build
+libdir=${prefix}/lib
+```
+
+When npm installs the package to `node_modules/@pproenca/...`, these paths are WRONG.
+
+The `link-flags.js` approach:
+1. Computes paths at runtime using `__dirname`
+2. Returns correct `-L` and `-l` flags
+3. Avoids pkg-config entirely
+
+---
+
+## 12. ROOT CAUSE: Why Linux glibc CI Fails
+
+### The Smoking Gun
+
+```yaml
+# In node-webcodecs CI workflow:
+- name: Install dependencies
+  run: npm install --omit=optional   # <-- THIS SKIPS PLATFORM PACKAGES!
+```
+
+Combined with:
+```yaml
+dnf install -y ffmpeg-devel  # Installs system FFmpeg (DYNAMIC)
+```
+
+### What Happens
+
+1. `npm install --omit=optional` → SKIPS @pproenca/webcodecs-ffmpeg-linux-x64
+   (Platform packages are optionalDependencies)
+
+2. node-gyp runs, ffmpeg-paths.js tries to resolve FFmpeg:
+   - tryResolveLinkFlagsFromNpmPackage() → FAILS (package not installed)
+   - getFfmpegRoot() → FAILS (no FFMPEG_ROOT, no npm package, no ./ffmpeg-install)
+   - Falls back to system pkg-config
+
+3. System pkg-config finds RPMFusion's FFmpeg (DYNAMIC build)
+   - Returns flags like `-lavcodec -lvpx -laom -ldav1d -lcairo -lX11...`
+   - These reference SHARED libraries (.so files)
+   - Linker can't find them as static → FAILS
+
+### The Fix
+
+**Option A:** Remove --omit=optional for Linux glibc
+```yaml
+- name: Install dependencies
+  run: npm install  # Install platform packages too
+```
+
+**Option B:** Remove system FFmpeg, rely only on npm packages
+```yaml
+# DON'T install ffmpeg-devel at all
+dnf install -y gcc-c++ make python3 git pkgconfig
+# pkg-config is still needed for querying .pc files from npm packages
+```
+
+**Option C (Best):** Both - use npm packages, no system FFmpeg
+```yaml
+- name: Install system dependencies
+  run: dnf install -y gcc-c++ make python3 git pkgconfig  # NO ffmpeg-devel!
+
+- name: Install dependencies
+  run: npm install  # Installs webcodecs-ffmpeg packages
+```
+
+---
+
+## 13. Testing Static Linking Locally
+
+```bash
+# Check what dynamic libs a .node file needs
+otool -L build/Release/node_webcodecs.node  # macOS
+ldd build/Release/node_webcodecs.node       # Linux
+
+# Should NOT show any FFmpeg libraries (libav*, libsw*)
+# Should only show system libs (libc, libm, libpthread, etc.)
+
+# Check binary architecture
+file build/Release/node_webcodecs.node
+# Should match your target: arm64, x86_64, etc.
+```
+
+---
+
+## 14. SUMMARY: Action Items
+
+### For webcodecs-ffmpeg (this repo)
+
+1. [x] link-flags.js is already implemented and working in v0.1.4
+2. [x] SVT-AV1 LTO fix for musl (commit 5384b30)
+3. [x] SVT-AV1 LTO fix for linux-x64 glibc (added 2026-01-12)
+4. [x] SVT-AV1 LTO fix for linux-arm64 (added 2026-01-12)
+5. [ ] Release v0.1.5 with all LTO fixes
+6. [ ] Consider adding ffmpeg/ffprobe binaries (optional, for debugging)
+
+### For node-webcodecs
+
+1. [x] Remove `--omit=optional` from Linux glibc CI (FIXED)
+   - Platform packages are optionalDependencies
+   - --omit=optional skips them entirely
+
+2. [ ] **CRITICAL:** Add system libraries to Linux glibc CI
+   ```yaml
+   dnf install -y gcc-c++ make python3 git pkgconfig zlib-devel bzip2-devel
+   ```
+   - zlib-devel provides libz.a / -lz
+   - bzip2-devel provides libbz2.a / -lbz2
+   - These are required system deps, NOT provided by webcodecs-ffmpeg
+
+3. [ ] Remove `dnf install ffmpeg-devel` from Linux glibc CI
+   - System FFmpeg conflicts with webcodecs-ffmpeg packages
+
+4. [ ] Verify webcodecs-ffmpeg packages are in devDependencies:
+   ```json
+   {
+     "devDependencies": {
+       "@pproenca/webcodecs-ffmpeg": "^0.1.5",
+       "@pproenca/webcodecs-ffmpeg-dev": "^0.1.5"
+     }
+   }
+   ```
+
+5. [ ] macOS ARM64 test failures need investigation (separate issue)
+
+---
+
+## 15. Platform Architecture: Ubuntu (glibc) vs Alpine (musl)
+
+### Fundamental Difference
+
+| Aspect | Ubuntu/glibc | Alpine/musl |
+|--------|--------------|-------------|
+| Libc | glibc (GNU C Library) | musl (lightweight) |
+| Static linking | Partial (codecs only) | Full (everything) |
+| LDFLAGS | `-pthread` | `-static -pthread` |
+| dlopen | Requires `-ldl` | Built into libc |
+| Package size | Smaller .a files | Larger (all deps included) |
+| Portability | Needs matching glibc version | Runs anywhere |
+
+### Why Different Approaches?
+
+**glibc (Ubuntu, RHEL, Debian):**
+- Full static linking is problematic (NSS, iconv, locale issues)
+- LGPL requires allowing relinking (easier with dynamic libc)
+- System libraries (zlib, bzip2) are ALWAYS present
+- **Strategy:** Static link FFmpeg+codecs, dynamic link system libs
+
+**musl (Alpine):**
+- Designed for full static linking
+- No NSS/iconv complications
+- Perfect for minimal Docker containers
+- **Strategy:** Everything static, single self-contained binary
+
+### System Library Requirements
+
+**For glibc builds (linux-x64, linux-arm64):**
+
+The consumer's build machine needs:
+```bash
+# Ubuntu/Debian
+apt install zlib1g-dev libbz2-dev
+
+# RHEL/Rocky/Fedora
+dnf install zlib-devel bzip2-devel
+```
+
+These provide:
+- `/usr/lib/x86_64-linux-gnu/libz.a` (or .so)
+- `/usr/lib/x86_64-linux-gnu/libbz2.a` (or .so)
+
+**For musl builds (linuxmusl-x64):**
+
+```bash
+# Alpine
+apk add zlib-dev bzip2-dev
+```
+
+### Link Flags by Platform
+
+```javascript
+// darwin-arm64, darwin-x64
+flags: "-L${libDir} ... -lpthread -lm -lz -lbz2 -liconv -lc++"
+       + frameworks
+
+// linux-x64, linux-arm64 (glibc)
+flags: "-L${libDir} ... -lpthread -lm -lz -lbz2 -ldl -lstdc++"
+
+// linuxmusl-x64 (musl)
+flags: "-L${libDir} ... -lpthread -lm -lz -lbz2 -lstdc++"
+       // Note: no -ldl (musl has dlopen in libc)
+```
+
+### Build vs Runtime for Each Platform
+
+**Important:** For Node.js native addons (.node files), "full static linking" isn't
+possible because the addon must dynamically link to Node.js. The distinction below
+applies to the FFmpeg binaries (ffmpeg, ffprobe) we build, not the final .node file.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ GLIBC (Ubuntu/RHEL) - For use with standard Linux distributions     │
+├─────────────────────────────────────────────────────────────────────┤
+│ BUILD TIME (building node-webcodecs):                               │
+│   @pproenca/webcodecs-ffmpeg-linux-x64                              │
+│   + zlib-devel, bzip2-devel (system packages)                       │
+│                                                                     │
+│ RUNTIME (running the built .node):                                  │
+│   - FFmpeg/codecs: STATIC (bundled in .node)                        │
+│   - System libs (libc, libz, libbz2): DYNAMIC                       │
+│                                                                     │
+│   Minimum requirements: glibc >= 2.34 (Rocky 9 / Ubuntu 22.04+)     │
+│   zlib, bzip2 runtime libs (always pre-installed)                   │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ MUSL (Alpine) - For minimal Docker containers                       │
+├─────────────────────────────────────────────────────────────────────┤
+│ BUILD TIME (building node-webcodecs):                               │
+│   @pproenca/webcodecs-ffmpeg-linux-x64-musl                         │
+│   + zlib-dev, bzip2-dev (Alpine packages)                           │
+│                                                                     │
+│ RUNTIME (running the built .node):                                  │
+│   - FFmpeg/codecs: STATIC (bundled in .node)                        │
+│   - System libs: STATIC (bundled via -static flag)                  │
+│                                                                     │
+│   Works on: Any musl-based system (Alpine, distroless, etc.)        │
+│   Note: The .node still needs Node.js (obviously)                   │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Why Both Need zlib-dev/bzip2-dev at BUILD Time
+
+Even though the webcodecs-ffmpeg packages contain all FFmpeg code as static
+libraries, they reference zlib/bzip2 symbols. When linking the final .node:
+
+```
+Your addon.o
+    + libavcodec.a (references zlib symbols)
+    + libavformat.a (references bzip2 symbols)
+    + ... other codecs
+    ─────────────────────
+    Linker needs: -lz -lbz2
+    ─────────────────────
+    These come from system packages (zlib-dev, bzip2-dev)
+```
+
+**Why not bundle zlib/bzip2 in the package?**
+1. They're tiny (~100KB) but ubiquitous - every system has them
+2. Version conflicts if we bundle a different version
+3. zlib especially is used by Node.js itself - must match
+
+### SVT-AV1 LTO: Why Disabled on All Linux
+
+SVT-AV1 enables Link-Time Optimization (LTO) by default with GCC. This embeds
+GCC-specific bytecode in the .a files that requires a matching GCC LTO plugin
+to process during final linking.
+
+**Problem:** Consumer toolchains rarely have the exact matching GCC version/plugin.
+
+**Solution:** Disable LTO on all Linux platforms:
+```makefile
+# In platforms/linux-*/config.mk
+SVTAV1_CMAKE_OPTS := -DSVT_AV1_LTO=OFF
+```
+
+This ensures the static libraries contain standard object code that any linker
+can process.
+
+---
+
+## 16. Package Dependency Model
+
+### Development Time (CI/Developer building node-webcodecs)
+
+```
+package.json (node-webcodecs)
+├── devDependencies
+│   ├── @pproenca/webcodecs-ffmpeg-dev     # Headers (cross-platform)
+│   └── @pproenca/webcodecs-ffmpeg         # Meta package
+│       └── optionalDependencies
+│           ├── @pproenca/webcodecs-ffmpeg-darwin-arm64
+│           ├── @pproenca/webcodecs-ffmpeg-darwin-x64
+│           ├── @pproenca/webcodecs-ffmpeg-linux-x64
+│           ├── @pproenca/webcodecs-ffmpeg-linux-x64-musl
+│           └── @pproenca/webcodecs-ffmpeg-linux-arm64
+```
+
+**npm install (default)** → Installs everything including optionalDependencies
+**npm install --omit=optional** → SKIPS platform packages (WRONG for builds!)
+
+### Runtime (End user installing node-webcodecs)
+
+```
+package.json (node-webcodecs)
+├── dependencies: (none related to ffmpeg)
+└── optionalDependencies
+    └── prebuilt .node files via prebuildify/prebuild-install
+```
+
+End users get prebuilt .node binaries - they never need FFmpeg headers or static libs.
+
+---
+
+## 16. Quick Diagnostic Commands
+
+```bash
+# Check if webcodecs-ffmpeg package is installed
+ls node_modules/@pproenca/webcodecs-ffmpeg-*/link-flags.js
+
+# Check what link flags would be used
+node -e "console.log(require('@pproenca/webcodecs-ffmpeg-darwin-arm64/link-flags').flags)"
+
+# Check if resolving works
+node -e "console.log(require('@pproenca/webcodecs-ffmpeg/resolve').lib)"
+
+# Verify static linking after build
+otool -L build/Release/node_webcodecs.node  # macOS
+ldd build/Release/node_webcodecs.node       # Linux
+
+# Check for FFmpeg symbols (should be present = statically linked)
+nm build/Release/node_webcodecs.node | grep avcodec_open
+```

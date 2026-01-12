@@ -81,6 +81,13 @@ X264_HOST :=
 # aom CPU target
 AOM_TARGET_CPU := x86_64
 
+# SVT-AV1: Disable LTO for portable static libraries
+# GCC LTO embeds compiler-specific bytecode that requires matching GCC LTO plugin
+# to link. Most consumer toolchains don't have this plugin, causing linker errors:
+#   "plugin needed to handle lto object"
+# Disabling LTO ensures the .a files contain standard object code.
+SVTAV1_CMAKE_OPTS := -DSVT_AV1_LTO=OFF
+
 # Architecture pattern for file command verification
 ARCH_VERIFY_PATTERN := x86-64
 
