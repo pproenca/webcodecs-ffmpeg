@@ -1,6 +1,6 @@
 {
   "name": "@pproenca/webcodecs-ffmpeg-darwin-x64",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Prebuilt FFmpeg with LGPL-safe codecs (VP8/9, AV1, Opus, Vorbis, MP3) for darwin-x64",
   "author": "Pedro Proenca",
   "homepage": "https://github.com/pproenca/webcodecs-ffmpeg",

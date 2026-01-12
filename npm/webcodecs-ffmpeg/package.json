@@ -1,6 +1,6 @@
 {
   "name": "@pproenca/webcodecs-ffmpeg",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Prebuilt FFmpeg with LGPL-safe codecs (VP8/9, AV1, Opus, Vorbis, MP3) - auto-selects platform",
   "author": "Pedro Proenca",
   "homepage": "https://github.com/pproenca/webcodecs-ffmpeg",
@@ -26,10 +26,10 @@
     "postinstall": "node install.js"
   },
   "optionalDependencies": {
-    "@pproenca/webcodecs-ffmpeg-darwin-arm64": "0.1.4",
-    "@pproenca/webcodecs-ffmpeg-darwin-x64": "0.1.4",
-    "@pproenca/webcodecs-ffmpeg-linux-arm64": "0.1.4",
-    "@pproenca/webcodecs-ffmpeg-linux-x64": "0.1.4",
-    "@pproenca/webcodecs-ffmpeg-linux-x64-musl": "0.1.4"
+    "@pproenca/webcodecs-ffmpeg-darwin-arm64": "0.1.5",
+    "@pproenca/webcodecs-ffmpeg-darwin-x64": "0.1.5",
+    "@pproenca/webcodecs-ffmpeg-linux-arm64": "0.1.5",
+    "@pproenca/webcodecs-ffmpeg-linux-x64": "0.1.5",
+    "@pproenca/webcodecs-ffmpeg-linux-x64-musl": "0.1.5"
   }
 }
