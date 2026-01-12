@@ -87,6 +87,10 @@ AOM_TARGET_CPU := x86_64
 # Architecture pattern for file command verification
 ARCH_VERIFY_PATTERN := x86-64
 
+# SVT-AV1: Disable LTO on musl (GCC LTO plugin not available by default,
+# and version mismatches between build-time and link-time GCC cause failures)
+SVTAV1_CMAKE_OPTS := -DSVT_AV1_LTO=OFF
+
 # FFmpeg extra libraries for linking
 # musl doesn't need -ldl (dlopen is in libc)
 FFMPEG_EXTRA_LIBS := -lpthread -lm -lstdc++

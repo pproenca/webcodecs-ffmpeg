@@ -8,6 +8,10 @@
 SVTAV1_SRC := $(SOURCES_DIR)/SVT-AV1-$(SVTAV1_VERSION)
 SVTAV1_BUILD := $(SVTAV1_SRC)/build
 
+# Platform-specific CMake options (default: empty, LTO enabled)
+# Override in platform config.mk to disable LTO on musl
+SVTAV1_CMAKE_OPTS ?=
+
 svt-av1.stamp:
 	$(call log_info,Building SVT-AV1 $(SVTAV1_VERSION)...)
 	@mkdir -p $(SOURCES_DIR) $(STAMPS_DIR)
@@ -16,6 +20,7 @@ svt-av1.stamp:
 	cd $(SVTAV1_BUILD) && \
 		cmake $(SVTAV1_SRC) \
 			$(CMAKE_OPTS) \
+			$(SVTAV1_CMAKE_OPTS) \
 			-DBUILD_SHARED_LIBS=OFF \
 			-DBUILD_APPS=OFF \
 			-DBUILD_DEC=ON \
