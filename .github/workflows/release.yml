@@ -148,7 +148,7 @@ jobs:
           version: 9
 
       - name: Download CI artifacts
-        uses: dawidd6/action-download-artifact@v12
+        uses: dawidd6/action-download-artifact@v13
         with:
           workflow: ci.yml
           run_id: ${{ needs.check-artifacts.outputs.run_id }}
